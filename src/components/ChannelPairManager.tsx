@@ -105,23 +105,32 @@ const ChannelPairManager: React.FC<ChannelPairManagerProps> = ({
   
   // Handle auto-save when channel pairs change
   const handleSaveChannelPairs = async () => {
-    const success = await saveChannelPairs();
-    
-    // If we're connected and save was successful, update the listener with new channel pairs
-    if (success && isConnected && selectedAccount) {
-      // Disconnect existing listener
-      if (listenerState && listenerState.stopListener) {
-        listenerState.stopListener();
+    try {
+      const success = await saveChannelPairs();
+      
+      // If we're connected and save was successful, update the listener with new channel pairs
+      if (success && isConnected && selectedAccount) {
+        // Disconnect existing listener
+        if (listenerState && listenerState.stopListener) {
+          listenerState.stopListener();
+        }
+        
+        // Setup new listener with updated channel pairs
+        const listener = await setupRealtimeListener(
+          selectedAccount,
+          channelPairs,
+          onNewMessages
+        );
+        
+        setListenerState(listener);
       }
-      
-      // Setup new listener with updated channel pairs
-      const listener = await setupRealtimeListener(
-        selectedAccount,
-        channelPairs,
-        onNewMessages
-      );
-      
-      setListenerState(listener);
+    } catch (error) {
+      console.error('Error saving channel pairs:', error);
+      toast({
+        title: "Save Failed",
+        description: `Could not save channel configuration: ${error.message}`,
+        variant: "destructive",
+      });
     }
   };
   

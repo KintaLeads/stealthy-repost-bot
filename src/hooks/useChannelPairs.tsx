@@ -85,14 +85,14 @@ export const useChannelPairs = (selectedAccount: ApiAccount | null) => {
     setChannelPairs(updatedPairs);
   };
   
-  const saveChannelPairs = () => {
+  const saveChannelPairs = async (): Promise<boolean> => {
     if (!selectedAccount) {
       toast({
         title: "No account selected",
         description: "Please select or create an API account first",
         variant: "destructive",
       });
-      return;
+      return false;
     }
     
     // Validate channel configurations
@@ -106,19 +106,31 @@ export const useChannelPairs = (selectedAccount: ApiAccount | null) => {
         description: "Please fill all required fields in all channel configurations",
         variant: "destructive",
       });
-      return;
+      return false;
     }
 
     setIsSaving(true);
     
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
       toast({
         title: "Configuration saved",
         description: `${channelPairs.length} channel${channelPairs.length > 1 ? 's' : ''} configured successfully`,
       });
       setIsSaving(false);
-    }, 1500);
+      return true;
+    } catch (error) {
+      console.error('Error saving channel pairs:', error);
+      toast({
+        title: "Save failed",
+        description: "Could not save channel configurations",
+        variant: "destructive",
+      });
+      setIsSaving(false);
+      return false;
+    }
   };
   
   return {
