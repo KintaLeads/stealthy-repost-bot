@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -67,7 +66,7 @@ const ApiAccountManager: React.FC<ApiAccountManagerProps> = ({ onAccountSelect, 
         .select('*')
         .eq('api_name', 'myproto_telegram')
         .eq('user_id', session.user.id)
-        .order('nickname', { ascending: true });
+        .order('api_key', { ascending: true });
       
       if (error) {
         throw error;
@@ -76,7 +75,7 @@ const ApiAccountManager: React.FC<ApiAccountManagerProps> = ({ onAccountSelect, 
       if (data && data.length > 0) {
         const formattedAccounts = data.map(account => ({
           id: account.id,
-          nickname: account.nickname || 'Default Account',
+          nickname: account.api_name || 'Default Account',  // Use api_name as nickname temporarily
           apiKey: account.api_key || '',
           apiHash: account.api_secret?.split('|')[0] || '',
           phoneNumber: account.api_secret?.split('|')[1] || '',
@@ -133,10 +132,9 @@ const ApiAccountManager: React.FC<ApiAccountManagerProps> = ({ onAccountSelect, 
         .from('api_credentials')
         .insert({
           user_id: session.user.id,
-          api_name: 'myproto_telegram',
+          api_name: newAccount.nickname, // Store nickname in api_name field
           api_key: newAccount.apiKey,
-          api_secret: apiSecret,
-          nickname: newAccount.nickname
+          api_secret: apiSecret
         })
         .select()
         .single();
@@ -146,7 +144,7 @@ const ApiAccountManager: React.FC<ApiAccountManagerProps> = ({ onAccountSelect, 
       if (data) {
         const createdAccount = {
           id: data.id,
-          nickname: data.nickname,
+          nickname: data.api_name, // Use api_name as nickname
           apiKey: data.api_key,
           apiHash: newAccount.apiHash,
           phoneNumber: newAccount.phoneNumber,
@@ -169,7 +167,7 @@ const ApiAccountManager: React.FC<ApiAccountManagerProps> = ({ onAccountSelect, 
         
         toast({
           title: "Account created",
-          description: `API account "${data.nickname}" has been created successfully`,
+          description: `API account "${data.api_name}" has been created successfully`,
         });
         
         setIsCreating(false);
@@ -207,7 +205,7 @@ const ApiAccountManager: React.FC<ApiAccountManagerProps> = ({ onAccountSelect, 
         .update({
           api_key: account.apiKey,
           api_secret: apiSecret,
-          nickname: account.nickname,
+          api_name: account.nickname, // Update api_name with nickname
           updated_at: new Date().toISOString()
         })
         .eq('id', account.id);

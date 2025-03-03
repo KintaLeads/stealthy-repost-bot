@@ -1,15 +1,24 @@
 
 import React from 'react';
-import { Bell, Settings, Moon, Sun } from 'lucide-react';
+import { Bell, Settings, Moon, Sun, LogOut } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu";
 
 interface HeaderProps {
   isDarkMode: boolean;
   toggleDarkMode: () => void;
+  userEmail?: string | null;
+  onSignOut?: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ isDarkMode, toggleDarkMode }) => {
+const Header: React.FC<HeaderProps> = ({ isDarkMode, toggleDarkMode, userEmail, onSignOut }) => {
   const { toast } = useToast();
   
   const handleNotificationClick = () => {
@@ -56,6 +65,12 @@ const Header: React.FC<HeaderProps> = ({ isDarkMode, toggleDarkMode }) => {
       </div>
       
       <div className="flex items-center gap-3">
+        {userEmail && (
+          <div className="mr-2 text-sm text-muted-foreground">
+            <span>{userEmail}</span>
+          </div>
+        )}
+        
         <Button 
           variant="ghost" 
           size="icon" 
@@ -85,6 +100,17 @@ const Header: React.FC<HeaderProps> = ({ isDarkMode, toggleDarkMode }) => {
         >
           <Settings size={18} className="text-muted-foreground" />
         </Button>
+        
+        {onSignOut && (
+          <Button 
+            variant="ghost" 
+            size="icon"
+            onClick={onSignOut}
+            className="hover:bg-secondary/80 transition-colors"
+          >
+            <LogOut size={18} className="text-muted-foreground" />
+          </Button>
+        )}
       </div>
     </header>
   );
