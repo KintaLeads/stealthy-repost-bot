@@ -14,6 +14,7 @@ interface AuthFormProps {
 const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [registrationCode, setRegistrationCode] = useState('');
   const [isLoginMode, setIsLoginMode] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -35,6 +36,17 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess }) => {
         });
         if (onAuthSuccess) onAuthSuccess();
       } else {
+        // Check registration code
+        if (registrationCode !== "1708") {
+          toast({
+            title: "Invalid registration code",
+            description: "The registration code you entered is incorrect.",
+            variant: "destructive",
+          });
+          setIsSubmitting(false);
+          return;
+        }
+
         const { error } = await supabase.auth.signUp({
           email,
           password,
@@ -92,6 +104,19 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess }) => {
                 minLength={6}
               />
             </div>
+            {!isLoginMode && (
+              <div className="space-y-2">
+                <Label htmlFor="registrationCode">Registration Code</Label>
+                <Input
+                  id="registrationCode"
+                  type="password"
+                  placeholder="Enter the secret registration code"
+                  value={registrationCode}
+                  onChange={(e) => setRegistrationCode(e.target.value)}
+                  required
+                />
+              </div>
+            )}
           </CardContent>
           <CardFooter className="flex flex-col space-y-4">
             <Button
