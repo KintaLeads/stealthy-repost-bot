@@ -6,6 +6,7 @@ import StatusMetrics from './StatusMetrics';
 import SettingsPanel from './SettingsPanel';
 import { supabase } from "@/integrations/supabase/client";
 import { detectCompetitorMentions, replaceCompetitorMentions } from '../utils/messageUtils';
+import { toast } from "@/components/ui/use-toast";
 
 interface DashboardProps {
   isConnected: boolean;
@@ -26,6 +27,14 @@ interface Message {
   modifiedText?: string;
 }
 
+// Interface for API credentials
+interface ApiCredentials {
+  id?: string;
+  apiKey: string;
+  apiHash: string;
+  phoneNumber: string;
+}
+
 const Dashboard: React.FC<DashboardProps> = ({
   isConnected,
   onToggleConnection,
@@ -40,6 +49,103 @@ const Dashboard: React.FC<DashboardProps> = ({
     uptime: '3d 8h'
   });
   const [competitors, setCompetitors] = useState<string[]>([]);
+  const [apiCredentials, setApiCredentials] = useState<ApiCredentials>({
+    apiKey: '',
+    apiHash: '',
+    phoneNumber: ''
+  });
+  const [isLoadingCredentials, setIsLoadingCredentials] = useState(true);
+  
+  // Fetch API credentials if user is authenticated
+  useEffect(() => {
+    const fetchApiCredentials = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session?.user) {
+        setIsLoadingCredentials(true);
+        
+        const { data, error } = await supabase
+          .from('api_credentials')
+          .select('*')
+          .eq('api_name', 'myproto_telegram')
+          .eq('user_id', session.user.id)
+          .single();
+        
+        if (data) {
+          // Decrypt or parse stored credentials as needed
+          setApiCredentials({
+            id: data.id,
+            apiKey: data.api_key || '',
+            apiHash: data.api_secret || '',
+            phoneNumber: data.api_secret?.split('|')[1] || ''
+          });
+        }
+        
+        setIsLoadingCredentials(false);
+      }
+    };
+    
+    if (!isLoading) {
+      fetchApiCredentials();
+    }
+  }, [isLoading]);
+  
+  // Save API credentials
+  const handleSaveCredentials = async (credentials: ApiCredentials) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (!session?.user) {
+      toast({
+        title: "Authentication required",
+        description: "Please log in to save API credentials",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Store api_hash in api_secret field along with phone number
+    const apiSecret = `${credentials.apiHash}|${credentials.phoneNumber}`;
+    
+    let query;
+    if (credentials.id) {
+      // Update existing credentials
+      query = supabase
+        .from('api_credentials')
+        .update({
+          api_key: credentials.apiKey,
+          api_secret: apiSecret,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', credentials.id);
+    } else {
+      // Insert new credentials
+      query = supabase
+        .from('api_credentials')
+        .insert({
+          user_id: session.user.id,
+          api_name: 'myproto_telegram',
+          api_key: credentials.apiKey,
+          api_secret: apiSecret
+        });
+    }
+    
+    const { error } = await query;
+    
+    if (error) {
+      toast({
+        title: "Error saving credentials",
+        description: error.message,
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "API credentials saved",
+        description: "Your Telegram API credentials have been saved securely",
+      });
+      // Update local state with the new credentials
+      setApiCredentials(credentials);
+    }
+  };
   
   // Simulating data fetch with sample data
   useEffect(() => {
@@ -109,6 +215,9 @@ const Dashboard: React.FC<DashboardProps> = ({
           <ChannelConfig 
             isConnected={isConnected}
             onToggleConnection={onToggleConnection}
+            apiCredentials={apiCredentials}
+            onSaveCredentials={handleSaveCredentials}
+            isLoadingCredentials={isLoadingCredentials}
           />
           
           <MessagePreview 

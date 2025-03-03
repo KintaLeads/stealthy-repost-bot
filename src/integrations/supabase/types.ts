@@ -9,7 +9,226 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      api_credentials: {
+        Row: {
+          api_key: string
+          api_name: string
+          api_secret: string | null
+          created_at: string | null
+          id: string
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          api_key: string
+          api_name: string
+          api_secret?: string | null
+          created_at?: string | null
+          id?: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          api_key?: string
+          api_name?: string
+          api_secret?: string | null
+          created_at?: string | null
+          id?: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      channel_mappings: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          source_channel_id: string
+          target_channel_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          source_channel_id: string
+          target_channel_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          source_channel_id?: string
+          target_channel_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_mappings_source_channel_id_fkey"
+            columns: ["source_channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "channel_mappings_target_channel_id_fkey"
+            columns: ["target_channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      channels: {
+        Row: {
+          channel_id: string
+          channel_name: string
+          channel_type: string
+          created_at: string
+          id: string
+          is_active: boolean
+          owner_id: string
+        }
+        Insert: {
+          channel_id: string
+          channel_name: string
+          channel_type?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          owner_id: string
+        }
+        Update: {
+          channel_id?: string
+          channel_name?: string
+          channel_type?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          owner_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channels_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "telegram_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      competitors: {
+        Row: {
+          channel_id: string
+          created_at: string
+          id: string
+          is_active: boolean
+          username: string
+        }
+        Insert: {
+          channel_id: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          username: string
+        }
+        Update: {
+          channel_id?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          username?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "competitors_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      messages: {
+        Row: {
+          contains_competitor_mention: boolean
+          created_at: string
+          detected_competitors: string[] | null
+          id: string
+          message_id: string
+          modified_text: string | null
+          original_text: string
+          processed: boolean
+          processed_at: string | null
+          source_channel_id: string
+          target_channel_id: string | null
+        }
+        Insert: {
+          contains_competitor_mention?: boolean
+          created_at?: string
+          detected_competitors?: string[] | null
+          id?: string
+          message_id: string
+          modified_text?: string | null
+          original_text: string
+          processed?: boolean
+          processed_at?: string | null
+          source_channel_id: string
+          target_channel_id?: string | null
+        }
+        Update: {
+          contains_competitor_mention?: boolean
+          created_at?: string
+          detected_competitors?: string[] | null
+          id?: string
+          message_id?: string
+          modified_text?: string | null
+          original_text?: string
+          processed?: boolean
+          processed_at?: string | null
+          source_channel_id?: string
+          target_channel_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_source_channel_id_fkey"
+            columns: ["source_channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_target_channel_id_fkey"
+            columns: ["target_channel_id"]
+            isOneToOne: false
+            referencedRelation: "channels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      telegram_users: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          user_id: string
+          username: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          user_id: string
+          username?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          user_id?: string
+          username?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
