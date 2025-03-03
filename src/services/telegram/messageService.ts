@@ -1,93 +1,13 @@
 
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/components/ui/use-toast";
 import { ApiAccount, ChannelPair } from "@/types/channels";
 import { Message } from "@/types/dashboard";
-import { toast } from "@/components/ui/use-toast";
+import { getStoredSession, storeSession } from "./sessionManager";
 
-export interface TelegramSession {
-  sessionString: string;
-  createdAt: Date;
-}
-
-// Local storage keys
-const SESSION_STORAGE_KEY = 'telegram_session';
-
-// Store the Telegram session
-const storeSession = (sessionString: string) => {
-  const session: TelegramSession = {
-    sessionString,
-    createdAt: new Date()
-  };
-  localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
-};
-
-// Get the stored session if valid (not older than 1 day)
-const getStoredSession = (): string | null => {
-  const sessionJson = localStorage.getItem(SESSION_STORAGE_KEY);
-  if (!sessionJson) return null;
-  
-  try {
-    const session: TelegramSession = JSON.parse(sessionJson);
-    const now = new Date();
-    const sessionDate = new Date(session.createdAt);
-    
-    // Check if session is older than 1 day
-    if ((now.getTime() - sessionDate.getTime()) > 24 * 60 * 60 * 1000) {
-      localStorage.removeItem(SESSION_STORAGE_KEY);
-      return null;
-    }
-    
-    return session.sessionString;
-  } catch (error) {
-    console.error('Error parsing stored session:', error);
-    localStorage.removeItem(SESSION_STORAGE_KEY);
-    return null;
-  }
-};
-
-// Connect to Telegram
-export const connectToTelegram = async (account: ApiAccount): Promise<boolean> => {
-  try {
-    const { data, error } = await supabase.functions.invoke('telegram-connector', {
-      body: {
-        operation: 'connect',
-        apiId: account.apiKey,
-        apiHash: account.apiHash,
-        phoneNumber: account.phoneNumber
-      }
-    });
-    
-    if (error) {
-      toast({
-        title: "Connection Failed",
-        description: `Could not connect to Telegram: ${error.message}`,
-        variant: "destructive",
-      });
-      return false;
-    }
-    
-    if (data.sessionString) {
-      storeSession(data.sessionString);
-    }
-    
-    toast({
-      title: "Connected to Telegram",
-      description: "Successfully connected to Telegram API"
-    });
-    
-    return true;
-  } catch (error) {
-    console.error('Error connecting to Telegram:', error);
-    toast({
-      title: "Connection Error",
-      description: `Failed to connect to Telegram API: ${error.message}`,
-      variant: "destructive",
-    });
-    return false;
-  }
-};
-
-// Listen to channel messages
+/**
+ * Fetch messages from configured channels
+ */
 export const fetchChannelMessages = async (
   account: ApiAccount,
   channelPairs: ChannelPair[]
@@ -171,7 +91,9 @@ export const fetchChannelMessages = async (
   }
 };
 
-// Repost a message to target channel
+/**
+ * Repost a message to target channel
+ */
 export const repostMessage = async (
   account: ApiAccount,
   message: Message,
@@ -229,36 +151,4 @@ export const repostMessage = async (
     });
     return false;
   }
-};
-
-// Create a realtime listener for Telegram messages
-export const setupRealtimeListener = async (
-  account: ApiAccount,
-  channelPairs: ChannelPair[],
-  onNewMessages: (messages: Message[]) => void
-): Promise<{ stopListener: () => void }> => {
-  // Initial fetch to get current messages
-  const initialMessages = await fetchChannelMessages(account, channelPairs);
-  if (initialMessages.length > 0) {
-    onNewMessages(initialMessages);
-  }
-  
-  // Setup polling every 30 seconds (as a fallback for realtime)
-  const intervalId = setInterval(async () => {
-    try {
-      const newMessages = await fetchChannelMessages(account, channelPairs);
-      if (newMessages.length > 0) {
-        onNewMessages(newMessages);
-      }
-    } catch (error) {
-      console.error('Error in polling for messages:', error);
-    }
-  }, 30000); // 30 seconds
-  
-  // Return a function to stop the listener
-  return {
-    stopListener: () => {
-      clearInterval(intervalId);
-    }
-  };
 };
