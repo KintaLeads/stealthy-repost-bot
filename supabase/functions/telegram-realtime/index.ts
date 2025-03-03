@@ -1,5 +1,5 @@
 
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1'
 
 // CORS headers for browser compatibility
 const corsHeaders = {

@@ -7,3 +7,5 @@ enabled = true
 verify_jwt = false
 [functions.telegram-realtime]
 verify_jwt = false
+[functions.validate-registration]
+verify_jwt = false
