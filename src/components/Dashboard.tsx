@@ -1,4 +1,3 @@
-
 import React from 'react';
 import ChannelConfig from './ChannelConfig';
 import MessagePreview from './MessagePreview';
@@ -29,7 +28,7 @@ const Dashboard: React.FC<DashboardProps> = ({
     },
     {
       id: '2',
-      text: 'We're running a special promotion this weekend. Don't miss out!',
+      text: "We're running a special promotion this weekend. Don't miss out!",
       media: 'https://images.unsplash.com/photo-1586880244406-556ebe35f282?q=80&w=1074&auto=format&fit=crop',
       time: 'Yesterday',
       username: 'channel_admin',
