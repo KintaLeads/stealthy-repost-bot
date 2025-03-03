@@ -15,6 +15,7 @@ interface Message {
   processed: boolean;
   detectedCompetitors?: string[];
   modifiedText?: string;
+  finalText?: string; // Added final text with CTA
 }
 
 interface MessagePreviewProps {
@@ -101,8 +102,11 @@ const MessagePreview: React.FC<MessagePreviewProps> = ({ messages, isLoading }) 
                       <div className="mt-2 p-2 bg-secondary/30 rounded-md border border-border/50">
                         <p className="text-xs text-muted-foreground mb-1">Detected competitors: {message.detectedCompetitors.join(', ')}</p>
                         <p className="text-sm leading-relaxed text-green-600 dark:text-green-400">
-                          <span className="font-medium">Modified text:</span> {message.modifiedText}
+                          <span className="font-medium">Will be reposted as:</span>
                         </p>
+                        <div className="mt-1 p-2 bg-background rounded-md border border-border/30 text-sm whitespace-pre-line">
+                          {message.finalText || message.modifiedText}
+                        </div>
                       </div>
                     )}
                     

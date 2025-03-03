@@ -1,11 +1,12 @@
 
 import React, { useState, useEffect } from 'react';
-import ChannelConfig from './ChannelConfig';
+import ApiAccountManager from './ApiAccountManager';
+import ChannelPairManager from './ChannelPairManager';
 import MessagePreview from './MessagePreview';
 import StatusMetrics from './StatusMetrics';
 import SettingsPanel from './SettingsPanel';
 import { supabase } from "@/integrations/supabase/client";
-import { detectCompetitorMentions, replaceCompetitorMentions } from '../utils/messageUtils';
+import { processMessageText } from '../utils/messageUtils';
 import { toast } from "@/components/ui/use-toast";
 
 interface DashboardProps {
@@ -25,11 +26,13 @@ interface Message {
   processed: boolean;
   detectedCompetitors?: string[];
   modifiedText?: string;
+  finalText?: string;
 }
 
 // Interface for API credentials
-interface ApiCredentials {
-  id?: string;
+interface ApiAccount {
+  id: string;
+  nickname: string;
   apiKey: string;
   apiHash: string;
   phoneNumber: string;
@@ -49,107 +52,11 @@ const Dashboard: React.FC<DashboardProps> = ({
     uptime: '3d 8h'
   });
   const [competitors, setCompetitors] = useState<string[]>([]);
-  const [apiCredentials, setApiCredentials] = useState<ApiCredentials>({
-    apiKey: '',
-    apiHash: '',
-    phoneNumber: ''
-  });
-  const [isLoadingCredentials, setIsLoadingCredentials] = useState(true);
-  
-  // Fetch API credentials if user is authenticated
-  useEffect(() => {
-    const fetchApiCredentials = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (session?.user) {
-        setIsLoadingCredentials(true);
-        
-        const { data, error } = await supabase
-          .from('api_credentials')
-          .select('*')
-          .eq('api_name', 'myproto_telegram')
-          .eq('user_id', session.user.id)
-          .single();
-        
-        if (data) {
-          // Decrypt or parse stored credentials as needed
-          setApiCredentials({
-            id: data.id,
-            apiKey: data.api_key || '',
-            apiHash: data.api_secret || '',
-            phoneNumber: data.api_secret?.split('|')[1] || ''
-          });
-        }
-        
-        setIsLoadingCredentials(false);
-      }
-    };
-    
-    if (!isLoading) {
-      fetchApiCredentials();
-    }
-  }, [isLoading]);
-  
-  // Save API credentials
-  const handleSaveCredentials = async (credentials: ApiCredentials) => {
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    if (!session?.user) {
-      toast({
-        title: "Authentication required",
-        description: "Please log in to save API credentials",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    // Store api_hash in api_secret field along with phone number
-    const apiSecret = `${credentials.apiHash}|${credentials.phoneNumber}`;
-    
-    let query;
-    if (credentials.id) {
-      // Update existing credentials
-      query = supabase
-        .from('api_credentials')
-        .update({
-          api_key: credentials.apiKey,
-          api_secret: apiSecret,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', credentials.id);
-    } else {
-      // Insert new credentials
-      query = supabase
-        .from('api_credentials')
-        .insert({
-          user_id: session.user.id,
-          api_name: 'myproto_telegram',
-          api_key: credentials.apiKey,
-          api_secret: apiSecret
-        });
-    }
-    
-    const { error } = await query;
-    
-    if (error) {
-      toast({
-        title: "Error saving credentials",
-        description: error.message,
-        variant: "destructive",
-      });
-    } else {
-      toast({
-        title: "API credentials saved",
-        description: "Your Telegram API credentials have been saved securely",
-      });
-      // Update local state with the new credentials
-      setApiCredentials(credentials);
-    }
-  };
+  const [selectedAccount, setSelectedAccount] = useState<ApiAccount | null>(null);
   
   // Simulating data fetch with sample data
   useEffect(() => {
-    if (!isLoading) {
+    if (!isLoading && selectedAccount) {
       // Sample competitor usernames that would typically come from the database
       const sampleCompetitors = ['competitor_telegram_username', 'other_competitor', 'third_competitor'];
       setCompetitors(sampleCompetitors);
@@ -180,17 +87,17 @@ const Dashboard: React.FC<DashboardProps> = ({
         }
       ];
       
-      // Process each message to detect competitor mentions
+      // Process each message to detect competitor mentions and add CTA
+      const targetUsername = 'your_username_provided'; // This would come from the selected channel pair
+      
       const processedMessages = sampleMessages.map(message => {
-        const detectedCompetitors = detectCompetitorMentions(message.text, sampleCompetitors);
-        const modifiedText = detectedCompetitors.length > 0 
-          ? replaceCompetitorMentions(message.text, detectedCompetitors, 'your_username') 
-          : undefined;
+        const processedText = processMessageText(message.text, sampleCompetitors, targetUsername);
           
         return {
           ...message,
-          detectedCompetitors,
-          modifiedText
+          detectedCompetitors: processedText.detectedCompetitors,
+          modifiedText: processedText.modifiedText,
+          finalText: processedText.finalText
         };
       });
       
@@ -204,7 +111,14 @@ const Dashboard: React.FC<DashboardProps> = ({
         uptime: '3d 8h'
       });
     }
-  }, [isLoading]);
+  }, [isLoading, selectedAccount]);
+  
+  const handleAccountSelect = (account: ApiAccount) => {
+    setSelectedAccount(account);
+    console.log("Selected account:", account);
+    
+    // In a real implementation, you would load channel pairs for this account from the database
+  };
   
   return (
     <div className="w-full max-w-7xl mx-auto px-8 pb-12">
@@ -212,18 +126,23 @@ const Dashboard: React.FC<DashboardProps> = ({
         <StatusMetrics metrics={metrics} isLoading={isLoading} />
         
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <ChannelConfig 
-            isConnected={isConnected}
-            onToggleConnection={onToggleConnection}
-            apiCredentials={apiCredentials}
-            onSaveCredentials={handleSaveCredentials}
-            isLoadingCredentials={isLoadingCredentials}
+          <ApiAccountManager 
+            onAccountSelect={handleAccountSelect}
+            selectedAccountId={selectedAccount?.id || null}
           />
           
-          <MessagePreview 
-            messages={messages}
-            isLoading={isLoading}
-          />
+          <div className="space-y-8">
+            <ChannelPairManager 
+              selectedAccount={selectedAccount}
+              isConnected={isConnected}
+              onToggleConnection={onToggleConnection}
+            />
+            
+            <MessagePreview 
+              messages={messages}
+              isLoading={isLoading}
+            />
+          </div>
         </div>
         
         <SettingsPanel onSettingsChange={onSettingsChange} />
