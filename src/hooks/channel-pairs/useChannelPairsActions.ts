@@ -8,7 +8,7 @@ export const useChannelPairsActions = (
   channelPairs: ChannelPair[],
   setChannelPairs: (pairs: ChannelPair[]) => void,
   setIsSaving: (value: boolean) => void
-): UseChannelPairsActions => {
+): Omit<UseChannelPairsActions, 'setIsAutoRepost' | 'fetchChannelPairs'> => {
   
   const handleChannelPairChange = (index: number, field: keyof ChannelPair, value: string | boolean) => {
     const updatedPairs = [...channelPairs];
@@ -98,8 +98,6 @@ export const useChannelPairsActions = (
     handleChannelPairChange,
     addChannelPair,
     removeChannelPair,
-    saveChannelPairs,
-    setIsAutoRepost: () => {}, // This will be properly implemented in the main hook
-    fetchChannelPairs: async () => {} // This will be properly implemented in the main hook
+    saveChannelPairs
   };
 };

@@ -2,9 +2,9 @@
 import { useState, useEffect } from 'react';
 import { ChannelPair, ApiAccount } from '@/types/channels';
 import { toast } from "@/components/ui/use-toast";
-import { UseChannelPairsState } from './types';
+import { UseChannelPairsState, UseChannelPairsStateInternal } from './types';
 
-export const useChannelPairsData = (selectedAccount: ApiAccount | null): UseChannelPairsState & { 
+export const useChannelPairsData = (selectedAccount: ApiAccount | null): UseChannelPairsStateInternal & { 
   fetchChannelPairs: () => Promise<void> 
 } => {
   const [channelPairs, setChannelPairs] = useState<ChannelPair[]>([]);
