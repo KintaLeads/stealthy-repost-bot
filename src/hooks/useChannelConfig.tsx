@@ -1,11 +1,11 @@
 
 import { useState, useEffect } from 'react';
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 
 interface ChannelSettings {
-  interval: number;
+  isRealTimeMode: boolean;
+  backupInterval: number;
   isMediaEnabled: boolean;
-  maxRetries: number;
   notificationType: string;
 }
 
@@ -14,9 +14,9 @@ export const useChannelConfig = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
   const [settings, setSettings] = useState<ChannelSettings>({
-    interval: 5,
+    isRealTimeMode: true,
+    backupInterval: 30,
     isMediaEnabled: true,
-    maxRetries: 3,
     notificationType: 'important'
   });
   
@@ -41,13 +41,14 @@ export const useChannelConfig = () => {
   }, []);
 
   const toggleConnection = () => {
-    setIsConnected(prev => !prev);
+    const newConnectionState = !isConnected;
+    setIsConnected(newConnectionState);
     
     toast({
-      title: isConnected ? "Disconnected" : "Connected",
-      description: isConnected 
-        ? "Channel monitoring has been paused" 
-        : "Now monitoring channel for new messages",
+      title: newConnectionState ? "Listener Active" : "Listener Stopped",
+      description: newConnectionState 
+        ? "Real-time monitoring has been activated" 
+        : "Channel monitoring has been paused",
     });
   };
   
@@ -63,6 +64,14 @@ export const useChannelConfig = () => {
   
   const updateSettings = (newSettings: Partial<ChannelSettings>) => {
     setSettings(prev => ({ ...prev, ...newSettings }));
+    
+    // If real-time mode was just enabled, show a helpful toast
+    if (newSettings.isRealTimeMode && !settings.isRealTimeMode) {
+      toast({
+        title: "Real-time monitoring enabled",
+        description: "Messages will be detected and processed instantly",
+      });
+    }
   };
 
   return {

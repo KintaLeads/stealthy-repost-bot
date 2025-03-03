@@ -5,10 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
-import { Slider } from "@/components/ui/slider";
-import { RefreshCw, Save, Clock } from "lucide-react";
+import { RefreshCw, Save, BellRing, FileImage } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 
 interface SettingsPanelProps {
   onSettingsChange: (settings: any) => void;
@@ -16,9 +15,9 @@ interface SettingsPanelProps {
 
 const SettingsPanel: React.FC<SettingsPanelProps> = ({ onSettingsChange }) => {
   const { toast } = useToast();
-  const [interval, setInterval] = useState<number>(5);
+  const [isRealTimeMode, setIsRealTimeMode] = useState<boolean>(true);
+  const [backupInterval, setBackupInterval] = useState<string>("30");
   const [isMediaEnabled, setIsMediaEnabled] = useState<boolean>(true);
-  const [maxRetries, setMaxRetries] = useState<string>("3");
   const [notificationType, setNotificationType] = useState<string>("important");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -28,9 +27,9 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onSettingsChange }) => {
     // Simulate API call
     setTimeout(() => {
       const settings = {
-        interval,
+        isRealTimeMode,
+        backupInterval: parseInt(backupInterval),
         isMediaEnabled,
-        maxRetries: parseInt(maxRetries),
         notificationType,
       };
       
@@ -54,49 +53,45 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onSettingsChange }) => {
         </CardDescription>
       </CardHeader>
       
-      <CardContent className="space-y-6">
-        <div className="space-y-2">
-          <div className="flex items-center justify-between mb-2">
-            <Label htmlFor="interval" className="text-sm font-medium">
-              Check Interval <span className="text-muted-foreground">({interval} min)</span>
+      <CardContent className="space-y-6">        
+        <div className="flex items-center justify-between space-x-2 pt-2">
+          <div className="flex flex-col space-y-1">
+            <Label htmlFor="realtimeToggle" className="text-sm font-medium">
+              Real-time Monitoring
             </Label>
-            <Clock size={16} className="text-muted-foreground" />
+            <span className="text-[13px] text-muted-foreground">
+              Instantly detect and process new messages
+            </span>
           </div>
-          <Slider
-            id="interval"
-            defaultValue={[interval]}
-            max={60}
-            min={1}
-            step={1}
-            onValueChange={(values) => setInterval(values[0])}
-            className="w-full"
+          <Switch
+            id="realtimeToggle"
+            checked={isRealTimeMode}
+            onCheckedChange={setIsRealTimeMode}
           />
-          <p className="text-xs text-muted-foreground mt-1">
-            How often to check for new messages (1-60 minutes)
+        </div>
+        
+        <div className="space-y-2">
+          <Label htmlFor="backupInterval" className="text-sm font-medium">
+            Backup Check Interval
+          </Label>
+          <Input
+            id="backupInterval"
+            type="number"
+            min="5"
+            max="120"
+            value={backupInterval}
+            onChange={(e) => setBackupInterval(e.target.value)}
+            className="transition-all focus:border-primary/30"
+          />
+          <p className="text-xs text-muted-foreground">
+            Fallback check interval in minutes (only used if real-time monitoring temporarily fails)
           </p>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="space-y-2">
-            <Label htmlFor="maxRetries" className="text-sm font-medium">
-              Max Retries
-            </Label>
-            <Input
-              id="maxRetries"
-              type="number"
-              min="1"
-              max="10"
-              value={maxRetries}
-              onChange={(e) => setMaxRetries(e.target.value)}
-              className="transition-all focus:border-primary/30"
-            />
-            <p className="text-xs text-muted-foreground">
-              Maximum attempts for failed operations
-            </p>
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="notificationType" className="text-sm font-medium">
+            <Label htmlFor="notificationType" className="text-sm font-medium flex items-center gap-2">
+              <BellRing size={16} className="text-muted-foreground" />
               Notification Level
             </Label>
             <Select value={notificationType} onValueChange={setNotificationType}>
@@ -110,25 +105,28 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onSettingsChange }) => {
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground">
-              When to send notifications
+              When to send notifications about channel activities
             </p>
           </div>
-        </div>
-        
-        <div className="flex items-center justify-between space-x-2 pt-2">
-          <div className="flex flex-col space-y-1">
-            <Label htmlFor="mediaToggle" className="text-sm font-medium">
-              Include Media
-            </Label>
-            <span className="text-[13px] text-muted-foreground">
-              Repost images, videos, and other files
-            </span>
+          
+          <div className="space-y-2">
+            <div className="flex items-center justify-between space-x-2">
+              <div className="flex flex-col space-y-1">
+                <Label htmlFor="mediaToggle" className="text-sm font-medium flex items-center gap-2">
+                  <FileImage size={16} className="text-muted-foreground" />
+                  Include Media
+                </Label>
+                <span className="text-[13px] text-muted-foreground">
+                  Repost images, videos, and other files
+                </span>
+              </div>
+              <Switch
+                id="mediaToggle"
+                checked={isMediaEnabled}
+                onCheckedChange={setIsMediaEnabled}
+              />
+            </div>
           </div>
-          <Switch
-            id="mediaToggle"
-            checked={isMediaEnabled}
-            onCheckedChange={setIsMediaEnabled}
-          />
         </div>
       </CardContent>
       
