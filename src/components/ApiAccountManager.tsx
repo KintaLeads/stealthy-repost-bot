@@ -1,25 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
-import { Check, RefreshCw, Plus, Trash2, Key, Shield, Phone, Edit } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/components/ui/use-toast";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
 
-interface ApiAccount {
-  id: string;
-  nickname: string;
-  apiKey: string;
-  apiHash: string;
-  phoneNumber: string;
-  isActive?: boolean;
-}
+import React, { useState } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { TooltipProvider, Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { RefreshCw, Plus, Trash2 } from "lucide-react";
+import { ApiAccount } from '@/types/channels';
+import { useApiAccounts } from '@/hooks/useApiAccounts';
+import AccountForm from './api/AccountForm';
+import AccountSwitcher from './api/AccountSwitcher';
 
 interface ApiAccountManagerProps {
   onAccountSelect: (account: ApiAccount) => void;
@@ -27,11 +15,7 @@ interface ApiAccountManagerProps {
 }
 
 const ApiAccountManager: React.FC<ApiAccountManagerProps> = ({ onAccountSelect, selectedAccountId }) => {
-  const [accounts, setAccounts] = useState<ApiAccount[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  
   const [newAccount, setNewAccount] = useState<ApiAccount>({
     id: '',
     nickname: '',
@@ -40,389 +24,46 @@ const ApiAccountManager: React.FC<ApiAccountManagerProps> = ({ onAccountSelect, 
     phoneNumber: ''
   });
   
-  // Fetch API accounts on component mount
-  useEffect(() => {
-    fetchApiAccounts();
-  }, []);
+  const {
+    accounts,
+    isLoading,
+    isSaving,
+    handleCreateAccount,
+    handleUpdateAccount,
+    handleDeleteAccount,
+    handleSelectAccount
+  } = useApiAccounts(selectedAccountId, onAccountSelect);
   
-  const fetchApiAccounts = async () => {
-    try {
-      setIsLoading(true);
-      
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session?.user) {
-        toast({
-          title: "Authentication required",
-          description: "Please log in to manage API accounts",
-          variant: "destructive",
-        });
-        setIsLoading(false);
-        return;
-      }
-      
-      const { data, error } = await supabase
-        .from('api_credentials')
-        .select('*')
-        .eq('api_name', 'myproto_telegram')
-        .eq('user_id', session.user.id)
-        .order('api_key', { ascending: true });
-      
-      if (error) {
-        throw error;
-      }
-      
-      if (data && data.length > 0) {
-        const formattedAccounts = data.map(account => ({
-          id: account.id,
-          nickname: account.api_name || 'Default Account',  // Use api_name as nickname temporarily
-          apiKey: account.api_key || '',
-          apiHash: account.api_secret?.split('|')[0] || '',
-          phoneNumber: account.api_secret?.split('|')[1] || '',
-          isActive: selectedAccountId === account.id
-        }));
-        
-        setAccounts(formattedAccounts);
-        
-        // If there's no selected account yet but we have accounts, select the first one
-        if (!selectedAccountId && formattedAccounts.length > 0) {
-          onAccountSelect(formattedAccounts[0]);
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching API accounts:', error);
-      toast({
-        title: "Failed to load accounts",
-        description: error.message || "Could not load your API accounts",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
+  const handleNewAccountInputChange = (field: keyof ApiAccount, value: string) => {
+    setNewAccount(prev => ({
+      ...prev,
+      [field]: value
+    }));
   };
   
-  const handleCreateAccount = async () => {
-    try {
-      if (!newAccount.nickname || !newAccount.apiKey || !newAccount.apiHash || !newAccount.phoneNumber) {
-        toast({
-          title: "Missing information",
-          description: "Please fill all required fields",
-          variant: "destructive",
-        });
-        return;
-      }
-      
-      setIsSaving(true);
-      
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session?.user) {
-        toast({
-          title: "Authentication required",
-          description: "Please log in to create API accounts",
-          variant: "destructive",
-        });
-        return;
-      }
-      
-      // Prepare API secret (combines apiHash and phoneNumber)
-      const apiSecret = `${newAccount.apiHash}|${newAccount.phoneNumber}`;
-      
-      const { data, error } = await supabase
-        .from('api_credentials')
-        .insert({
-          user_id: session.user.id,
-          api_name: newAccount.nickname, // Store nickname in api_name field
-          api_key: newAccount.apiKey,
-          api_secret: apiSecret
-        })
-        .select()
-        .single();
-      
-      if (error) throw error;
-      
-      if (data) {
-        const createdAccount = {
-          id: data.id,
-          nickname: data.api_name, // Use api_name as nickname
-          apiKey: data.api_key,
-          apiHash: newAccount.apiHash,
-          phoneNumber: newAccount.phoneNumber,
-          isActive: true
-        };
-        
-        setAccounts(prev => [...prev, createdAccount]);
-        
-        // Reset form
-        setNewAccount({
-          id: '',
-          nickname: '',
-          apiKey: '',
-          apiHash: '',
-          phoneNumber: ''
-        });
-        
-        // Select the newly created account
-        onAccountSelect(createdAccount);
-        
-        toast({
-          title: "Account created",
-          description: `API account "${data.api_name}" has been created successfully`,
-        });
-        
-        setIsCreating(false);
-      }
-    } catch (error) {
-      console.error('Error creating API account:', error);
-      toast({
-        title: "Failed to create account",
-        description: error.message || "Could not create your API account",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSaving(false);
-    }
-  };
-  
-  const handleUpdateAccount = async (account: ApiAccount) => {
-    try {
-      if (!account.nickname || !account.apiKey || !account.apiHash || !account.phoneNumber) {
-        toast({
-          title: "Missing information",
-          description: "Please fill all required fields",
-          variant: "destructive",
-        });
-        return;
-      }
-      
-      setIsSaving(true);
-      
-      // Prepare API secret (combines apiHash and phoneNumber)
-      const apiSecret = `${account.apiHash}|${account.phoneNumber}`;
-      
-      const { error } = await supabase
-        .from('api_credentials')
-        .update({
-          api_key: account.apiKey,
-          api_secret: apiSecret,
-          api_name: account.nickname, // Update api_name with nickname
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', account.id);
-      
-      if (error) throw error;
-      
-      // Update local state
-      setAccounts(prev => 
-        prev.map(acc => acc.id === account.id ? { ...account, isActive: true } : acc)
-      );
-      
-      // Select the updated account
-      onAccountSelect(account);
-      
-      toast({
-        title: "Account updated",
-        description: `API account "${account.nickname}" has been updated successfully`,
-      });
-    } catch (error) {
-      console.error('Error updating API account:', error);
-      toast({
-        title: "Failed to update account",
-        description: error.message || "Could not update your API account",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSaving(false);
-    }
-  };
-  
-  const handleDeleteAccount = async (accountId: string) => {
-    try {
-      // Find the account to be deleted
-      const accountToDelete = accounts.find(acc => acc.id === accountId);
-      
-      if (!accountToDelete) return;
-      
-      // Ask for confirmation
-      if (!window.confirm(`Are you sure you want to delete the API account "${accountToDelete.nickname}"? This action cannot be undone.`)) {
-        return;
-      }
-      
-      setIsLoading(true);
-      
-      const { error } = await supabase
-        .from('api_credentials')
-        .delete()
-        .eq('id', accountId);
-      
-      if (error) throw error;
-      
-      // Update local state
-      const updatedAccounts = accounts.filter(acc => acc.id !== accountId);
-      setAccounts(updatedAccounts);
-      
-      // If we deleted the selected account, select another one if available
-      if (selectedAccountId === accountId && updatedAccounts.length > 0) {
-        onAccountSelect(updatedAccounts[0]);
-      } else if (updatedAccounts.length === 0) {
-        onAccountSelect(null);
-      }
-      
-      toast({
-        title: "Account deleted",
-        description: `API account "${accountToDelete.nickname}" has been deleted successfully`,
-      });
-    } catch (error) {
-      console.error('Error deleting API account:', error);
-      toast({
-        title: "Failed to delete account",
-        description: error.message || "Could not delete your API account",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
-  const handleSelectAccount = (accountId: string) => {
-    const account = accounts.find(acc => acc.id === accountId);
-    if (account) {
-      // Update active status for all accounts
-      setAccounts(prev => 
-        prev.map(acc => ({
-          ...acc,
-          isActive: acc.id === accountId
-        }))
-      );
-      
-      onAccountSelect(account);
-    }
-  };
-  
-  // Create the account form
-  const renderAccountForm = (account: ApiAccount, isNew = false) => {
-    const isEditing = !isNew;
-    
-    const handleInputChange = (field: keyof ApiAccount, value: string) => {
-      if (isNew) {
-        setNewAccount(prev => ({
-          ...prev,
-          [field]: value
-        }));
-      } else {
-        setAccounts(prev => 
-          prev.map(acc => acc.id === account.id 
-            ? { ...acc, [field]: value } 
-            : acc
-          )
-        );
-      }
-    };
-    
-    const handleSave = () => {
-      if (isNew) {
-        handleCreateAccount();
-      } else {
-        handleUpdateAccount(account);
-      }
-    };
-    
-    return (
-      <div className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor={`nickname-${account.id || 'new'}`}>Account Nickname</Label>
-          <div className="relative">
-            <Input
-              id={`nickname-${account.id || 'new'}`}
-              placeholder="My Channel Account"
-              value={isNew ? newAccount.nickname : account.nickname}
-              onChange={(e) => handleInputChange('nickname', e.target.value)}
-              className="transition-all focus:border-primary/30"
-            />
-          </div>
-          <p className="text-xs text-muted-foreground">
-            A friendly name to help you identify this API account
-          </p>
-        </div>
-        
-        <div className="space-y-2">
-          <Label htmlFor={`apiKey-${account.id || 'new'}`}>API ID (App api_id)</Label>
-          <div className="relative">
-            <Input
-              id={`apiKey-${account.id || 'new'}`}
-              placeholder="12345678"
-              value={isNew ? newAccount.apiKey : account.apiKey}
-              onChange={(e) => handleInputChange('apiKey', e.target.value)}
-              className="pl-9 transition-all focus:border-primary/30"
-            />
-            <div className="absolute left-3 top-2.5 text-muted-foreground">
-              <Key size={16} />
-            </div>
-          </div>
-        </div>
-        
-        <div className="space-y-2">
-          <Label htmlFor={`apiHash-${account.id || 'new'}`}>API Hash (App api_hash)</Label>
-          <div className="relative">
-            <Input
-              id={`apiHash-${account.id || 'new'}`}
-              placeholder="a1b2c3d4e5f6g7h8i9j0..."
-              value={isNew ? newAccount.apiHash : account.apiHash}
-              onChange={(e) => handleInputChange('apiHash', e.target.value)}
-              className="pl-9 transition-all focus:border-primary/30"
-              type="password"
-            />
-            <div className="absolute left-3 top-2.5 text-muted-foreground">
-              <Shield size={16} />
-            </div>
-          </div>
-        </div>
-        
-        <div className="space-y-2">
-          <Label htmlFor={`phoneNumber-${account.id || 'new'}`}>Phone Number (with country code)</Label>
-          <div className="relative">
-            <Input
-              id={`phoneNumber-${account.id || 'new'}`}
-              placeholder="+1234567890"
-              value={isNew ? newAccount.phoneNumber : account.phoneNumber}
-              onChange={(e) => handleInputChange('phoneNumber', e.target.value)}
-              className="pl-9 transition-all focus:border-primary/30"
-            />
-            <div className="absolute left-3 top-2.5 text-muted-foreground">
-              <Phone size={16} />
-            </div>
-          </div>
-        </div>
-        
-        <div className="pt-2">
-          <Button 
-            onClick={handleSave}
-            disabled={isSaving}
-            className="w-full"
-          >
-            {isSaving ? (
-              <>
-                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                {isEditing ? 'Updating...' : 'Creating...'}
-              </>
-            ) : (
-              isEditing ? 'Update Account' : 'Create Account'
-            )}
-          </Button>
-          
-          {isNew && (
-            <Button
-              variant="ghost"
-              onClick={() => setIsCreating(false)}
-              className="w-full mt-2"
-              disabled={isSaving}
-            >
-              Cancel
-            </Button>
-          )}
-        </div>
-      </div>
+  const handleExistingAccountInputChange = (account: ApiAccount, field: keyof ApiAccount, value: string) => {
+    const updatedAccounts = accounts.map(acc => 
+      acc.id === account.id ? { ...acc, [field]: value } : acc
     );
+    
+    // Update the selected account in the parent component
+    if (account.id === selectedAccountId) {
+      onAccountSelect({ ...account, [field]: value });
+    }
+  };
+  
+  const handleCreateAccountSubmit = async () => {
+    const success = await handleCreateAccount(newAccount);
+    if (success) {
+      setNewAccount({
+        id: '',
+        nickname: '',
+        apiKey: '',
+        apiHash: '',
+        phoneNumber: ''
+      });
+      setIsCreating(false);
+    }
   };
   
   return (
@@ -469,29 +110,24 @@ const ApiAccountManager: React.FC<ApiAccountManagerProps> = ({ onAccountSelect, 
           <div className="space-y-6">
             {/* Account switcher */}
             {accounts.length > 0 && !isCreating && (
-              <div className="space-y-2">
-                <Label>Select API Account</Label>
-                <div className="flex flex-wrap gap-2">
-                  {accounts.map(account => (
-                    <Badge
-                      key={account.id}
-                      variant={account.isActive ? "default" : "outline"}
-                      className={`cursor-pointer ${account.isActive ? "bg-primary text-primary-foreground" : "hover:bg-secondary/80"} px-3 py-1.5 text-sm transition-colors`}
-                      onClick={() => handleSelectAccount(account.id)}
-                    >
-                      {account.nickname}
-                      {account.isActive && <Check className="ml-1 h-3.5 w-3.5" />}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
+              <AccountSwitcher 
+                accounts={accounts} 
+                onSelect={handleSelectAccount} 
+              />
             )}
             
             {/* Account details */}
             {isCreating ? (
               <div className="border border-border/50 rounded-lg p-4">
                 <h3 className="text-md font-medium mb-4">Create New API Account</h3>
-                {renderAccountForm(newAccount, true)}
+                <AccountForm
+                  account={newAccount}
+                  isNew={true}
+                  onChange={handleNewAccountInputChange}
+                  onSave={handleCreateAccountSubmit}
+                  onCancel={() => setIsCreating(false)}
+                  isSaving={isSaving}
+                />
               </div>
             ) : selectedAccountId && (
               <div className="border border-border/50 rounded-lg p-4">
@@ -516,7 +152,24 @@ const ApiAccountManager: React.FC<ApiAccountManagerProps> = ({ onAccountSelect, 
                   </TooltipProvider>
                 </div>
                 
-                {renderAccountForm(accounts.find(acc => acc.id === selectedAccountId))}
+                {accounts.find(acc => acc.id === selectedAccountId) && (
+                  <AccountForm
+                    account={accounts.find(acc => acc.id === selectedAccountId)}
+                    onChange={(field, value) => {
+                      const account = accounts.find(acc => acc.id === selectedAccountId);
+                      if (account) {
+                        handleExistingAccountInputChange(account, field, value);
+                      }
+                    }}
+                    onSave={() => {
+                      const account = accounts.find(acc => acc.id === selectedAccountId);
+                      if (account) {
+                        handleUpdateAccount(account);
+                      }
+                    }}
+                    isSaving={isSaving}
+                  />
+                )}
               </div>
             )}
           </div>

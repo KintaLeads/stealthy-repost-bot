@@ -1,14 +1,7 @@
 
 import React from 'react';
 import ApiAccountManager from '../ApiAccountManager';
-
-interface ApiAccount {
-  id: string;
-  nickname: string;
-  apiKey: string;
-  apiHash: string;
-  phoneNumber: string;
-}
+import { ApiAccount } from '@/types/channels';
 
 interface AccountManagementProps {
   onAccountSelect: (account: ApiAccount) => void;
