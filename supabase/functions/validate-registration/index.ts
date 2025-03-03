@@ -1,54 +1,48 @@
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.43.0'
+// Import CORS headers
+import { corsHeaders } from "../_shared/cors.ts";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
-
-// Handle CORS preflight requests
-const handleCors = (req: Request) => {
+// Handle registration code validation
+Deno.serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders })
+    return new Response(null, { headers: corsHeaders });
   }
-}
 
-// Get environment variables
-const REGISTRATION_CODE = '1708'
-
-const handleRequest = async (req: Request) => {
   try {
-    const { code } = await req.json()
+    // Get the registration code from the request
+    const { code } = await req.json();
     
-    // Validate registration code
-    const isValid = code === REGISTRATION_CODE
+    // Log the received code for debugging
+    console.log(`Validating registration code: ${code}`);
     
+    // Check if the code matches the secret code (1708)
+    const isValid = code === '1708';
+    
+    // Return the validation result
     return new Response(
       JSON.stringify({ 
-        valid: isValid 
+        valid: isValid,
+        message: isValid ? 'Registration code validated successfully' : 'Invalid registration code'
       }),
       { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200 
       }
-    )
+    );
   } catch (error) {
+    console.error("Error validating registration code:", error.message);
+    
+    // Return error response
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        valid: false, 
+        message: `Error validating registration code: ${error.message}` 
+      }),
       { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 400 
       }
-    )
+    );
   }
-}
-
-// Main function
-Deno.serve(async (req) => {
-  // Handle CORS
-  const corsResponse = handleCors(req)
-  if (corsResponse) return corsResponse
-  
-  // Handle the request
-  return handleRequest(req)
-})
+});

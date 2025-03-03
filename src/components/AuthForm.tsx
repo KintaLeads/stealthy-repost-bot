@@ -24,26 +24,29 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess }) => {
 
     try {
       if (isLoginMode) {
+        // Login process
         const { error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
 
         if (error) throw error;
+        
         toast({
           title: "Welcome back!",
           description: "You've successfully logged in.",
         });
+        
         if (onAuthSuccess) onAuthSuccess();
       } else {
-        // Validate registration code using the edge function
-        const { data, error: validationError } = await supabase.functions.invoke('validate-registration', {
+        // Registration process - first validate the registration code
+        const { data: validationData, error: validationError } = await supabase.functions.invoke('validate-registration', {
           body: { code: registrationCode }
         });
 
         if (validationError) throw validationError;
 
-        if (!data.valid) {
+        if (!validationData.valid) {
           toast({
             title: "Invalid registration code",
             description: "The registration code you entered is incorrect.",
@@ -53,21 +56,30 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess }) => {
           return;
         }
 
+        // If code is valid, proceed with signup
         const { error } = await supabase.auth.signUp({
           email,
           password,
+          options: {
+            // Set data for the new user
+            data: {
+              email_confirmed: true, // Optional metadata
+            }
+          }
         });
 
         if (error) throw error;
+        
         toast({
           title: "Account created!",
           description: "Please check your email for the confirmation link.",
         });
       }
     } catch (error) {
+      console.error("Authentication error:", error);
       toast({
         title: "Authentication error",
-        description: error.message,
+        description: error.message || "An unexpected error occurred",
         variant: "destructive",
       });
     } finally {
