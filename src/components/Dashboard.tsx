@@ -1,41 +1,20 @@
 
 import React, { useState, useEffect } from 'react';
-import ApiAccountManager from './ApiAccountManager';
-import ChannelPairManager from './ChannelPairManager';
-import MessagePreview from './MessagePreview';
-import StatusMetrics from './StatusMetrics';
-import SettingsPanel from './SettingsPanel';
-import { supabase } from "@/integrations/supabase/client";
-import { processMessageText } from '../utils/messageUtils';
 import { toast } from "@/components/ui/use-toast";
+import { processMessageText } from '../utils/messageUtils';
+import { Message, ApiAccount, MetricsData } from '../types/dashboard';
+
+// Import refactored components
+import DashboardMetrics from './dashboard/DashboardMetrics';
+import AccountManagement from './dashboard/AccountManagement';
+import MessageManagement from './dashboard/MessageManagement';
+import DashboardSettings from './dashboard/DashboardSettings';
 
 interface DashboardProps {
   isConnected: boolean;
   onToggleConnection: () => void;
   onSettingsChange: (settings: any) => void;
   isLoading: boolean;
-}
-
-// Define a message interface consistent with our database
-interface Message {
-  id: string;
-  text: string;
-  media?: string;
-  time: string;
-  username: string;
-  processed: boolean;
-  detectedCompetitors?: string[];
-  modifiedText?: string;
-  finalText?: string;
-}
-
-// Interface for API credentials
-interface ApiAccount {
-  id: string;
-  nickname: string;
-  apiKey: string;
-  apiHash: string;
-  phoneNumber: string;
 }
 
 const Dashboard: React.FC<DashboardProps> = ({
@@ -45,7 +24,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   isLoading
 }) => {
   const [messages, setMessages] = useState<Message[]>([]);
-  const [metrics, setMetrics] = useState({
+  const [metrics, setMetrics] = useState<MetricsData>({
     totalMessages: 0,
     processedMessages: 0,
     lastUpdate: '2m ago',
@@ -123,29 +102,24 @@ const Dashboard: React.FC<DashboardProps> = ({
   return (
     <div className="w-full max-w-7xl mx-auto px-8 pb-12">
       <div className="grid gap-8">
-        <StatusMetrics metrics={metrics} isLoading={isLoading} />
+        <DashboardMetrics metrics={metrics} isLoading={isLoading} />
         
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <ApiAccountManager 
+          <AccountManagement 
             onAccountSelect={handleAccountSelect}
             selectedAccountId={selectedAccount?.id || null}
           />
           
-          <div className="space-y-8">
-            <ChannelPairManager 
-              selectedAccount={selectedAccount}
-              isConnected={isConnected}
-              onToggleConnection={onToggleConnection}
-            />
-            
-            <MessagePreview 
-              messages={messages}
-              isLoading={isLoading}
-            />
-          </div>
+          <MessageManagement 
+            messages={messages}
+            selectedAccount={selectedAccount}
+            isConnected={isConnected}
+            onToggleConnection={onToggleConnection}
+            isLoading={isLoading}
+          />
         </div>
         
-        <SettingsPanel onSettingsChange={onSettingsChange} />
+        <DashboardSettings onSettingsChange={onSettingsChange} />
       </div>
     </div>
   );
