@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AlertCircle } from 'lucide-react';
 
 interface Message {
   id: string;
@@ -12,6 +13,8 @@ interface Message {
   time: string;
   username: string;
   processed: boolean;
+  detectedCompetitors?: string[];
+  modifiedText?: string;
 }
 
 interface MessagePreviewProps {
@@ -82,11 +85,26 @@ const MessagePreview: React.FC<MessagePreviewProps> = ({ messages, isLoading }) 
                         {message.processed && (
                           <Badge variant="secondary" className="text-xs font-normal">Reposted</Badge>
                         )}
+                        {message.detectedCompetitors && message.detectedCompetitors.length > 0 && (
+                          <Badge variant="destructive" className="text-xs font-normal">
+                            <AlertCircle className="w-3 h-3 mr-1" />
+                            Competitor
+                          </Badge>
+                        )}
                       </div>
                       <span className="text-xs text-muted-foreground">{message.time}</span>
                     </div>
                     
                     <p className="text-sm leading-relaxed">{message.text}</p>
+                    
+                    {message.detectedCompetitors && message.detectedCompetitors.length > 0 && message.modifiedText && (
+                      <div className="mt-2 p-2 bg-secondary/30 rounded-md border border-border/50">
+                        <p className="text-xs text-muted-foreground mb-1">Detected competitors: {message.detectedCompetitors.join(', ')}</p>
+                        <p className="text-sm leading-relaxed text-green-600 dark:text-green-400">
+                          <span className="font-medium">Modified text:</span> {message.modifiedText}
+                        </p>
+                      </div>
+                    )}
                     
                     {message.media && (
                       <div className="mt-2 rounded-md overflow-hidden bg-secondary/50">
