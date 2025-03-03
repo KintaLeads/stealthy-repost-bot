@@ -14,7 +14,7 @@ import { toast } from "@/components/ui/use-toast";
 export const useApiAccountOperations = (
   accounts: ApiAccount[],
   setAccounts: React.Dispatch<React.SetStateAction<ApiAccount[]>>,
-  onAccountSelect: (account: ApiAccount) => void
+  onAccountSelect: (account: ApiAccount | null) => void
 ) => {
   const [isSaving, setIsSaving] = useState(false);
   const { userId } = useAuth();
