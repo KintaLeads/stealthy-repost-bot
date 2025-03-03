@@ -36,8 +36,14 @@ const AuthForm: React.FC<AuthFormProps> = ({ onAuthSuccess }) => {
         });
         if (onAuthSuccess) onAuthSuccess();
       } else {
-        // Check registration code
-        if (registrationCode !== "1708") {
+        // Validate registration code using the edge function
+        const { data, error: validationError } = await supabase.functions.invoke('validate-registration', {
+          body: { code: registrationCode }
+        });
+
+        if (validationError) throw validationError;
+
+        if (!data.valid) {
           toast({
             title: "Invalid registration code",
             description: "The registration code you entered is incorrect.",
