@@ -2,26 +2,8 @@
 import React from 'react';
 import MessagePreview from '../MessagePreview';
 import ChannelPairManager from '../ChannelPairManager';
-
-interface Message {
-  id: string;
-  text: string;
-  media?: string;
-  time: string;
-  username: string;
-  processed: boolean;
-  detectedCompetitors?: string[];
-  modifiedText?: string;
-  finalText?: string;
-}
-
-interface ApiAccount {
-  id: string;
-  nickname: string;
-  apiKey: string;
-  apiHash: string;
-  phoneNumber: string;
-}
+import { Message } from '@/types/dashboard';
+import { ApiAccount } from '@/types/channels';
 
 interface MessageManagementProps {
   messages: Message[];
