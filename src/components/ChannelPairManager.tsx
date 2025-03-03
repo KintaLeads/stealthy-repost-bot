@@ -1,16 +1,16 @@
 
 import React, { useEffect, useState } from 'react';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { RefreshCw, Link, Check, AlertCircle } from "lucide-react";
+import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { ApiAccount } from "@/types/channels";
 import EmptyChannelState from "./channel/EmptyChannelState";
 import ChannelPairsList from "./channel/ChannelPairsList";
+import ChannelPairHeader from "./channel/ChannelPairHeader";
+import ConnectionButton from "./channel/ConnectionButton";
+import SaveConfigButton from "./channel/SaveConfigButton";
 import { useChannelPairs } from "@/hooks/useChannelPairs";
-import { connectToTelegram, setupRealtimeListener } from "@/services/telegramService";
 import { toast } from "@/components/ui/use-toast";
 import { Message } from "@/types/dashboard";
+import { setupRealtimeListener } from "@/services/telegram";
 
 interface ChannelPairManagerProps {
   selectedAccount: ApiAccount | null;
@@ -40,58 +40,19 @@ const ChannelPairManager: React.FC<ChannelPairManagerProps> = ({
     saveChannelPairs
   } = useChannelPairs(selectedAccount);
   
-  // Handle connection toggle
-  const handleToggleConnection = async () => {
-    if (!selectedAccount) {
-      toast({
-        title: "No Account Selected",
-        description: "Please select an API account before connecting",
-        variant: "destructive",
-      });
-      return;
+  // Handle connection state change
+  const handleConnected = (listener: any) => {
+    setListenerState(listener);
+    setIsConnecting(false);
+    onToggleConnection();
+  };
+  
+  const handleDisconnected = () => {
+    if (listenerState && listenerState.stopListener) {
+      listenerState.stopListener();
+      setListenerState(null);
     }
-    
-    if (isConnected) {
-      // Disconnect
-      if (listenerState && listenerState.stopListener) {
-        listenerState.stopListener();
-        setListenerState(null);
-      }
-      onToggleConnection();
-      toast({
-        title: "Disconnected",
-        description: "Stopped listening to Telegram channels",
-      });
-    } else {
-      // Connect
-      setIsConnecting(true);
-      
-      try {
-        // First connect to Telegram API
-        const connected = await connectToTelegram(selectedAccount);
-        
-        if (connected) {
-          // Then setup the realtime listener
-          const listener = await setupRealtimeListener(
-            selectedAccount,
-            channelPairs,
-            onNewMessages
-          );
-          
-          setListenerState(listener);
-          onToggleConnection();
-        }
-      } catch (error) {
-        console.error('Error connecting to Telegram:', error);
-        toast({
-          title: "Connection Failed",
-          description: `Error: ${error.message}`,
-          variant: "destructive",
-        });
-      } finally {
-        setIsConnecting(false);
-      }
-    }
+    onToggleConnection();
   };
   
   // Clean up listener on unmount
@@ -103,7 +64,7 @@ const ChannelPairManager: React.FC<ChannelPairManagerProps> = ({
     };
   }, [listenerState]);
   
-  // Handle auto-save when channel pairs change
+  // Handle save configuration
   const handleSaveChannelPairs = async () => {
     try {
       const success = await saveChannelPairs();
@@ -141,25 +102,11 @@ const ChannelPairManager: React.FC<ChannelPairManagerProps> = ({
   return (
     <Card className="w-full glass-card animate-slide-up">
       <CardHeader>
-        <div className="flex justify-between items-center">
-          <div>
-            <CardTitle className="text-xl flex items-center">
-              <span>Channel Configuration</span>
-              {isConnected && (
-                <Badge className="ml-2 flex items-center gap-1.5 text-xs font-normal text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 dark:text-emerald-400 py-0.5 px-2 rounded-full">
-                  <Check size={14} />
-                  <span>Connected</span>
-                </Badge>
-              )}
-            </CardTitle>
-            <CardDescription>
-              Configure channel pairs for <strong>{selectedAccount.nickname}</strong>
-            </CardDescription>
-          </div>
-          <Badge variant="outline" className="px-2 py-1">
-            {channelPairs.length} {channelPairs.length === 1 ? 'Pair' : 'Pairs'}
-          </Badge>
-        </div>
+        <ChannelPairHeader 
+          selectedAccount={selectedAccount}
+          isConnected={isConnected}
+          channelPairsCount={channelPairs.length}
+        />
       </CardHeader>
       
       <CardContent className="space-y-6">
@@ -175,44 +122,23 @@ const ChannelPairManager: React.FC<ChannelPairManagerProps> = ({
       </CardContent>
       
       <CardFooter className="flex justify-between">
-        <Button
-          variant="outline"
-          onClick={handleToggleConnection}
-          className="border-border hover:bg-secondary/80 transition-colors"
-          disabled={isSaving || channelPairs.length === 0 || isConnecting}
-        >
-          {isConnecting ? (
-            <>
-              <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-              Connecting...
-            </>
-          ) : isConnected ? (
-            <>
-              <Link className="mr-2 h-4 w-4" />
-              Disconnect
-            </>
-          ) : (
-            <>
-              <Link className="mr-2 h-4 w-4" />
-              Connect
-            </>
-          )}
-        </Button>
+        <ConnectionButton
+          selectedAccount={selectedAccount}
+          isConnected={isConnected}
+          isConnecting={isConnecting}
+          channelPairs={channelPairs}
+          isSaving={isSaving}
+          onConnected={handleConnected}
+          onDisconnected={handleDisconnected}
+          onNewMessages={onNewMessages}
+        />
         
-        <Button 
-          onClick={handleSaveChannelPairs} 
-          disabled={isSaving || channelPairs.length === 0 || isConnecting}
-          className="bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-        >
-          {isSaving ? (
-            <>
-              <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-              Saving...
-            </>
-          ) : (
-            'Save Configuration'
-          )}
-        </Button>
+        <SaveConfigButton
+          isSaving={isSaving}
+          isConnecting={isConnecting}
+          channelPairs={channelPairs}
+          onSave={handleSaveChannelPairs}
+        />
       </CardFooter>
     </Card>
   );
