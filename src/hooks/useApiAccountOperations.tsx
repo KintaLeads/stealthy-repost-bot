@@ -1,6 +1,6 @@
 
 import { useState } from 'react';
-import { ApiAccount } from '@/types/channels';
+import { ApiAccount } from '@/types/dashboard';
 import { useAuth } from './useAuth';
 import { 
   createApiAccountInDb, 

@@ -1,6 +1,6 @@
 
 import { useEffect } from 'react';
-import { ApiAccount } from '@/types/channels';
+import { ApiAccount } from '@/types/dashboard';
 import { useApiAccountsList } from './useApiAccountsList';
 import { useApiAccountOperations } from './useApiAccountOperations';
 

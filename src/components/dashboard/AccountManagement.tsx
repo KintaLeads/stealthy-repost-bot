@@ -1,7 +1,6 @@
-
 import React from 'react';
 import ApiAccountManager from '../ApiAccountManager';
-import { ApiAccount } from '@/types/channels';
+import { ApiAccount } from '@/types/dashboard';
 
 interface AccountManagementProps {
   onAccountSelect: (account: ApiAccount) => void;

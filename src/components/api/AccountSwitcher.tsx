@@ -1,9 +1,8 @@
-
 import React from 'react';
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Check } from "lucide-react";
-import { ApiAccount } from '@/types/channels';
+import { ApiAccount } from '@/types/dashboard';
 
 interface AccountSwitcherProps {
   accounts: ApiAccount[];

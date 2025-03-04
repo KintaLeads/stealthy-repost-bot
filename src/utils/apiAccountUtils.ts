@@ -1,6 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { ApiAccount } from "@/types/channels";
+import { ApiAccount } from "@/types/dashboard";
 import { toast } from "@/components/ui/use-toast";
 
 // Format API accounts from database response
@@ -15,16 +15,32 @@ export const formatApiAccount = (account: any, selectedId?: string): ApiAccount 
 
 // Fetch API accounts from database
 export const fetchApiAccountsFromDb = async (userId: string) => {
-  const { data, error } = await supabase
-    .from('api_credentials')
-    .select('*')
-    .eq('api_name', 'myproto_telegram')
-    .eq('user_id', userId)
-    .order('api_key', { ascending: true });
+  if (!userId) {
+    console.error('Cannot fetch API accounts: No user ID provided');
+    return [];
+  }
+
+  try {
+    console.log('Fetching API accounts for user:', userId);
     
-  if (error) throw error;
-  
-  return data || [];
+    const { data, error } = await supabase
+      .from('api_credentials')
+      .select('*')
+      .eq('api_name', 'myproto_telegram')
+      .eq('user_id', userId)
+      .order('api_key', { ascending: true });
+      
+    if (error) {
+      console.error('Error fetching API accounts:', error);
+      throw error;
+    }
+    
+    console.log('Fetched API accounts:', data);
+    return data || [];
+  } catch (error) {
+    console.error('Exception when fetching API accounts:', error);
+    throw error;
+  }
 };
 
 // Create a new API account in the database
@@ -32,19 +48,25 @@ export const createApiAccountInDb = async (userId: string, account: ApiAccount) 
   // Prepare API secret (combines apiHash and phoneNumber)
   const apiSecret = `${account.apiHash}|${account.phoneNumber}`;
   
+  console.log('Creating API account for user:', userId);
+  
   const { data, error } = await supabase
     .from('api_credentials')
     .insert({
       user_id: userId,
-      api_name: account.nickname,
+      api_name: 'myproto_telegram', // Use a consistent value
       api_key: account.apiKey,
       api_secret: apiSecret
     })
     .select()
     .single();
     
-  if (error) throw error;
+  if (error) {
+    console.error('Error creating API account:', error);
+    throw error;
+  }
   
+  console.log('Created API account:', data);
   return data;
 };
 
@@ -53,30 +75,42 @@ export const updateApiAccountInDb = async (accountId: string, account: ApiAccoun
   // Prepare API secret (combines apiHash and phoneNumber)
   const apiSecret = `${account.apiHash}|${account.phoneNumber}`;
   
+  console.log('Updating API account:', accountId);
+  
   const { error } = await supabase
     .from('api_credentials')
     .update({
       api_key: account.apiKey,
       api_secret: apiSecret,
-      api_name: account.nickname,
+      api_name: 'myproto_telegram', // Use a consistent value
       updated_at: new Date().toISOString()
     })
     .eq('id', accountId);
     
-  if (error) throw error;
+  if (error) {
+    console.error('Error updating API account:', error);
+    throw error;
+  }
   
+  console.log('API account updated successfully');
   return true;
 };
 
 // Delete an API account from the database
 export const deleteApiAccountFromDb = async (accountId: string) => {
+  console.log('Deleting API account:', accountId);
+  
   const { error } = await supabase
     .from('api_credentials')
     .delete()
     .eq('id', accountId);
     
-  if (error) throw error;
+  if (error) {
+    console.error('Error deleting API account:', error);
+    throw error;
+  }
   
+  console.log('API account deleted successfully');
   return true;
 };
 

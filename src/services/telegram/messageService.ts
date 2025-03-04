@@ -1,7 +1,8 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/use-toast";
-import { ApiAccount, ChannelPair } from "@/types/channels";
+import { ApiAccount } from "@/types/dashboard";
+import { ChannelPair } from "@/types/channels";
 import { Message } from "@/types/dashboard";
 import { getStoredSession, storeSession } from "./sessionManager";
 

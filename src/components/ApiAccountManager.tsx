@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { TooltipProvider, Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { RefreshCw, Plus, Trash2 } from "lucide-react";
-import { ApiAccount } from '@/types/channels';
+import { ApiAccount } from '@/types/dashboard';
 import { useApiAccounts } from '@/hooks/useApiAccounts';
 import AccountForm from './api/AccountForm';
 import AccountSwitcher from './api/AccountSwitcher';

@@ -1,10 +1,9 @@
-
 import React from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RefreshCw, Key, Shield, Phone } from "lucide-react";
-import { ApiAccount } from '@/types/channels';
+import { ApiAccount } from '@/types/dashboard';
 
 interface AccountFormProps {
   account: ApiAccount;
