@@ -4,6 +4,7 @@ export interface Message {
   id: string;
   text: string;
   media?: string;
+  mediaAlbum?: string[];
   time: string;
   username: string;
   processed: boolean;

@@ -4,12 +4,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Image } from 'lucide-react';
 
 interface Message {
   id: string;
   text: string;
   media?: string;
+  mediaAlbum?: string[]; // Array of media URLs for album
   time: string;
   username: string;
   processed: boolean;
@@ -86,6 +87,18 @@ const MessagePreview: React.FC<MessagePreviewProps> = ({ messages, isLoading }) 
                         {message.processed && (
                           <Badge variant="secondary" className="text-xs font-normal">Reposted</Badge>
                         )}
+                        {message.mediaAlbum && message.mediaAlbum.length > 0 && (
+                          <Badge variant="outline" className="text-xs font-normal bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800">
+                            <Image className="w-3 h-3 mr-1" />
+                            Album ({message.mediaAlbum.length})
+                          </Badge>
+                        )}
+                        {message.media && !message.mediaAlbum && (
+                          <Badge variant="outline" className="text-xs font-normal bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800">
+                            <Image className="w-3 h-3 mr-1" />
+                            Media
+                          </Badge>
+                        )}
                         {message.detectedCompetitors && message.detectedCompetitors.length > 0 && (
                           <Badge variant="destructive" className="text-xs font-normal">
                             <AlertCircle className="w-3 h-3 mr-1" />
@@ -110,13 +123,29 @@ const MessagePreview: React.FC<MessagePreviewProps> = ({ messages, isLoading }) 
                       </div>
                     )}
                     
-                    {message.media && (
+                    {/* Display single media */}
+                    {message.media && !message.mediaAlbum && (
                       <div className="mt-2 rounded-md overflow-hidden bg-secondary/50">
                         <img 
                           src={message.media} 
                           alt="Media" 
                           className="w-full h-auto object-cover"
                         />
+                      </div>
+                    )}
+                    
+                    {/* Display media album */}
+                    {message.mediaAlbum && message.mediaAlbum.length > 0 && (
+                      <div className="mt-2 grid grid-cols-2 gap-2">
+                        {message.mediaAlbum.map((mediaUrl, index) => (
+                          <div key={index} className="rounded-md overflow-hidden bg-secondary/50">
+                            <img 
+                              src={mediaUrl} 
+                              alt={`Album image ${index + 1}`} 
+                              className="w-full h-auto object-cover"
+                            />
+                          </div>
+                        ))}
                       </div>
                     )}
                   </div>

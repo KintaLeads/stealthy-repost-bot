@@ -71,7 +71,9 @@ export const fetchChannelMessages = async (
             text: msg.text || '',
             time: new Date(msg.date * 1000).toLocaleTimeString(),
             username: result.channel,
-            processed: false
+            processed: false,
+            media: msg.media ? msg.media : undefined,
+            mediaAlbum: msg.mediaAlbum || undefined
           };
           
           messages.push(message);
@@ -118,7 +120,8 @@ export const repostMessage = async (
         phoneNumber: account.phoneNumber,
         messageId,
         sourceChannel,
-        targetChannel
+        targetChannel,
+        includeMedia: true // Tell the function to include media
       },
       headers
     });
