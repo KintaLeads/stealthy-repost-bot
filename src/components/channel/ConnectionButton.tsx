@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { RefreshCw, Link } from "lucide-react";
 import { ApiAccount } from "@/types/channels";
 import { toast } from "@/components/ui/use-toast";
-import { connectToTelegram, setupRealtimeListener } from "@/services/telegram";
+import { connectToTelegram } from "@/services/telegram";
+import { setupRealtimeListener } from "@/services/telegram";
 import { Message } from "@/types/dashboard";
 
 interface ConnectionButtonProps {
@@ -52,13 +53,22 @@ const ConnectionButton: React.FC<ConnectionButtonProps> = ({
         
         if (connected) {
           // Then setup the realtime listener
-          const listener = await setupRealtimeListener(
-            selectedAccount,
-            channelPairs,
-            onNewMessages
-          );
-          
-          onConnected(listener);
+          try {
+            const listener = await setupRealtimeListener(
+              selectedAccount,
+              channelPairs,
+              onNewMessages
+            );
+            
+            onConnected(listener);
+          } catch (error) {
+            console.error('Error setting up realtime listener:', error);
+            toast({
+              title: "Listener Setup Failed",
+              description: `Error: ${error.message}`,
+              variant: "destructive",
+            });
+          }
         }
       } catch (error) {
         console.error('Error connecting to Telegram:', error);
