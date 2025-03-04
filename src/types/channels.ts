@@ -15,4 +15,3 @@ export interface ApiAccount {
   phoneNumber: string;
   isActive?: boolean;
 }
-

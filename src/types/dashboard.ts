@@ -19,6 +19,7 @@ export interface ApiAccount {
   apiKey: string;
   apiHash: string;
   phoneNumber: string;
+  isActive?: boolean;
 }
 
 export interface MetricsData {
