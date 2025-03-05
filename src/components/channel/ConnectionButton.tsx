@@ -134,7 +134,7 @@ const ConnectionButton: React.FC<ConnectionButtonProps> = ({
   return (
     <>
       <Button
-        variant={isConnected ? "destructive" : "primary"}
+        variant={isConnected ? "destructive" : "default"}
         onClick={handleToggleConnection}
         className={isConnected ? "" : "bg-primary text-primary-foreground hover:bg-primary/90"}
         disabled={isSaving || channelPairs.length === 0 || isConnecting || !selectedAccount}
