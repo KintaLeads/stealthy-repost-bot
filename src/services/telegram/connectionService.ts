@@ -1,3 +1,4 @@
+
 import { ApiAccount } from "@/types/channels";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/use-toast";
@@ -126,6 +127,7 @@ export const validateTelegramCredentials = async (account: ApiAccount): Promise<
     
     // Try to make a connection to the Supabase function
     try {
+      console.log("Checking Edge Function deployment status...");
       console.log("Calling Supabase function 'telegram-connector' for validation...");
       
       // Call the Supabase function to validate credentials without storing
@@ -143,21 +145,65 @@ export const validateTelegramCredentials = async (account: ApiAccount): Promise<
       
       if (error) {
         console.error('Error validating Telegram credentials:', error);
-        // More descriptive error message for network issues
-        if (error.message && error.message.includes('Failed to fetch')) {
-          // Better error handling without using the .list() method that doesn't exist
-          console.error("Network error when connecting to Edge Function");
+        
+        // More descriptive error handling for different error scenarios
+        if (error.message) {
+          if (error.message.includes('Failed to fetch')) {
+            console.error("Network error when connecting to Edge Function");
+            return { 
+              success: false, 
+              error: "Network error: Could not connect to the Edge Function. This could be because: 1) The Edge Function is not deployed yet, 2) There's an internet connectivity issue, or 3) The Edge Function has an error. Please check your Supabase Edge Functions dashboard." 
+            };
+          }
           
-          return { 
-            success: false, 
-            error: "Network error: Could not connect to the Edge Function. This could be because: 1) The Edge Function is not deployed yet, 2) There's an internet connectivity issue, or 3) The Edge Function has an error. Please check your Supabase Edge Functions dashboard." 
-          };
+          if (error.message.includes('not found') || error.message.includes('404')) {
+            console.error("Edge Function not found or not deployed");
+            return { 
+              success: false, 
+              error: "Edge Function 'telegram-connector' not found. Please make sure the Edge Function is deployed correctly in your Supabase project." 
+            };
+          }
+          
+          if (error.message.includes('timed out')) {
+            console.error("Edge Function execution timed out");
+            return { 
+              success: false, 
+              error: "Edge Function execution timed out. This might indicate that the Telegram API is slow to respond or there's an issue with your credentials." 
+            };
+          }
         }
-        return { success: false, error: error.message };
+        
+        return { success: false, error: error.message || "Unknown error from Edge Function" };
       }
       
       if (data?.error) {
         console.error('Error in Telegram validation:', data.error);
+        
+        // Check for known Telegram API errors
+        if (data.error.includes('API_ID_INVALID')) {
+          return { success: false, error: "Invalid API ID. Please check your Telegram API credentials." };
+        }
+        
+        if (data.error.includes('API_HASH_INVALID')) {
+          return { success: false, error: "Invalid API Hash. Please check your Telegram API credentials." };
+        }
+        
+        if (data.error.includes('PHONE_NUMBER_INVALID')) {
+          return { success: false, error: "Invalid phone number format. Please use international format with country code." };
+        }
+        
+        if (data.error.includes('PHONE_NUMBER_BANNED')) {
+          return { success: false, error: "This phone number has been banned from Telegram." };
+        }
+        
+        if (data.error.includes('PHONE_CODE_INVALID') || data.error.includes('PHONE_CODE_EXPIRED')) {
+          return { success: false, error: "Invalid or expired verification code." };
+        }
+        
+        if (data.error.includes('VERSION_OUTDATED')) {
+          return { success: false, error: "Telegram client version is outdated. Please check the Edge Function logs for details." };
+        }
+        
         return { success: false, error: data.error };
       }
       
@@ -172,11 +218,20 @@ export const validateTelegramCredentials = async (account: ApiAccount): Promise<
     } catch (fetchError) {
       console.error('Error making request to Telegram connector:', fetchError);
       // Handle specific network errors
-      if (fetchError.message && fetchError.message.includes('Failed to fetch')) {
-        return { 
-          success: false, 
-          error: "Network error: Failed to connect to the Edge Function. Please verify that your Supabase project is properly configured and the function is deployed." 
-        };
+      if (fetchError.message) {
+        if (fetchError.message.includes('Failed to fetch')) {
+          return { 
+            success: false, 
+            error: "Network error: Failed to connect to the Edge Function. Please verify that your Supabase project is properly configured and the function is deployed." 
+          };
+        }
+        
+        if (fetchError.message.includes('CORS')) {
+          return { 
+            success: false, 
+            error: "CORS error: The Edge Function is not properly configured to allow requests from this domain." 
+          };
+        }
       }
       return { success: false, error: fetchError.message || "Failed to connect to validation service" };
     }
@@ -209,10 +264,12 @@ export const connectToTelegram = async (account: ApiAccount): Promise<{
     if (sessionString) {
       headers['X-Telegram-Session'] = sessionString;
       console.log(`Found stored session for account: ${account.nickname}, using it`);
+      console.log(`Session string length: ${sessionString.length}`);
     } else {
       console.log(`No stored session found for account: ${account.nickname}, will need to authenticate`);
     }
     
+    console.log(`Checking Edge Function status...`);
     console.log(`Calling Supabase function 'telegram-connector'...`);
     
     // Call the Supabase function
@@ -231,6 +288,46 @@ export const connectToTelegram = async (account: ApiAccount): Promise<{
     
     if (error) {
       console.error('Error connecting to Telegram:', error);
+      
+      // Enhanced error handling for different error scenarios
+      if (error.message) {
+        if (error.message.includes('Failed to fetch')) {
+          toast({
+            title: "Connection Failed",
+            description: "Network error: Could not connect to the Edge Function. Please check if the function is deployed.",
+            variant: "destructive",
+          });
+          return { 
+            success: false, 
+            error: "Network error: Could not connect to the Edge Function. Please check if the function is deployed." 
+          };
+        }
+        
+        if (error.message.includes('not found') || error.message.includes('404')) {
+          toast({
+            title: "Connection Failed",
+            description: "Edge Function 'telegram-connector' not found. Please check your Supabase project.",
+            variant: "destructive",
+          });
+          return { 
+            success: false, 
+            error: "Edge Function 'telegram-connector' not found. Please check your Supabase project." 
+          };
+        }
+        
+        if (error.message.includes('timed out')) {
+          toast({
+            title: "Connection Failed",
+            description: "Edge Function execution timed out. This might indicate slow API response.",
+            variant: "destructive",
+          });
+          return { 
+            success: false, 
+            error: "Edge Function execution timed out. This might indicate slow API response." 
+          };
+        }
+      }
+      
       toast({
         title: "Connection Failed",
         description: error.message,
@@ -241,12 +338,34 @@ export const connectToTelegram = async (account: ApiAccount): Promise<{
     
     if (data?.error) {
       console.error('Error in Telegram connector:', data.error);
+      
+      // Check for known Telegram API errors
+      let errorMessage = data.error;
+      if (data.error.includes('API_ID_INVALID') || data.error.includes('API_HASH_INVALID')) {
+        errorMessage = "Invalid API credentials. Please check your Telegram API ID and Hash.";
+      } else if (data.error.includes('PHONE_NUMBER_INVALID')) {
+        errorMessage = "Invalid phone number format. Please use international format with country code.";
+      } else if (data.error.includes('PHONE_NUMBER_BANNED')) {
+        errorMessage = "This phone number has been banned from Telegram.";
+      } else if (data.error.includes('AUTH_KEY_UNREGISTERED')) {
+        errorMessage = "Authentication failed. The provided session is no longer valid.";
+      } else if (data.error.includes('VERSION_OUTDATED')) {
+        errorMessage = "Telegram client version is outdated. Please check the Edge Function logs.";
+      } else if (data.error.includes('FLOOD_WAIT')) {
+        // Extract wait time if available
+        const waitMatch = data.error.match(/FLOOD_WAIT_(\d+)/);
+        const waitTime = waitMatch ? parseInt(waitMatch[1], 10) : null;
+        errorMessage = waitTime 
+          ? `Too many requests. Please wait ${waitTime} seconds before trying again.` 
+          : "Too many requests. Please wait before trying again.";
+      }
+      
       toast({
         title: "Connection Failed",
-        description: data.error,
+        description: errorMessage,
         variant: "destructive",
       });
-      return { success: false, error: data.error };
+      return { success: false, error: errorMessage };
     }
     
     // Check if code verification is needed
@@ -266,6 +385,7 @@ export const connectToTelegram = async (account: ApiAccount): Promise<{
     if (data?.success && data?.sessionString) {
       // Store the session for this account
       console.log("Successfully connected with account:", account.nickname);
+      console.log("Session string length:", data.sessionString.length);
       storeSession(account.id, data.sessionString);
       toast({
         title: "Connected",
@@ -275,6 +395,11 @@ export const connectToTelegram = async (account: ApiAccount): Promise<{
     }
     
     console.warn("Unexpected response from Telegram connector:", data);
+    toast({
+      title: "Connection Failed",
+      description: "Received unexpected response from Telegram connector",
+      variant: "destructive",
+    });
     return { success: false, error: "Unknown error connecting to Telegram" };
   } catch (error) {
     console.error('Exception connecting to Telegram:', error);
@@ -311,9 +436,16 @@ export const verifyTelegramCode = async (account: ApiAccount, code: string): Pro
     
     if (error) {
       console.error('Error verifying code:', error);
+      
+      // Enhanced error handling
+      let errorMessage = error.message;
+      if (error.message && error.message.includes('Failed to fetch')) {
+        errorMessage = "Network error: Could not connect to the Edge Function. Please check if the function is deployed.";
+      }
+      
       toast({
         title: "Verification Failed",
-        description: error.message,
+        description: errorMessage,
         variant: "destructive",
       });
       return false;
@@ -321,9 +453,20 @@ export const verifyTelegramCode = async (account: ApiAccount, code: string): Pro
     
     if (data?.error) {
       console.error('Error in Telegram verification:', data.error);
+      
+      // Check for known Telegram API errors
+      let errorMessage = data.error;
+      if (data.error.includes('PHONE_CODE_INVALID')) {
+        errorMessage = "Invalid verification code. Please check and try again.";
+      } else if (data.error.includes('PHONE_CODE_EXPIRED')) {
+        errorMessage = "Verification code has expired. Please request a new code.";
+      } else if (data.error.includes('SESSION_PASSWORD_NEEDED')) {
+        errorMessage = "Two-factor authentication is enabled. Please use another authentication method.";
+      }
+      
       toast({
         title: "Verification Failed",
-        description: data.error,
+        description: errorMessage,
         variant: "destructive",
       });
       return false;
@@ -332,6 +475,7 @@ export const verifyTelegramCode = async (account: ApiAccount, code: string): Pro
     if (data?.success && data?.sessionString) {
       // Store the session for this account
       console.log("Successfully verified and authenticated with account:", account.nickname);
+      console.log("Session string length:", data.sessionString.length);
       storeSession(account.id, data.sessionString);
       toast({
         title: "Verified",
@@ -341,6 +485,11 @@ export const verifyTelegramCode = async (account: ApiAccount, code: string): Pro
     }
     
     console.warn("Unexpected response from Telegram verification:", data);
+    toast({
+      title: "Verification Failed",
+      description: "Received unexpected response from Telegram connector",
+      variant: "destructive",
+    });
     return false;
   } catch (error) {
     console.error('Exception verifying Telegram code:', error);

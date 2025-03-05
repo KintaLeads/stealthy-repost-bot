@@ -28,6 +28,17 @@ export class AuthClient extends BaseTelegramClient {
           deviceModel: "Web Client",
           systemVersion: "1.0.0",
           appVersion: "1.0.0",
+          connection: {
+            retries: 5,
+            delay: 2000,
+            logger: console, // Add logger for debugging
+          },
+          initConnectionParams: {
+            appId: this.apiId,
+            appVersion: "1.0",
+            systemVersion: "1.0",
+            deviceModel: "Telegram Web App"
+          },
         }
       );
 
@@ -59,19 +70,76 @@ export class AuthClient extends BaseTelegramClient {
       
       // Request the login code to be sent via SMS
       console.log("Sending code request to phone:", this.maskPhone(this.phoneNumber));
-      const { phoneCodeHash } = await this.client.sendCode({
-        apiId: this.apiId,
-        apiHash: this.apiHash,
-        phoneNumber: this.phoneNumber,
-      });
-      
-      this.phoneCodeHash = phoneCodeHash;
-      this.authState = 'code_needed';
-      
-      console.log("Code sent to phone, waiting for verification. phoneCodeHash:", phoneCodeHash);
-      return { success: true, codeNeeded: true, phoneCodeHash };
+      try {
+        const { phoneCodeHash } = await this.client.sendCode({
+          apiId: this.apiId,
+          apiHash: this.apiHash,
+          phoneNumber: this.phoneNumber,
+        });
+        
+        this.phoneCodeHash = phoneCodeHash;
+        this.authState = 'code_needed';
+        
+        console.log("Code sent to phone, waiting for verification. phoneCodeHash:", phoneCodeHash);
+        return { success: true, codeNeeded: true, phoneCodeHash };
+      } catch (sendCodeError) {
+        console.error("Error sending verification code:", sendCodeError);
+        
+        // Check for specific error types
+        const errorMessage = sendCodeError.message || "";
+        
+        if (errorMessage.includes('PHONE_NUMBER_INVALID')) {
+          return { 
+            success: false, 
+            codeNeeded: false, 
+            error: "The phone number format is invalid. Please use international format with + prefix." 
+          };
+        }
+        
+        if (errorMessage.includes('PHONE_NUMBER_BANNED')) {
+          return { 
+            success: false, 
+            codeNeeded: false, 
+            error: "This phone number has been banned from Telegram." 
+          };
+        }
+        
+        if (errorMessage.includes('FLOOD_WAIT')) {
+          // Extract wait time if available
+          const waitMatch = errorMessage.match(/FLOOD_WAIT_(\d+)/);
+          const waitTime = waitMatch ? parseInt(waitMatch[1], 10) : null;
+          
+          return {
+            success: false,
+            codeNeeded: false,
+            error: waitTime 
+              ? `Too many requests. Please wait ${waitTime} seconds before trying again.` 
+              : "Too many requests. Please wait before trying again."
+          };
+        }
+        
+        return { 
+          success: false, 
+          codeNeeded: false, 
+          error: `Error sending verification code: ${errorMessage}` 
+        };
+      }
     } catch (error) {
       console.error("Error connecting to Telegram:", error);
+      
+      // Check for network errors
+      if (error.message && (
+        error.message.includes('Failed to fetch') || 
+        error.message.includes('NetworkError') ||
+        error.message.includes('network')
+      )) {
+        return { 
+          success: false, 
+          codeNeeded: false, 
+          error: "Network error: Unable to connect to Telegram servers. Please check your internet connection." 
+        };
+      }
+      
       return { success: false, codeNeeded: false, error: error.message };
     }
   }
@@ -110,6 +178,10 @@ export class AuthClient extends BaseTelegramClient {
           return { success: false, error: "Invalid verification code. Please try again." };
         }
         
+        if (error.message.includes('PHONE_CODE_EXPIRED')) {
+          return { success: false, error: "Verification code has expired. Please request a new code." };
+        }
+        
         if (error.message.includes('PHONE_NUMBER_UNOCCUPIED')) {
           console.log("Phone number not registered with Telegram, attempting signup");
           try {
@@ -129,10 +201,28 @@ export class AuthClient extends BaseTelegramClient {
           }
         }
         
-        // For other cases like SESSION_PASSWORD_NEEDED, we consider it authenticated
+        if (error.message.includes('SESSION_PASSWORD_NEEDED')) {
+          return { success: false, error: "Two-factor authentication is enabled. Please use another authentication method." };
+        }
+        
+        // For other cases, we consider it authenticated
         this.authState = 'authenticated';
-        console.log("User seems to be already authenticated or needs 2FA");
+        console.log("User seems to be already authenticated");
         return { success: true };
+      }
+      
+      // Check for rate limiting errors
+      if (error.message && error.message.includes('FLOOD_WAIT')) {
+        // Extract wait time if available
+        const waitMatch = error.message.match(/FLOOD_WAIT_(\d+)/);
+        const waitTime = waitMatch ? parseInt(waitMatch[1], 10) : null;
+        
+        return {
+          success: false,
+          error: waitTime 
+            ? `Too many requests. Please wait ${waitTime} seconds before trying again.` 
+            : "Too many requests. Please wait before trying again."
+        };
       }
       
       return { success: false, error: error.message };

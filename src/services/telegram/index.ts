@@ -1,4 +1,7 @@
 
-// Re-export Telegram service functions for easier imports
-export { connectToTelegram, verifyTelegramCode, validateTelegramCredentials } from './connectionService';
-export { setupRealtimeListener } from './realtimeService';
+// Export all telegram-related services
+export * from './connectionService';
+export * from './messageService';
+export * from './realtimeService';
+export * from './sessionManager';
+export * from './networkCheck';

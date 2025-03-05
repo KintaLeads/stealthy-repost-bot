@@ -1,13 +1,15 @@
 
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
-import { RefreshCw, Link } from "lucide-react";
+import { RefreshCw, Link, AlertTriangle } from "lucide-react";
 import { ApiAccount } from "@/types/channels";
 import { toast } from "@/components/ui/use-toast";
 import { connectToTelegram } from "@/services/telegram";
 import { setupRealtimeListener } from "@/services/telegram";
+import { runConnectivityChecks } from "@/services/telegram";
 import { Message } from "@/types/dashboard";
 import VerificationCodeDialog from './VerificationCodeDialog';
+import DiagnosticTool from '../debug/DiagnosticTool';
 
 interface ConnectionButtonProps {
   selectedAccount: ApiAccount | null;
@@ -31,6 +33,7 @@ const ConnectionButton: React.FC<ConnectionButtonProps> = ({
   onNewMessages
 }) => {
   const [showVerificationDialog, setShowVerificationDialog] = useState(false);
+  const [showDiagnosticTool, setShowDiagnosticTool] = useState(false);
   const [tempConnectionState, setTempConnectionState] = useState<{
     account: ApiAccount | null
   }>({ account: null });
@@ -55,6 +58,36 @@ const ConnectionButton: React.FC<ConnectionButtonProps> = ({
     } else {
       try {
         console.log("Starting Telegram connection process with account:", selectedAccount.nickname);
+        
+        // First check connectivity
+        const projectId = "eswfrzdqxsaizkdswxfn"; // Hardcoded for now
+        const connectivityResults = await runConnectivityChecks(projectId);
+        
+        // If there are connectivity issues, show a detailed message
+        if (!connectivityResults.supabase || !connectivityResults.telegram || !connectivityResults.edgeFunction.deployed) {
+          console.error("Connectivity issues detected:", connectivityResults);
+          
+          let errorMessage = "Connection issues detected: ";
+          if (!connectivityResults.supabase) {
+            errorMessage += "Cannot connect to Supabase. ";
+          }
+          if (!connectivityResults.telegram) {
+            errorMessage += "Cannot connect to Telegram services. ";
+          }
+          if (!connectivityResults.edgeFunction.deployed) {
+            errorMessage += "Edge Function issue: " + connectivityResults.edgeFunction.error;
+          }
+          
+          toast({
+            title: "Connection Issues",
+            description: errorMessage,
+            variant: "destructive",
+          });
+          
+          // Show diagnostic tool
+          setShowDiagnosticTool(true);
+          return;
+        }
         
         // First connect to Telegram API
         const connectionResult = await connectToTelegram(selectedAccount);
@@ -84,6 +117,9 @@ const ConnectionButton: React.FC<ConnectionButtonProps> = ({
             description: connectionResult.error || "Failed to connect to Telegram API",
             variant: "destructive",
           });
+          
+          // Show diagnostic tool for connection failures
+          setShowDiagnosticTool(true);
         }
       } catch (error) {
         console.error('Error connecting to Telegram:', error);
@@ -92,6 +128,9 @@ const ConnectionButton: React.FC<ConnectionButtonProps> = ({
           description: error instanceof Error ? error.message : "An unknown error occurred",
           variant: "destructive",
         });
+        
+        // Show diagnostic tool for errors
+        setShowDiagnosticTool(true);
       }
     }
   };
@@ -132,30 +171,45 @@ const ConnectionButton: React.FC<ConnectionButtonProps> = ({
   };
 
   return (
-    <>
-      <Button
-        variant={isConnected ? "destructive" : "default"}
-        onClick={handleToggleConnection}
-        className={isConnected ? "" : "bg-primary text-primary-foreground hover:bg-primary/90"}
-        disabled={isSaving || channelPairs.length === 0 || isConnecting || !selectedAccount}
-      >
-        {isConnecting ? (
-          <>
-            <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-            Connecting...
-          </>
-        ) : isConnected ? (
-          <>
-            <Link className="mr-2 h-4 w-4" />
-            Disconnect
-          </>
-        ) : (
-          <>
-            <Link className="mr-2 h-4 w-4" />
-            Connect to Telegram
-          </>
-        )}
-      </Button>
+    <div className="space-y-4">
+      <div className="flex flex-col sm:flex-row gap-2">
+        <Button
+          variant={isConnected ? "destructive" : "default"}
+          onClick={handleToggleConnection}
+          className={isConnected ? "" : "bg-primary text-primary-foreground hover:bg-primary/90"}
+          disabled={isSaving || channelPairs.length === 0 || isConnecting || !selectedAccount}
+        >
+          {isConnecting ? (
+            <>
+              <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+              Connecting...
+            </>
+          ) : isConnected ? (
+            <>
+              <Link className="mr-2 h-4 w-4" />
+              Disconnect
+            </>
+          ) : (
+            <>
+              <Link className="mr-2 h-4 w-4" />
+              Connect to Telegram
+            </>
+          )}
+        </Button>
+        
+        <Button
+          variant="outline"
+          onClick={() => setShowDiagnosticTool(!showDiagnosticTool)}
+          className="flex items-center"
+        >
+          <AlertTriangle className="mr-2 h-4 w-4" />
+          {showDiagnosticTool ? "Hide Diagnostics" : "Connection Diagnostics"}
+        </Button>
+      </div>
+
+      {showDiagnosticTool && (
+        <DiagnosticTool />
+      )}
 
       {showVerificationDialog && tempConnectionState.account && (
         <VerificationCodeDialog
@@ -165,7 +219,7 @@ const ConnectionButton: React.FC<ConnectionButtonProps> = ({
           onVerified={handleVerificationComplete}
         />
       )}
-    </>
+    </div>
   );
 };
 

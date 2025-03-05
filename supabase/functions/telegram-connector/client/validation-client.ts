@@ -105,6 +105,26 @@ export class ValidationClient extends BaseTelegramClient {
           };
         }
         
+        if (errorMessage.includes('VERSION_OUTDATED')) {
+          return {
+            success: false,
+            error: "The Telegram client library version is outdated. Please update the Edge Function."
+          };
+        }
+        
+        if (errorMessage.includes('FLOOD_WAIT')) {
+          // Extract wait time if available
+          const waitMatch = errorMessage.match(/FLOOD_WAIT_(\d+)/);
+          const waitTime = waitMatch ? parseInt(waitMatch[1], 10) : null;
+          
+          return {
+            success: false,
+            error: waitTime 
+              ? `Too many requests. Please wait ${waitTime} seconds before trying again.` 
+              : "Too many requests. Please wait before trying again."
+          };
+        }
+        
         return { 
           success: false, 
           error: `Connection error: ${errorMessage}` 
@@ -145,6 +165,26 @@ export class ValidationClient extends BaseTelegramClient {
         return {
           success: false,
           error: "Invalid phone number format. Please use international format with country code (e.g., +12345678901)."
+        };
+      }
+      
+      if (error.message && error.message.includes('VERSION_OUTDATED')) {
+        return {
+          success: false,
+          error: "Telegram client library version is outdated. Please update the Edge Function."
+        };
+      }
+      
+      if (error.message && error.message.includes('FLOOD_WAIT')) {
+        // Extract wait time if available
+        const waitMatch = error.message.match(/FLOOD_WAIT_(\d+)/);
+        const waitTime = waitMatch ? parseInt(waitMatch[1], 10) : null;
+        
+        return {
+          success: false,
+          error: waitTime 
+            ? `Too many requests. Please wait ${waitTime} seconds before trying again.` 
+            : "Too many requests. Please wait before trying again."
         };
       }
       

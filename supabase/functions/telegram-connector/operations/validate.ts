@@ -12,6 +12,20 @@ export async function handleValidate(client: TelegramClientImplementation, corsH
       accountId: client.getAccountId()
     });
     
+    // Get information about the environment
+    try {
+      console.log("Edge Function environment information:");
+      console.log(`Deno version: ${Deno.version.deno}`);
+      console.log(`V8 version: ${Deno.version.v8}`);
+      console.log(`TypeScript version: ${Deno.version.typescript}`);
+      
+      // Try importing the Telegram client to check if it's available
+      const { version } = await import('npm:telegram/client');
+      console.log("Telegram client library version:", version);
+    } catch (envError) {
+      console.error("Error getting environment information:", envError);
+    }
+    
     // Try to establish a basic connection to validate credentials
     // We don't need a full connection, just enough to verify the API credentials work
     console.log("Calling client.validateCredentials()...");
