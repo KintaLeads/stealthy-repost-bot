@@ -66,16 +66,22 @@ const ConnectionButton: React.FC<ConnectionButtonProps> = ({
             // Show verification dialog
             setTempConnectionState({ account: selectedAccount });
             setShowVerificationDialog(true);
+            
+            // Add a toast notification for better visibility
+            toast({
+              title: "Verification Required",
+              description: "Please check your phone for the verification code sent by Telegram",
+            });
           } else {
             console.log("No verification needed, setting up listener directly");
             // Already authenticated, setup the listener
             await setupListener(selectedAccount);
           }
         } else {
-          console.error("Connection failed:", connectionResult);
+          console.error("Connection failed:", connectionResult.error);
           toast({
             title: "Connection Failed",
-            description: "Failed to connect to Telegram API",
+            description: connectionResult.error || "Failed to connect to Telegram API",
             variant: "destructive",
           });
         }
@@ -83,7 +89,7 @@ const ConnectionButton: React.FC<ConnectionButtonProps> = ({
         console.error('Error connecting to Telegram:', error);
         toast({
           title: "Connection Failed",
-          description: `Error: ${error.message}`,
+          description: error instanceof Error ? error.message : "An unknown error occurred",
           variant: "destructive",
         });
       }
@@ -111,7 +117,7 @@ const ConnectionButton: React.FC<ConnectionButtonProps> = ({
       console.error('Error setting up realtime listener:', error);
       toast({
         title: "Listener Setup Failed",
-        description: `Error: ${error.message}`,
+        description: error instanceof Error ? error.message : "An unknown error occurred",
         variant: "destructive",
       });
     }

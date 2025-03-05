@@ -23,7 +23,7 @@ export const connectToTelegram = async (account: ApiAccount): Promise<{
       headers['X-Telegram-Session'] = sessionString;
       console.log(`Found stored session for account: ${account.nickname}, using it`);
     } else {
-      console.log(`No stored session found for account: ${account.nickname}`);
+      console.log(`No stored session found for account: ${account.nickname}, will need to authenticate`);
     }
     
     console.log(`Connecting to Telegram with account: ${account.nickname} (${account.phoneNumber})`);
@@ -64,7 +64,7 @@ export const connectToTelegram = async (account: ApiAccount): Promise<{
     
     // Check if code verification is needed
     if (data.codeNeeded) {
-      console.log("Verification code needed for account:", account.nickname);
+      console.log("Verification code needed for account:", account.nickname, "phoneCodeHash:", data.phoneCodeHash);
       toast({
         title: "Verification Required",
         description: "Please enter the verification code sent to your phone",
@@ -92,10 +92,10 @@ export const connectToTelegram = async (account: ApiAccount): Promise<{
     console.error('Exception connecting to Telegram:', error);
     toast({
       title: "Connection Failed",
-      description: error.message || "An unknown error occurred",
+      description: error instanceof Error ? error.message : "An unknown error occurred",
       variant: "destructive",
     });
-    return { success: false, error: error.message };
+    return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
   }
 };
 
@@ -155,7 +155,7 @@ export const verifyTelegramCode = async (account: ApiAccount, code: string): Pro
     console.error('Exception verifying Telegram code:', error);
     toast({
       title: "Verification Failed",
-      description: error.message || "An unknown error occurred",
+      description: error instanceof Error ? error.message : "An unknown error occurred",
       variant: "destructive",
     });
     return false;

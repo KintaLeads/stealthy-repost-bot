@@ -13,10 +13,11 @@ const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY') || '';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 Deno.serve(async (req) => {
-  // Log that the function was called
+  // Log that the function was called with detailed info
   console.log("Telegram connector function called", {
     method: req.method,
     url: req.url,
+    headers: Object.fromEntries(req.headers.entries()),
   });
   
   // Handle CORS
@@ -27,7 +28,7 @@ Deno.serve(async (req) => {
 
   try {
     const requestBody = await req.json();
-    console.log("Request body:", {
+    console.log("Request body received:", {
       ...requestBody,
       apiHash: requestBody.apiHash ? "***********" : undefined, // Mask sensitive data
       verificationCode: requestBody.verificationCode ? "******" : undefined,
@@ -48,7 +49,12 @@ Deno.serve(async (req) => {
     
     // Validate required parameters
     if (!apiId || !apiHash || !phoneNumber || !accountId) {
-      console.error("Missing required parameters");
+      console.error("Missing required parameters:", {
+        hasApiId: !!apiId,
+        hasApiHash: !!apiHash,
+        hasPhoneNumber: !!phoneNumber,
+        hasAccountId: !!accountId
+      });
       return new Response(
         JSON.stringify({ 
           error: 'Missing required Telegram API credentials or account ID',
@@ -60,15 +66,17 @@ Deno.serve(async (req) => {
 
     // Get session from headers if available
     const sessionString = req.headers.get('X-Telegram-Session') || '';
-    console.log("Session provided:", sessionString ? "Yes" : "No");
+    console.log("Session provided:", sessionString ? "Yes (length: " + sessionString.length + ")" : "No");
 
     // Initialize Telegram client with the real implementation
+    console.log("Initializing TelegramClientImplementation with accountId:", accountId);
     const client = new TelegramClientImplementation(apiId, apiHash, phoneNumber, accountId, sessionString);
 
     // Check which operation is requested
     console.log(`Processing ${operation} operation`);
     switch (operation) {
       case 'connect':
+        console.log("Handling connect operation, verificationCode provided:", !!verificationCode);
         return await handleConnect(client, corsHeaders, { verificationCode });
         
       case 'listen':

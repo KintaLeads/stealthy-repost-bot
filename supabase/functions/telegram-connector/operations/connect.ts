@@ -6,7 +6,7 @@ export async function handleConnect(client: TelegramClientImplementation, corsHe
   // Connect to Telegram and return session string if successful
   try {
     console.log("Connect operation called with data:", {
-      accountId: data.accountId,
+      accountId: client.getAccountId(),
       verificationCode: data.verificationCode ? "******" : undefined
     });
     
@@ -30,6 +30,7 @@ export async function handleConnect(client: TelegramClientImplementation, corsHe
       
       // Code verification successful, get session for future requests
       const sessionString = client.getSession();
+      console.log("Session generated, length:", sessionString.length);
       
       return new Response(
         JSON.stringify({ 
@@ -45,6 +46,13 @@ export async function handleConnect(client: TelegramClientImplementation, corsHe
     // If no verification code is provided, initiate connection
     console.log("No verification code provided, initiating connection");
     const connectResult = await client.connect();
+    
+    console.log("Connection result:", {
+      success: connectResult.success,
+      codeNeeded: connectResult.codeNeeded,
+      error: connectResult.error,
+      phoneCodeHash: connectResult.phoneCodeHash ? "exists" : "none"
+    });
     
     if (!connectResult.success) {
       console.error("Connection failed:", connectResult.error);
@@ -75,6 +83,7 @@ export async function handleConnect(client: TelegramClientImplementation, corsHe
     // Already authenticated, return session string
     console.log("Already authenticated, returning session string");
     const sessionString = client.getSession();
+    console.log("Session string length:", sessionString.length);
     
     return new Response(
       JSON.stringify({ 

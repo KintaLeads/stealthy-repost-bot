@@ -20,6 +20,9 @@ export class TelegramClientImplementation {
     this.phoneNumber = phoneNumber;
     this.accountId = accountId;
     this.stringSession = new StringSession(sessionString);
+    
+    console.log(`TelegramClientImplementation created for account ${this.accountId} with phone ${this.maskPhone(this.phoneNumber)}`);
+    console.log(`Session string provided: ${sessionString ? "Yes (length: " + sessionString.length + ")" : "No"}`);
   }
 
   async connect(): Promise<{ success: boolean, codeNeeded: boolean, phoneCodeHash?: string, error?: string }> {
@@ -32,23 +35,28 @@ export class TelegramClientImplementation {
     });
     
     try {
+      console.log("Creating new TelegramClient instance");
       this.client = new TelegramClient(
         this.stringSession,
         this.apiId,
         this.apiHash,
         {
-          connectionRetries: 3,
+          connectionRetries: 5,
           useWSS: true,
+          deviceModel: "Web Client",
+          systemVersion: "1.0.0",
+          appVersion: "1.0.0",
         }
       );
 
       // Connect but don't login yet
+      console.log("Calling client.connect()");
       await this.client.connect();
-      console.log("Initial connection successful, connected:", this.client.connected);
+      console.log("Initial connection result, connected:", this.client.connected);
       
       // If we have a session string and client is connected, we're already authenticated
       if (this.stringSession.save() !== '' && this.client.connected) {
-        console.log("Already authenticated with session string");
+        console.log("Session string exists, testing if it's valid by getting self");
         try {
           // Test the session by getting self
           const me = await this.client.getMe();
@@ -107,9 +115,39 @@ export class TelegramClientImplementation {
       console.error("Error verifying code:", error);
       
       // Check if error is because user is already logged in (common case)
-      if (error.message.includes('AUTH_KEY_UNREGISTERED') || 
-          error.message.includes('SESSION_PASSWORD_NEEDED')) {
-        // Already logged in or 2FA is needed
+      if (error.message && (
+          error.message.includes('AUTH_KEY_UNREGISTERED') || 
+          error.message.includes('SESSION_PASSWORD_NEEDED') ||
+          error.message.includes('PHONE_CODE_INVALID') ||
+          error.message.includes('PHONE_NUMBER_UNOCCUPIED')
+      )) {
+        // These are special cases that might still allow us to proceed
+        console.log("Special error case detected in verification:", error.message);
+        
+        if (error.message.includes('PHONE_CODE_INVALID')) {
+          return { success: false, error: "Invalid verification code. Please try again." };
+        }
+        
+        if (error.message.includes('PHONE_NUMBER_UNOCCUPIED')) {
+          console.log("Phone number not registered with Telegram, attempting signup");
+          try {
+            // Try to sign up with this number
+            await this.client.signUp({
+              phoneNumber: this.phoneNumber,
+              phoneCodeHash: this.phoneCodeHash,
+              firstName: "Telegram",
+              lastName: "User"
+            });
+            this.authState = 'authenticated';
+            console.log("Signup successful");
+            return { success: true };
+          } catch (signupError) {
+            console.error("Error signing up:", signupError);
+            return { success: false, error: "Failed to sign up with this phone number: " + signupError.message };
+          }
+        }
+        
+        // For other cases like SESSION_PASSWORD_NEEDED, we consider it authenticated
         this.authState = 'authenticated';
         console.log("User seems to be already authenticated or needs 2FA");
         return { success: true };
@@ -169,7 +207,9 @@ export class TelegramClientImplementation {
   }
   
   getSession(): string {
-    return this.stringSession.save();
+    const sessionStr = this.stringSession.save();
+    console.log(`Getting session string, length: ${sessionStr.length}`);
+    return sessionStr;
   }
   
   getAccountId(): string {
