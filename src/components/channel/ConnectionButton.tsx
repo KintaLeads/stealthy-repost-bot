@@ -54,18 +54,30 @@ const ConnectionButton: React.FC<ConnectionButtonProps> = ({
       });
     } else {
       try {
+        console.log("Starting Telegram connection process with account:", selectedAccount.nickname);
+        
         // First connect to Telegram API
         const connectionResult = await connectToTelegram(selectedAccount);
+        console.log("Connection result:", connectionResult);
         
         if (connectionResult.success) {
           if (connectionResult.codeNeeded) {
+            console.log("Verification code needed, showing dialog");
             // Show verification dialog
             setTempConnectionState({ account: selectedAccount });
             setShowVerificationDialog(true);
           } else {
+            console.log("No verification needed, setting up listener directly");
             // Already authenticated, setup the listener
             await setupListener(selectedAccount);
           }
+        } else {
+          console.error("Connection failed:", connectionResult);
+          toast({
+            title: "Connection Failed",
+            description: "Failed to connect to Telegram API",
+            variant: "destructive",
+          });
         }
       } catch (error) {
         console.error('Error connecting to Telegram:', error);
@@ -80,6 +92,8 @@ const ConnectionButton: React.FC<ConnectionButtonProps> = ({
 
   const setupListener = async (account: ApiAccount) => {
     try {
+      console.log("Setting up realtime listener for account:", account.nickname);
+      
       // Setup the realtime listener
       const listener = await setupRealtimeListener(
         account,
@@ -88,6 +102,11 @@ const ConnectionButton: React.FC<ConnectionButtonProps> = ({
       );
       
       onConnected(listener);
+      
+      toast({
+        title: "Connected",
+        description: "Now listening to Telegram channels",
+      });
     } catch (error) {
       console.error('Error setting up realtime listener:', error);
       toast({
@@ -100,6 +119,7 @@ const ConnectionButton: React.FC<ConnectionButtonProps> = ({
 
   const handleVerificationComplete = async () => {
     if (tempConnectionState.account) {
+      console.log("Verification completed, setting up listener");
       await setupListener(tempConnectionState.account);
       setTempConnectionState({ account: null });
     }

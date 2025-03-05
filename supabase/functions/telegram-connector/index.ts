@@ -13,29 +13,60 @@ const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY') || '';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 Deno.serve(async (req) => {
+  // Log that the function was called
+  console.log("Telegram connector function called", {
+    method: req.method,
+    url: req.url,
+  });
+  
   // Handle CORS
   if (req.method === 'OPTIONS') {
+    console.log("Handling OPTIONS request for CORS");
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { apiId, apiHash, phoneNumber, accountId, sourceChannels, operation, messageId, sourceChannel, targetChannel, verificationCode } = await req.json();
+    const requestBody = await req.json();
+    console.log("Request body:", {
+      ...requestBody,
+      apiHash: requestBody.apiHash ? "***********" : undefined, // Mask sensitive data
+      verificationCode: requestBody.verificationCode ? "******" : undefined,
+    });
+    
+    const { 
+      apiId, 
+      apiHash, 
+      phoneNumber, 
+      accountId, 
+      sourceChannels, 
+      operation, 
+      messageId, 
+      sourceChannel, 
+      targetChannel, 
+      verificationCode 
+    } = requestBody;
     
     // Validate required parameters
     if (!apiId || !apiHash || !phoneNumber || !accountId) {
+      console.error("Missing required parameters");
       return new Response(
-        JSON.stringify({ error: 'Missing required Telegram API credentials or account ID' }),
+        JSON.stringify({ 
+          error: 'Missing required Telegram API credentials or account ID',
+          success: false
+        }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     // Get session from headers if available
     const sessionString = req.headers.get('X-Telegram-Session') || '';
+    console.log("Session provided:", sessionString ? "Yes" : "No");
 
     // Initialize Telegram client with the real implementation
     const client = new TelegramClientImplementation(apiId, apiHash, phoneNumber, accountId, sessionString);
 
     // Check which operation is requested
+    console.log(`Processing ${operation} operation`);
     switch (operation) {
       case 'connect':
         return await handleConnect(client, corsHeaders, { verificationCode });
@@ -47,15 +78,22 @@ Deno.serve(async (req) => {
         return await handleRepost(client, messageId, sourceChannel, targetChannel, corsHeaders);
         
       default:
+        console.error("Invalid operation:", operation);
         return new Response(
-          JSON.stringify({ error: 'Invalid operation' }),
+          JSON.stringify({ 
+            error: 'Invalid operation',
+            success: false
+          }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
     }
   } catch (error) {
     console.error('Error processing request:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: error.message,
+        success: false
+      }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

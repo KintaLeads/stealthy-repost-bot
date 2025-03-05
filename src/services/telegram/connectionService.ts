@@ -7,7 +7,12 @@ import { getStoredSession, storeSession } from "./sessionManager";
 /**
  * Connect to Telegram API using the provided account credentials
  */
-export const connectToTelegram = async (account: ApiAccount): Promise<{success: boolean, codeNeeded?: boolean, phoneCodeHash?: string}> => {
+export const connectToTelegram = async (account: ApiAccount): Promise<{
+  success: boolean, 
+  codeNeeded?: boolean, 
+  phoneCodeHash?: string,
+  error?: string
+}> => {
   try {
     // Check if we have a stored session for this account
     const sessionString = getStoredSession(account.id);
@@ -16,9 +21,12 @@ export const connectToTelegram = async (account: ApiAccount): Promise<{success: 
     const headers: Record<string, string> = {};
     if (sessionString) {
       headers['X-Telegram-Session'] = sessionString;
+      console.log(`Found stored session for account: ${account.nickname}, using it`);
+    } else {
+      console.log(`No stored session found for account: ${account.nickname}`);
     }
     
-    console.log(`Connecting to Telegram with account: ${account.nickname}`);
+    console.log(`Connecting to Telegram with account: ${account.nickname} (${account.phoneNumber})`);
     
     // Call the Supabase function
     const { data, error } = await supabase.functions.invoke('telegram-connector', {
@@ -32,6 +40,8 @@ export const connectToTelegram = async (account: ApiAccount): Promise<{success: 
       headers
     });
     
+    console.log("Telegram connector response:", data, "error:", error);
+    
     if (error) {
       console.error('Error connecting to Telegram:', error);
       toast({
@@ -39,7 +49,7 @@ export const connectToTelegram = async (account: ApiAccount): Promise<{success: 
         description: error.message,
         variant: "destructive",
       });
-      return { success: false };
+      return { success: false, error: error.message };
     }
     
     if (data.error) {
@@ -49,11 +59,12 @@ export const connectToTelegram = async (account: ApiAccount): Promise<{success: 
         description: data.error,
         variant: "destructive",
       });
-      return { success: false };
+      return { success: false, error: data.error };
     }
     
     // Check if code verification is needed
     if (data.codeNeeded) {
+      console.log("Verification code needed for account:", account.nickname);
       toast({
         title: "Verification Required",
         description: "Please enter the verification code sent to your phone",
@@ -67,6 +78,7 @@ export const connectToTelegram = async (account: ApiAccount): Promise<{success: 
     
     if (data.success && data.sessionString) {
       // Store the session for this account
+      console.log("Successfully connected with account:", account.nickname);
       storeSession(account.id, data.sessionString);
       toast({
         title: "Connected",
@@ -75,7 +87,7 @@ export const connectToTelegram = async (account: ApiAccount): Promise<{success: 
       return { success: true };
     }
     
-    return { success: false };
+    return { success: false, error: "Unknown error connecting to Telegram" };
   } catch (error) {
     console.error('Exception connecting to Telegram:', error);
     toast({
@@ -83,7 +95,7 @@ export const connectToTelegram = async (account: ApiAccount): Promise<{success: 
       description: error.message || "An unknown error occurred",
       variant: "destructive",
     });
-    return { success: false };
+    return { success: false, error: error.message };
   }
 };
 
@@ -92,7 +104,7 @@ export const connectToTelegram = async (account: ApiAccount): Promise<{success: 
  */
 export const verifyTelegramCode = async (account: ApiAccount, code: string): Promise<boolean> => {
   try {
-    console.log(`Verifying code for account: ${account.nickname}`);
+    console.log(`Verifying code for account: ${account.nickname} (${account.phoneNumber})`);
     
     const { data, error } = await supabase.functions.invoke('telegram-connector', {
       body: {
@@ -104,6 +116,8 @@ export const verifyTelegramCode = async (account: ApiAccount, code: string): Pro
         verificationCode: code
       }
     });
+    
+    console.log("Verification response:", data, "error:", error);
     
     if (error) {
       console.error('Error verifying code:', error);
@@ -127,6 +141,7 @@ export const verifyTelegramCode = async (account: ApiAccount, code: string): Pro
     
     if (data.success && data.sessionString) {
       // Store the session for this account
+      console.log("Successfully verified and authenticated with account:", account.nickname);
       storeSession(account.id, data.sessionString);
       toast({
         title: "Verified",

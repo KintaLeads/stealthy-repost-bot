@@ -22,12 +22,13 @@ export class TelegramClientImplementation {
     this.stringSession = new StringSession(sessionString);
   }
 
-  async connect(): Promise<{ success: boolean, codeNeeded: boolean, phoneCodeHash?: string }> {
+  async connect(): Promise<{ success: boolean, codeNeeded: boolean, phoneCodeHash?: string, error?: string }> {
     console.log('Connecting to Telegram with:', { 
       apiId: this.apiId, 
       apiHash: this.maskApiHash(this.apiHash), 
       phone: this.maskPhone(this.phoneNumber),
-      accountId: this.accountId
+      accountId: this.accountId,
+      hasSession: this.stringSession.save() !== ''
     });
     
     try {
@@ -43,18 +44,27 @@ export class TelegramClientImplementation {
 
       // Connect but don't login yet
       await this.client.connect();
+      console.log("Initial connection successful, connected:", this.client.connected);
       
       // If we have a session string and client is connected, we're already authenticated
       if (this.stringSession.save() !== '' && this.client.connected) {
         console.log("Already authenticated with session string");
-        this.authState = 'authenticated';
-        return { success: true, codeNeeded: false };
+        try {
+          // Test the session by getting self
+          const me = await this.client.getMe();
+          console.log("Session valid, got self:", me);
+          this.authState = 'authenticated';
+          return { success: true, codeNeeded: false };
+        } catch (error) {
+          console.error("Stored session is invalid, need to re-authenticate:", error);
+          // Continue with authentication flow
+        }
       }
       
       // Check if the client is connected
       if (!this.client.connected) {
         console.error("Failed to connect to Telegram API");
-        return { success: false, codeNeeded: false };
+        return { success: false, codeNeeded: false, error: "Failed to establish connection to Telegram" };
       }
       
       // Request the login code to be sent via SMS
@@ -68,11 +78,11 @@ export class TelegramClientImplementation {
       this.phoneCodeHash = phoneCodeHash;
       this.authState = 'code_needed';
       
-      console.log("Code sent to phone, waiting for verification");
+      console.log("Code sent to phone, waiting for verification. phoneCodeHash:", phoneCodeHash);
       return { success: true, codeNeeded: true, phoneCodeHash };
     } catch (error) {
       console.error("Error connecting to Telegram:", error);
-      return { success: false, codeNeeded: false };
+      return { success: false, codeNeeded: false, error: error.message };
     }
   }
 
@@ -97,10 +107,11 @@ export class TelegramClientImplementation {
       console.error("Error verifying code:", error);
       
       // Check if error is because user is already logged in (common case)
-      if (error.message.includes('AUTH_KEY_UNREGISTERED')) {
-        // Already logged in, just need to refresh the session
+      if (error.message.includes('AUTH_KEY_UNREGISTERED') || 
+          error.message.includes('SESSION_PASSWORD_NEEDED')) {
+        // Already logged in or 2FA is needed
         this.authState = 'authenticated';
-        console.log("User seems to be already authenticated");
+        console.log("User seems to be already authenticated or needs 2FA");
         return { success: true };
       }
       
