@@ -1,7 +1,4 @@
 
-// Re-export all Telegram service functions from this index file
-export * from './sessionManager';
-export * from './connectionService';
-export * from './messageService';
-export * from './realtimeService';
-export * from './types';
+// Re-export Telegram service functions for easier imports
+export { connectToTelegram, verifyTelegramCode, validateTelegramCredentials } from './connectionService';
+export { setupRealtimeListener } from './realtimeService';

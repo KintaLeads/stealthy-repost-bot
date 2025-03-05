@@ -10,6 +10,7 @@ import {
   formatApiAccount
 } from '@/utils/apiAccountUtils';
 import { toast } from "@/components/ui/use-toast";
+import { validateTelegramCredentials } from '@/services/telegram/connectionService';
 
 export const useApiAccountOperations = (
   accounts: ApiAccount[],
@@ -34,6 +35,20 @@ export const useApiAccountOperations = (
         return false;
       }
       
+      // First, validate that the Telegram credentials work
+      console.log("Validating Telegram credentials before saving to database...");
+      const validationResult = await validateTelegramCredentials(newAccount);
+      
+      if (!validationResult.success) {
+        toast({
+          title: "Invalid Telegram API credentials",
+          description: validationResult.error || "Could not connect to Telegram with the provided credentials",
+          variant: "destructive",
+        });
+        return false;
+      }
+      
+      // If credentials are valid, proceed with database creation
       const data = await createApiAccountInDb(userId, newAccount);
       
       if (data) {

@@ -1,4 +1,3 @@
-
 // Real Telegram client implementation using GramJS
 import { TelegramClient } from "npm:telegram/client";
 import { StringSession } from "npm:telegram/sessions";
@@ -23,6 +22,70 @@ export class TelegramClientImplementation {
     
     console.log(`TelegramClientImplementation created for account ${this.accountId} with phone ${this.maskPhone(this.phoneNumber)}`);
     console.log(`Session string provided: ${sessionString ? "Yes (length: " + sessionString.length + ")" : "No"}`);
+  }
+
+  async validateCredentials(): Promise<{ success: boolean, error?: string }> {
+    console.log('Validating Telegram credentials with:', { 
+      apiId: this.apiId, 
+      apiHash: this.maskApiHash(this.apiHash), 
+      phone: this.maskPhone(this.phoneNumber)
+    });
+    
+    try {
+      // Create a temporary client just to validate credentials
+      console.log("Creating temporary TelegramClient instance for validation");
+      const tempClient = new TelegramClient(
+        new StringSession(""),
+        this.apiId,
+        this.apiHash,
+        {
+          connectionRetries: 2, // Fewer retries for validation
+          useWSS: true,
+          deviceModel: "Web Client",
+          systemVersion: "1.0.0",
+          appVersion: "1.0.0",
+        }
+      );
+
+      // Try to connect (but don't log in)
+      console.log("Attempting to establish basic connection to validate credentials");
+      await tempClient.connect();
+      
+      // If we can connect, the credentials are valid
+      const isConnected = tempClient.connected;
+      console.log("Basic connection test result, connected:", isConnected);
+      
+      // Disconnect the temporary client
+      await tempClient.disconnect();
+      console.log("Disconnected temporary client after validation");
+      
+      if (isConnected) {
+        return { success: true };
+      } else {
+        return { 
+          success: false, 
+          error: "Could not establish connection with provided credentials" 
+        };
+      }
+    } catch (error) {
+      console.error("Error validating Telegram credentials:", error);
+      
+      // Check for specific API errors
+      if (error.message && (
+        error.message.includes('API_ID_INVALID') || 
+        error.message.includes('API_HASH_INVALID')
+      )) {
+        return { 
+          success: false, 
+          error: "Invalid API ID or API Hash. Please check your Telegram API credentials." 
+        };
+      }
+      
+      return { 
+        success: false, 
+        error: `Validation failed: ${error.message}` 
+      };
+    }
   }
 
   async connect(): Promise<{ success: boolean, codeNeeded: boolean, phoneCodeHash?: string, error?: string }> {

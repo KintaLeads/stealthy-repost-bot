@@ -5,6 +5,54 @@ import { toast } from "@/components/ui/use-toast";
 import { getStoredSession, storeSession } from "./sessionManager";
 
 /**
+ * Validate Telegram API credentials without creating an account
+ */
+export const validateTelegramCredentials = async (account: ApiAccount): Promise<{
+  success: boolean,
+  error?: string
+}> => {
+  try {
+    console.log(`=== VALIDATING TELEGRAM CREDENTIALS ===`);
+    console.log(`Account: ${account.nickname} (${account.phoneNumber})`);
+    console.log(`API ID: ${account.apiKey}`);
+    
+    // Call the Supabase function to validate credentials without storing
+    const { data, error } = await supabase.functions.invoke('telegram-connector', {
+      body: {
+        operation: 'validate',
+        apiId: account.apiKey,
+        apiHash: account.apiHash,
+        phoneNumber: account.phoneNumber,
+        accountId: 'temp-validation' // We don't have an account ID yet
+      }
+    });
+    
+    console.log("Telegram credentials validation response:", data);
+    
+    if (error) {
+      console.error('Error validating Telegram credentials:', error);
+      return { success: false, error: error.message };
+    }
+    
+    if (data?.error) {
+      console.error('Error in Telegram validation:', data.error);
+      return { success: false, error: data.error };
+    }
+    
+    if (data?.success) {
+      console.log("Telegram credentials validated successfully");
+      return { success: true };
+    }
+    
+    console.warn("Unexpected response from Telegram connector:", data);
+    return { success: false, error: "Unknown error validating Telegram credentials" };
+  } catch (error) {
+    console.error('Exception validating Telegram credentials:', error);
+    return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
+  }
+};
+
+/**
  * Connect to Telegram API using the provided account credentials
  */
 export const connectToTelegram = async (account: ApiAccount): Promise<{

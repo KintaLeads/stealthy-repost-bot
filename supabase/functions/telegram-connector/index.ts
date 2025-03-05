@@ -6,6 +6,7 @@ import { TelegramClientImplementation } from './telegram-client.ts';
 import { handleConnect } from './operations/connect.ts';
 import { handleListen } from './operations/listen.ts';
 import { handleRepost } from './operations/repost.ts';
+import { handleValidate } from './operations/validate.ts';
 
 // Create a Supabase client
 const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
@@ -48,16 +49,15 @@ Deno.serve(async (req) => {
     } = requestBody;
     
     // Validate required parameters
-    if (!apiId || !apiHash || !phoneNumber || !accountId) {
+    if (!apiId || !apiHash || !phoneNumber) {
       console.error("⚠️ Missing required parameters:", {
         hasApiId: !!apiId,
         hasApiHash: !!apiHash,
-        hasPhoneNumber: !!phoneNumber,
-        hasAccountId: !!accountId
+        hasPhoneNumber: !!phoneNumber
       });
       return new Response(
         JSON.stringify({ 
-          error: 'Missing required Telegram API credentials or account ID',
+          error: 'Missing required Telegram API credentials',
           success: false
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -70,12 +70,18 @@ Deno.serve(async (req) => {
 
     // Initialize Telegram client with the real implementation
     console.log("🔄 Initializing TelegramClientImplementation with accountId:", accountId);
-    const client = new TelegramClientImplementation(apiId, apiHash, phoneNumber, accountId, sessionString);
+    const client = new TelegramClientImplementation(apiId, apiHash, phoneNumber, accountId || 'temp', sessionString);
 
     // Check which operation is requested
     console.log(`🔄 Processing ${operation} operation`);
     let response;
     switch (operation) {
+      case 'validate':
+        console.log("🔄 Handling validate operation");
+        response = await handleValidate(client, corsHeaders);
+        console.log("🔄 Validate operation response:", JSON.parse(await response.text()));
+        return response;
+        
       case 'connect':
         console.log("🔄 Handling connect operation, verificationCode provided:", !!verificationCode);
         response = await handleConnect(client, corsHeaders, { verificationCode });
