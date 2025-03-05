@@ -3,16 +3,11 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { X } from 'lucide-react';
 import { consoleLogger } from '@/services/telegram/connectionService';
-import { X, RefreshCw, AlertTriangle, Info, AlertCircle, Download } from 'lucide-react';
-
-interface LogEntry {
-  level: 'info' | 'warn' | 'error';
-  timestamp: Date;
-  message: string;
-  data?: any;
-}
+import { LogEntry } from './types';
+import LogList from './LogList';
+import ConsoleToolbar from './ConsoleToolbar';
 
 const ConsoleViewer: React.FC = () => {
   const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -59,30 +54,6 @@ const ConsoleViewer: React.FC = () => {
     linkElement.click();
   };
 
-  // Function to format log data for display
-  const formatLogData = (data: any) => {
-    if (!data) return null;
-    
-    try {
-      return (
-        <pre className="mt-1 text-xs bg-muted p-2 rounded overflow-x-auto">
-          {JSON.stringify(data, null, 2)}
-        </pre>
-      );
-    } catch (e) {
-      return <span className="text-xs text-muted-foreground">[Complex data]</span>;
-    }
-  };
-
-  // Function to get icon for log level
-  const getLogIcon = (level: 'info' | 'warn' | 'error') => {
-    switch (level) {
-      case 'info': return <Info className="h-4 w-4 text-blue-500" />;
-      case 'warn': return <AlertTriangle className="h-4 w-4 text-yellow-500" />;
-      case 'error': return <AlertCircle className="h-4 w-4 text-red-500" />;
-    }
-  };
-
   if (!isOpen) {
     return (
       <Button 
@@ -117,91 +88,31 @@ const ConsoleViewer: React.FC = () => {
         
         <CardContent className="p-0">
           <TabsContent value="all" className="m-0">
-            <ScrollArea className="h-[400px] px-6">
-              {filteredLogs.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-                  <p>No logs to display</p>
-                </div>
-              ) : (
-                <div className="space-y-2 py-2">
-                  {filteredLogs.map((log, index) => (
-                    <div key={index} className={`p-2 rounded-md ${
-                      log.level === 'error' ? 'bg-red-100 dark:bg-red-950/20' : 
-                      log.level === 'warn' ? 'bg-yellow-100 dark:bg-yellow-950/20' : 
-                      'bg-muted/30'
-                    }`}>
-                      <div className="flex items-start gap-2">
-                        {getLogIcon(log.level)}
-                        <div className="flex-1 overflow-hidden">
-                          <div className="flex justify-between items-center">
-                            <span className={`text-xs font-medium ${
-                              log.level === 'error' ? 'text-red-800 dark:text-red-300' : 
-                              log.level === 'warn' ? 'text-yellow-800 dark:text-yellow-300' : 
-                              'text-muted-foreground'
-                            }`}>
-                              {log.level.toUpperCase()}
-                            </span>
-                            <span className="text-xs text-muted-foreground">
-                              {new Date(log.timestamp).toLocaleTimeString()}
-                            </span>
-                          </div>
-                          <p className="text-sm mt-1 break-words">{log.message}</p>
-                          {log.data && formatLogData(log.data)}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </ScrollArea>
+            <LogList logs={filteredLogs} />
           </TabsContent>
           
           <TabsContent value="info" className="m-0">
-            {/* Same content as "all" but filtered for info */}
-            <ScrollArea className="h-[400px] px-6">
-              {/* ... same structure */}
-            </ScrollArea>
+            <LogList logs={filteredLogs} />
           </TabsContent>
           
           <TabsContent value="warn" className="m-0">
-            {/* Same content as "all" but filtered for warnings */}
-            <ScrollArea className="h-[400px] px-6">
-              {/* ... same structure */}
-            </ScrollArea>
+            <LogList logs={filteredLogs} />
           </TabsContent>
           
           <TabsContent value="error" className="m-0">
-            {/* Same content as "all" but filtered for errors */}
-            <ScrollArea className="h-[400px] px-6">
-              {/* ... same structure */}
-            </ScrollArea>
+            <LogList logs={filteredLogs} />
           </TabsContent>
         </CardContent>
       </Tabs>
       
-      <CardFooter className="flex justify-between p-4 pt-2">
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={refreshLogs}>
-            <RefreshCw className="h-4 w-4 mr-1" />
-            Refresh
-          </Button>
-          <Button variant="outline" size="sm" onClick={clearLogs}>
-            Clear
-          </Button>
-        </div>
-        <div className="flex gap-2">
-          <Button 
-            variant={autoRefresh ? "default" : "outline"} 
-            size="sm" 
-            onClick={() => setAutoRefresh(!autoRefresh)}
-          >
-            {autoRefresh ? "Auto-refresh On" : "Auto-refresh Off"}
-          </Button>
-          <Button variant="outline" size="sm" onClick={downloadLogs}>
-            <Download className="h-4 w-4 mr-1" />
-            Export
-          </Button>
-        </div>
+      <CardFooter className="p-0">
+        <ConsoleToolbar
+          onRefresh={refreshLogs}
+          onClear={clearLogs}
+          autoRefresh={autoRefresh}
+          onToggleAutoRefresh={() => setAutoRefresh(!autoRefresh)}
+          onDownload={downloadLogs}
+        />
       </CardFooter>
     </Card>
   );
