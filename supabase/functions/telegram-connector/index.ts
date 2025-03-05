@@ -14,7 +14,7 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 Deno.serve(async (req) => {
   // Log that the function was called with detailed info
-  console.log("Telegram connector function called", {
+  console.log("⭐⭐⭐ Telegram connector function called ⭐⭐⭐", {
     method: req.method,
     url: req.url,
     headers: Object.fromEntries(req.headers.entries()),
@@ -28,7 +28,7 @@ Deno.serve(async (req) => {
 
   try {
     const requestBody = await req.json();
-    console.log("Request body received:", {
+    console.log("⭐ REQUEST BODY ⭐", {
       ...requestBody,
       apiHash: requestBody.apiHash ? "***********" : undefined, // Mask sensitive data
       verificationCode: requestBody.verificationCode ? "******" : undefined,
@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
     
     // Validate required parameters
     if (!apiId || !apiHash || !phoneNumber || !accountId) {
-      console.error("Missing required parameters:", {
+      console.error("⚠️ Missing required parameters:", {
         hasApiId: !!apiId,
         hasApiHash: !!apiHash,
         hasPhoneNumber: !!phoneNumber,
@@ -69,24 +69,31 @@ Deno.serve(async (req) => {
     console.log("Session provided:", sessionString ? "Yes (length: " + sessionString.length + ")" : "No");
 
     // Initialize Telegram client with the real implementation
-    console.log("Initializing TelegramClientImplementation with accountId:", accountId);
+    console.log("🔄 Initializing TelegramClientImplementation with accountId:", accountId);
     const client = new TelegramClientImplementation(apiId, apiHash, phoneNumber, accountId, sessionString);
 
     // Check which operation is requested
-    console.log(`Processing ${operation} operation`);
+    console.log(`🔄 Processing ${operation} operation`);
+    let response;
     switch (operation) {
       case 'connect':
-        console.log("Handling connect operation, verificationCode provided:", !!verificationCode);
-        return await handleConnect(client, corsHeaders, { verificationCode });
+        console.log("🔄 Handling connect operation, verificationCode provided:", !!verificationCode);
+        response = await handleConnect(client, corsHeaders, { verificationCode });
+        console.log("🔄 Connect operation response:", JSON.parse(await response.text()));
+        return response;
         
       case 'listen':
-        return await handleListen(client, sourceChannels, corsHeaders);
+        response = await handleListen(client, sourceChannels, corsHeaders);
+        console.log("🔄 Listen operation response:", JSON.parse(await response.text()));
+        return response;
         
       case 'repost':
-        return await handleRepost(client, messageId, sourceChannel, targetChannel, corsHeaders);
+        response = await handleRepost(client, messageId, sourceChannel, targetChannel, corsHeaders);
+        console.log("🔄 Repost operation response:", JSON.parse(await response.text()));
+        return response;
         
       default:
-        console.error("Invalid operation:", operation);
+        console.error("⚠️ Invalid operation:", operation);
         return new Response(
           JSON.stringify({ 
             error: 'Invalid operation',
@@ -96,7 +103,7 @@ Deno.serve(async (req) => {
         );
     }
   } catch (error) {
-    console.error('Error processing request:', error);
+    console.error('⚠️ Error processing request:', error);
     return new Response(
       JSON.stringify({ 
         error: error.message,

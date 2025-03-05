@@ -134,10 +134,10 @@ const ConnectionButton: React.FC<ConnectionButtonProps> = ({
   return (
     <>
       <Button
-        variant="outline"
+        variant={isConnected ? "destructive" : "primary"}
         onClick={handleToggleConnection}
-        className="border-border hover:bg-secondary/80 transition-colors"
-        disabled={isSaving || channelPairs.length === 0 || isConnecting}
+        className={isConnected ? "" : "bg-primary text-primary-foreground hover:bg-primary/90"}
+        disabled={isSaving || channelPairs.length === 0 || isConnecting || !selectedAccount}
       >
         {isConnecting ? (
           <>
@@ -152,7 +152,7 @@ const ConnectionButton: React.FC<ConnectionButtonProps> = ({
         ) : (
           <>
             <Link className="mr-2 h-4 w-4" />
-            Connect
+            Connect to Telegram
           </>
         )}
       </Button>
