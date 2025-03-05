@@ -1,6 +1,6 @@
 
 import { supabase } from '@/integrations/supabase/client';
-import { logInfo, logError } from './debugger';
+import { logInfo, logError, logWarning } from './debugger';
 
 /**
  * Checks connectivity to various services needed for Telegram integration
