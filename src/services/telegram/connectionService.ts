@@ -83,7 +83,7 @@ export class ConsoleDebugger {
 }
 
 // Initialize the console debugger
-export const debugger = ConsoleDebugger.getInstance();
+export const consoleLogger = ConsoleDebugger.getInstance();
 
 /**
  * Validate Telegram API credentials without creating an account

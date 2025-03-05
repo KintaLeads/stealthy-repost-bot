@@ -4,7 +4,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/componen
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { debugger } from '@/services/telegram/connectionService';
+import { consoleLogger } from '@/services/telegram/connectionService';
 import { X, RefreshCw, AlertTriangle, Info, AlertCircle, Download } from 'lucide-react';
 
 interface LogEntry {
@@ -20,9 +20,9 @@ const ConsoleViewer: React.FC = () => {
   const [filter, setFilter] = useState<'all' | 'info' | 'warn' | 'error'>('all');
   const [autoRefresh, setAutoRefresh] = useState(true);
 
-  // Refresh logs from the debugger
+  // Refresh logs from the consoleLogger
   const refreshLogs = () => {
-    setLogs(debugger.getLogs());
+    setLogs(consoleLogger.getLogs());
   };
 
   // Effect to auto-refresh logs
@@ -44,7 +44,7 @@ const ConsoleViewer: React.FC = () => {
 
   // Function to clear all logs
   const clearLogs = () => {
-    debugger.clearLogs();
+    consoleLogger.clearLogs();
     refreshLogs();
   };
 

@@ -41,7 +41,7 @@ export async function handleValidate(client: TelegramClientImplementation, corsH
     console.error("⚠️ Unexpected error in validate operation:", error);
     return new Response(
       JSON.stringify({ 
-        error: error.message,
+        error: error instanceof Error ? error.message : "Unknown error occurred",
         success: false 
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
