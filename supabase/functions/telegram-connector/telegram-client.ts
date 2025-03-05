@@ -11,6 +11,8 @@ export class TelegramClientImplementation {
   private client: TelegramClient | null = null;
   private stringSession: StringSession;
   private accountId: string;
+  private authState: 'none' | 'code_needed' | 'authenticated' = 'none';
+  private phoneCodeHash: string | null = null;
 
   constructor(apiId: string, apiHash: string, phoneNumber: string, accountId: string, sessionString: string = "") {
     this.apiId = parseInt(apiId, 10);
@@ -20,7 +22,7 @@ export class TelegramClientImplementation {
     this.stringSession = new StringSession(sessionString);
   }
 
-  async connect(): Promise<boolean> {
+  async connect(): Promise<{ success: boolean, codeNeeded: boolean, phoneCodeHash?: string }> {
     console.log('Connecting to Telegram with:', { 
       apiId: this.apiId, 
       apiHash: this.maskApiHash(this.apiHash), 
@@ -39,19 +41,70 @@ export class TelegramClientImplementation {
         }
       );
 
+      // Connect but don't login yet
       await this.client.connect();
       
-      // Check if we need to authenticate
-      if (!this.client.connected) {
-        console.error("Failed to connect to Telegram API");
-        return false;
+      // If we have a session string and client is connected, we're already authenticated
+      if (this.stringSession.save() !== '' && this.client.connected) {
+        console.log("Already authenticated with session string");
+        this.authState = 'authenticated';
+        return { success: true, codeNeeded: false };
       }
       
-      console.log("Connected to Telegram API successfully");
-      return true;
+      // Check if the client is connected
+      if (!this.client.connected) {
+        console.error("Failed to connect to Telegram API");
+        return { success: false, codeNeeded: false };
+      }
+      
+      // Request the login code to be sent via SMS
+      console.log("Sending code request to phone:", this.maskPhone(this.phoneNumber));
+      const { phoneCodeHash } = await this.client.sendCode({
+        apiId: this.apiId,
+        apiHash: this.apiHash,
+        phoneNumber: this.phoneNumber,
+      });
+      
+      this.phoneCodeHash = phoneCodeHash;
+      this.authState = 'code_needed';
+      
+      console.log("Code sent to phone, waiting for verification");
+      return { success: true, codeNeeded: true, phoneCodeHash };
     } catch (error) {
       console.error("Error connecting to Telegram:", error);
-      return false;
+      return { success: false, codeNeeded: false };
+    }
+  }
+
+  async verifyCode(code: string): Promise<{ success: boolean; error?: string }> {
+    if (!this.client || !this.phoneCodeHash) {
+      console.error("Cannot verify code: Client not initialized or code request not sent");
+      return { success: false, error: "Authentication flow not properly initialized" };
+    }
+    
+    try {
+      console.log("Attempting to sign in with code");
+      await this.client.invoke(new Api.auth.SignIn({
+        phoneNumber: this.phoneNumber,
+        phoneCodeHash: this.phoneCodeHash,
+        phoneCode: code
+      }));
+      
+      this.authState = 'authenticated';
+      console.log("Successfully authenticated with code");
+      return { success: true };
+    } catch (error) {
+      console.error("Error verifying code:", error);
+      
+      // Check if error is because user is already logged in (common case)
+      if (error.message.includes('AUTH_KEY_UNREGISTERED')) {
+        // Already logged in, just need to refresh the session
+        this.authState = 'authenticated';
+        console.log("User seems to be already authenticated");
+        return { success: true };
+      }
+      
+      return { success: false, error: error.message };
     }
   }
 
@@ -113,7 +166,11 @@ export class TelegramClientImplementation {
   }
   
   isConnected(): boolean {
-    return !!this.client?.connected;
+    return !!this.client?.connected && this.authState === 'authenticated';
+  }
+  
+  getAuthState(): string {
+    return this.authState;
   }
   
   // Helper methods for privacy in logs

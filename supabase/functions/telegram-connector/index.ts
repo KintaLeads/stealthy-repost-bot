@@ -19,7 +19,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { apiId, apiHash, phoneNumber, accountId, sourceChannels, operation, messageId, sourceChannel, targetChannel } = await req.json();
+    const { apiId, apiHash, phoneNumber, accountId, sourceChannels, operation, messageId, sourceChannel, targetChannel, verificationCode } = await req.json();
     
     // Validate required parameters
     if (!apiId || !apiHash || !phoneNumber || !accountId) {
@@ -38,7 +38,7 @@ Deno.serve(async (req) => {
     // Check which operation is requested
     switch (operation) {
       case 'connect':
-        return await handleConnect(client, corsHeaders);
+        return await handleConnect(client, corsHeaders, { verificationCode });
         
       case 'listen':
         return await handleListen(client, sourceChannels, corsHeaders);
