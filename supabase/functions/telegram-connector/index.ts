@@ -19,12 +19,12 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { apiId, apiHash, phoneNumber, sourceChannels, operation, messageId, sourceChannel, targetChannel } = await req.json();
+    const { apiId, apiHash, phoneNumber, accountId, sourceChannels, operation, messageId, sourceChannel, targetChannel } = await req.json();
     
     // Validate required parameters
-    if (!apiId || !apiHash || !phoneNumber) {
+    if (!apiId || !apiHash || !phoneNumber || !accountId) {
       return new Response(
-        JSON.stringify({ error: 'Missing required Telegram API credentials' }),
+        JSON.stringify({ error: 'Missing required Telegram API credentials or account ID' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -33,7 +33,7 @@ Deno.serve(async (req) => {
     const sessionString = req.headers.get('X-Telegram-Session') || '';
 
     // Initialize Telegram client with the real implementation
-    const client = new TelegramClientImplementation(apiId, apiHash, phoneNumber, sessionString);
+    const client = new TelegramClientImplementation(apiId, apiHash, phoneNumber, accountId, sessionString);
 
     // Check which operation is requested
     switch (operation) {

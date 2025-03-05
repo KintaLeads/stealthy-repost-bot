@@ -17,12 +17,13 @@ export async function handleConnect(client: TelegramClientImplementation, corsHe
     // Get session string for future requests
     const sessionString = client.getSession();
     
-    // Return success
+    // Return success along with the accountId for session storage
     return new Response(
       JSON.stringify({ 
         success: true, 
         message: 'Connected to Telegram API',
-        sessionString: sessionString
+        sessionString: sessionString,
+        accountId: client.getAccountId()
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

@@ -10,11 +10,13 @@ export class TelegramClientImplementation {
   private phoneNumber: string;
   private client: TelegramClient | null = null;
   private stringSession: StringSession;
+  private accountId: string;
 
-  constructor(apiId: string, apiHash: string, phoneNumber: string, sessionString: string = "") {
+  constructor(apiId: string, apiHash: string, phoneNumber: string, accountId: string, sessionString: string = "") {
     this.apiId = parseInt(apiId, 10);
     this.apiHash = apiHash;
     this.phoneNumber = phoneNumber;
+    this.accountId = accountId;
     this.stringSession = new StringSession(sessionString);
   }
 
@@ -22,7 +24,8 @@ export class TelegramClientImplementation {
     console.log('Connecting to Telegram with:', { 
       apiId: this.apiId, 
       apiHash: this.maskApiHash(this.apiHash), 
-      phone: this.maskPhone(this.phoneNumber) 
+      phone: this.maskPhone(this.phoneNumber),
+      accountId: this.accountId
     });
     
     try {
@@ -103,6 +106,10 @@ export class TelegramClientImplementation {
   
   getSession(): string {
     return this.stringSession.save();
+  }
+  
+  getAccountId(): string {
+    return this.accountId;
   }
   
   isConnected(): boolean {
