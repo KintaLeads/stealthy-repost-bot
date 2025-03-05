@@ -6,7 +6,7 @@ import { toast } from "@/components/ui/use-toast";
 // Format API accounts from database response
 export const formatApiAccount = (account: any, selectedId?: string): ApiAccount => ({
   id: account.id,
-  nickname: account.api_name === 'myproto_telegram' ? (account.nickname || 'Default Account') : account.api_name,
+  nickname: account.nickname || account.api_name || 'Default Account',
   apiKey: account.api_key || '',
   apiHash: account.api_secret?.split('|')[0] || '',
   phoneNumber: account.api_secret?.split('|')[1] || '',

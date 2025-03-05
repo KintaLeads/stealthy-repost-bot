@@ -14,8 +14,10 @@ export type Database = {
           api_key: string
           api_name: string
           api_secret: string | null
+          api_type: string | null
           created_at: string | null
           id: string
+          nickname: string | null
           updated_at: string | null
           user_id: string | null
         }
@@ -23,8 +25,10 @@ export type Database = {
           api_key: string
           api_name: string
           api_secret?: string | null
+          api_type?: string | null
           created_at?: string | null
           id?: string
+          nickname?: string | null
           updated_at?: string | null
           user_id?: string | null
         }
@@ -32,8 +36,10 @@ export type Database = {
           api_key?: string
           api_name?: string
           api_secret?: string | null
+          api_type?: string | null
           created_at?: string | null
           id?: string
+          nickname?: string | null
           updated_at?: string | null
           user_id?: string | null
         }
