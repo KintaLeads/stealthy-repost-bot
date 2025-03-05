@@ -1,4 +1,3 @@
-
 /**
  * Console debugger component to display all logs with enhanced error tracking
  */
@@ -72,9 +71,9 @@ export class ConsoleDebugger {
       const errorData = args.length > 1 ? args.slice(1) : undefined;
       
       // Special handling for Error objects
-      let formattedError = errorData;
+      let formattedError: any = errorData;
       if (args[0] instanceof Error) {
-        // Format error object properties as a regular object, not trying to add to an array
+        // Fixed: Explicitly type formattedError as any object instead of inheriting from errorData
         formattedError = {
           name: args[0].name,
           message: args[0].message,
