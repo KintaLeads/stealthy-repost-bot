@@ -6,7 +6,7 @@ import { toast } from "@/components/ui/use-toast";
 // Format API accounts from database response
 export const formatApiAccount = (account: any, selectedId?: string): ApiAccount => ({
   id: account.id,
-  nickname: account.api_name || 'Default Account',
+  nickname: account.api_name === 'myproto_telegram' ? (account.nickname || 'Default Account') : account.api_name,
   apiKey: account.api_key || '',
   apiHash: account.api_secret?.split('|')[0] || '',
   phoneNumber: account.api_secret?.split('|')[1] || '',
@@ -26,7 +26,7 @@ export const fetchApiAccountsFromDb = async (userId: string) => {
     const { data, error } = await supabase
       .from('api_credentials')
       .select('*')
-      .eq('api_name', 'myproto_telegram')
+      .eq('api_type', 'myproto_telegram')
       .eq('user_id', userId)
       .order('api_key', { ascending: true });
       
@@ -54,7 +54,9 @@ export const createApiAccountInDb = async (userId: string, account: ApiAccount) 
     .from('api_credentials')
     .insert({
       user_id: userId,
-      api_name: 'myproto_telegram', // Use a consistent value
+      api_type: 'myproto_telegram',
+      api_name: 'myproto_telegram', // Use a consistent value for the type
+      nickname: account.nickname, // Store the user-provided nickname
       api_key: account.apiKey,
       api_secret: apiSecret
     })
@@ -75,14 +77,14 @@ export const updateApiAccountInDb = async (accountId: string, account: ApiAccoun
   // Prepare API secret (combines apiHash and phoneNumber)
   const apiSecret = `${account.apiHash}|${account.phoneNumber}`;
   
-  console.log('Updating API account:', accountId);
+  console.log('Updating API account:', accountId, 'with nickname:', account.nickname);
   
   const { error } = await supabase
     .from('api_credentials')
     .update({
       api_key: account.apiKey,
       api_secret: apiSecret,
-      api_name: 'myproto_telegram', // Use a consistent value
+      nickname: account.nickname, // Update the nickname field
       updated_at: new Date().toISOString()
     })
     .eq('id', accountId);
