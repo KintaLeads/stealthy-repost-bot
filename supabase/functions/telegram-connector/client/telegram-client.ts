@@ -1,6 +1,6 @@
 
 // Main Telegram client implementation combining validation, auth, and messaging
-import { TelegramClient } from "npm:telegram";
+import { TelegramClient } from "npm:telegram@2.26.22";
 import { ValidationClient } from "./validation-client.ts";
 import { AuthClient } from "./auth-client.ts";
 import { MessageClient } from "./message-client.ts";

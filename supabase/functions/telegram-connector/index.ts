@@ -108,8 +108,8 @@ Deno.serve(async (req) => {
     console.log("🔄 Phone number format:", phoneNumber);
     
     try {
-      // Try importing the Telegram client to check if it's available
-      const { version } = await import('npm:telegram');
+      // Try importing the Telegram client to check if it's available and use the specified version
+      const { version } = await import('npm:telegram@2.26.22');
       console.log("✅ Successfully imported Telegram client library version:", version);
       
       // Check if the version is supported
