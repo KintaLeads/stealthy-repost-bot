@@ -25,7 +25,7 @@ export const fetchChannelMessages = async (
     
     console.log('Fetching messages from channels:', sourceChannels);
     
-    const sessionString = getStoredSession();
+    const sessionString = getStoredSession(account.id);
     const headers: Record<string, string> = {};
     
     if (sessionString) {
@@ -39,7 +39,8 @@ export const fetchChannelMessages = async (
           apiId: account.apiKey,
           apiHash: account.apiHash,
           phoneNumber: account.phoneNumber,
-          sourceChannels
+          sourceChannels,
+          accountId: account.id
         },
         headers
       });
@@ -65,7 +66,7 @@ export const fetchChannelMessages = async (
       }
       
       if (data.sessionString) {
-        storeSession(data.sessionString);
+        storeSession(account.id, data.sessionString);
       }
       
       // Map the results to our Message type
@@ -127,7 +128,7 @@ export const repostMessage = async (
   targetChannel: string
 ): Promise<boolean> => {
   try {
-    const sessionString = getStoredSession();
+    const sessionString = getStoredSession(account.id);
     const headers: Record<string, string> = {};
     
     if (sessionString) {
@@ -154,7 +155,8 @@ export const repostMessage = async (
         messageId,
         sourceChannel,
         targetChannel,
-        includeMedia: true // Tell the function to include media
+        includeMedia: true, // Tell the function to include media
+        accountId: account.id
       },
       headers
     });
@@ -169,7 +171,7 @@ export const repostMessage = async (
     }
     
     if (data.sessionString) {
-      storeSession(data.sessionString);
+      storeSession(account.id, data.sessionString);
     }
     
     toast({
