@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import MessagePreview from '../MessagePreview';
 import ChannelPairManager from '../ChannelPairManager';
 import { Message } from '@/types/dashboard';
-import { ApiAccount } from '@/types/channels';
+import { ApiAccount, MetricsData } from '@/types/channels';
 import { Badge } from "@/components/ui/badge";
 import { WifiIcon, WifiOffIcon } from 'lucide-react';
 import { processMessageText } from '@/utils/messageUtils';
@@ -14,6 +14,7 @@ interface MessageManagementProps {
   isConnected: boolean;
   onToggleConnection: () => void;
   isLoading: boolean;
+  onMetricsUpdate: (metrics: MetricsData) => void;
 }
 
 const MessageManagement: React.FC<MessageManagementProps> = ({
@@ -21,7 +22,8 @@ const MessageManagement: React.FC<MessageManagementProps> = ({
   selectedAccount,
   isConnected,
   onToggleConnection,
-  isLoading
+  isLoading,
+  onMetricsUpdate
 }) => {
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   
@@ -55,6 +57,19 @@ const MessageManagement: React.FC<MessageManagementProps> = ({
       
       // Filter out messages that already exist
       const uniqueNewMessages = processedMessages.filter(m => !existingIds.has(m.id));
+      
+      // Update metrics when we get new messages
+      if (uniqueNewMessages.length > 0) {
+        const allMessages = [...uniqueNewMessages, ...prevMessages];
+        
+        // Update metrics
+        onMetricsUpdate({
+          totalMessages: allMessages.length,
+          processedMessages: allMessages.filter(m => m.processed).length,
+          lastUpdate: new Date().toLocaleTimeString(),
+          uptime: 'Active'
+        });
+      }
       
       // Return the combined messages, with new messages at the top
       return [...uniqueNewMessages, ...prevMessages].slice(0, 100); // Limit to 100 messages

@@ -1,17 +1,27 @@
+// Add MetricsData type if it doesn't already exist in the file
+// If it's already defined in another file, you might need to adjust imports instead
 
-export interface ChannelPair {
-  id: string;
-  sourceChannel: string;
-  targetChannel: string;
-  targetUsername: string;
-  isActive: boolean;
+export interface MetricsData {
+  totalMessages: number;
+  processedMessages: number;
+  lastUpdate: string;
+  uptime: string;
 }
-
 export interface ApiAccount {
   id: string;
-  nickname: string;
+  createdAt: string;
   apiKey: string;
   apiHash: string;
   phoneNumber: string;
-  isActive?: boolean;
+  nickname: string;
+  userId: string;
+}
+
+export interface ChannelPair {
+  id: string;
+  createdAt: string;
+  sourceChannel: string;
+  targetChannel: string;
+  accountId: string;
+  isActive: boolean;
 }
