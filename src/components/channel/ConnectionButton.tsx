@@ -1,12 +1,12 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { ApiAccount } from "@/types/channels";
 import { Message } from "@/types/dashboard";
-import VerificationCodeDialog from './VerificationCodeDialog';
-import DiagnosticTool from '../debug/DiagnosticTool';
 import ConnectionToggleButton from './ConnectionToggleButton';
 import DiagnosticActions from './DiagnosticActions';
 import ConnectionErrorDisplay from './ConnectionErrorDisplay';
+import DiagnosticToolSection from './DiagnosticToolSection';
+import VerificationDialog from './VerificationDialog';
 import { useConnectionManager } from './hooks/useConnectionManager';
 import { ConnectionButtonProps } from './types';
 
@@ -56,18 +56,14 @@ const ConnectionButton: React.FC<ConnectionButtonProps> = ({
         />
       </div>
 
-      {showDiagnosticTool && (
-        <DiagnosticTool />
-      )}
-
-      {showVerificationDialog && tempConnectionState.account && (
-        <VerificationCodeDialog
-          isOpen={showVerificationDialog}
-          onClose={() => setShowVerificationDialog(false)}
-          account={tempConnectionState.account}
-          onVerified={handleVerificationComplete}
-        />
-      )}
+      <DiagnosticToolSection showDiagnosticTool={showDiagnosticTool} />
+      
+      <VerificationDialog
+        showVerificationDialog={showVerificationDialog}
+        setShowVerificationDialog={setShowVerificationDialog}
+        tempConnectionState={tempConnectionState}
+        onVerificationComplete={handleVerificationComplete}
+      />
     </div>
   );
 };
