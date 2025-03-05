@@ -1,5 +1,6 @@
+
 import React from 'react';
-import { Bell, Settings, Moon, Sun, LogOut } from 'lucide-react';
+import { Bell, Settings, Moon, Sun, LogOut, User, HelpCircle } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { 
@@ -24,6 +25,13 @@ const Header: React.FC<HeaderProps> = ({ isDarkMode, toggleDarkMode, userEmail, 
     toast({
       title: "All caught up!",
       description: "You have no new notifications",
+    });
+  };
+
+  const handleHelpClick = () => {
+    toast({
+      title: "Help & Support",
+      description: "Documentation and support resources coming soon",
     });
   };
 
@@ -81,13 +89,38 @@ const Header: React.FC<HeaderProps> = ({ isDarkMode, toggleDarkMode, userEmail, 
           )}
         </Button>
         
-        <Button 
-          variant="ghost" 
-          size="icon"
-          className="hover:bg-secondary/80 transition-colors"
-        >
-          <Settings size={18} className="text-muted-foreground" />
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button 
+              variant="ghost" 
+              size="icon"
+              className="hover:bg-secondary/80 transition-colors"
+            >
+              <Settings size={18} className="text-muted-foreground" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuItem onClick={() => toast({ title: "Settings", description: "Application settings opened" })}>
+              <Settings className="mr-2 h-4 w-4" />
+              <span>Settings</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleHelpClick}>
+              <HelpCircle className="mr-2 h-4 w-4" />
+              <span>Help & Support</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => window.location.href = "/settings/dashboard"}>
+              <User className="mr-2 h-4 w-4" />
+              <span>Account</span>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            {onSignOut && (
+              <DropdownMenuItem onClick={onSignOut}>
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Sign out</span>
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
         
         {onSignOut && (
           <Button 
