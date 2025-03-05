@@ -1,3 +1,4 @@
+
 /**
  * Console debugger component to display all logs with enhanced error tracking
  */
