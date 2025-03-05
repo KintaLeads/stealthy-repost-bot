@@ -1,9 +1,10 @@
 
 import { toast } from "@/components/ui/use-toast";
 import { ApiAccount } from "@/types/channels";
-import { connectToTelegram, setupRealtimeListener, runConnectivityChecks, testCorsConfiguration } from "@/services/telegram";
+import { setupRealtimeListener } from "@/services/telegram";
 import { logInfo, logError } from '@/services/telegram';
 import { Message } from "@/types/dashboard";
+import { runConnectivityChecks, testCorsConfiguration } from "@/services/telegram/networkCheck";
 
 // The project ID is hardcoded for now
 const PROJECT_ID = "eswfrzdqxsaizkdswxfn";
@@ -73,58 +74,4 @@ export const runConnectionDiagnostics = async () => {
 
     throw error;
   }
-};
-
-export const handleInitialConnection = async (selectedAccount: ApiAccount) => {
-  logInfo('ConnectionButton', "Starting Telegram connection process with account:", selectedAccount.nickname);
-  
-  // First check connectivity
-  const connectivityResults = await runConnectivityChecks(PROJECT_ID);
-  
-  // If there are connectivity issues, show a detailed message
-  if (!connectivityResults.supabase || !connectivityResults.telegram || !connectivityResults.edgeFunction.deployed) {
-    logError('ConnectionButton', "Connectivity issues detected:", connectivityResults);
-    
-    let errorMessage = "Connection issues detected: ";
-    if (!connectivityResults.supabase) {
-      errorMessage += "Cannot connect to Supabase. ";
-    }
-    if (!connectivityResults.telegram) {
-      errorMessage += "Cannot connect to Telegram services. ";
-    }
-    if (!connectivityResults.edgeFunction.deployed) {
-      errorMessage += "Edge Function issue: " + connectivityResults.edgeFunction.error;
-    }
-    
-    // If Edge Function is deployed but we're having issues, test CORS
-    if (connectivityResults.edgeFunction.deployed && connectivityResults.edgeFunction.error) {
-      logInfo('ConnectionButton', "Testing CORS configuration...");
-      const corsTest = await testCorsConfiguration(PROJECT_ID);
-      logInfo('ConnectionButton', "CORS test results:", corsTest);
-      
-      if (!corsTest.success) {
-        toast({
-          title: "CORS Configuration Issue",
-          description: "There may be a CORS configuration issue with the Edge Function. This is a server-side problem that requires administrator attention.",
-          variant: "destructive",
-        });
-      }
-    }
-    
-    throw new Error(errorMessage);
-  }
-  
-  // First connect to Telegram API
-  logInfo('ConnectionButton', "Attempting to connect to Telegram with account:", selectedAccount.nickname);
-  const connectionResult = await connectToTelegram(selectedAccount);
-  logInfo('ConnectionButton', "Connection result:", connectionResult);
-  
-  if (!connectionResult.success) {
-    logError('ConnectionButton', "Connection failed:", connectionResult.error);
-    throw new Error(connectionResult.error || "Unknown connection error");
-  }
-  
-  return { 
-    codeNeeded: connectionResult.codeNeeded 
-  };
 };

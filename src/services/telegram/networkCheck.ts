@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { logInfo, logError, logWarning } from './debugger';
 

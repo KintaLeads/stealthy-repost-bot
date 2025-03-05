@@ -6,7 +6,8 @@ import { logInfo, logError } from '@/services/telegram';
 import { Message } from "@/types/dashboard";
 import { useVerificationState } from './connection/useVerificationState';
 import { useDiagnosticState } from './connection/useDiagnosticState';
-import { setupListener, handleInitialConnection } from './connection/connectionOperations';
+import { setupListener } from './connection/connectionOperations';
+import { handleInitialConnection } from '@/services/telegram/connector';
 
 export const useConnectionManager = (
   selectedAccount: ApiAccount | null,

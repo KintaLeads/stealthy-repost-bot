@@ -1,12 +1,10 @@
 
-// Export all telegram-related services
-export * from './connectionService';
+// Re-export all functionality from specific modules
 export * from './messageService';
 export * from './realtimeService';
 export * from './sessionManager';
-export * from './networkCheck';
-export * from './types';
 export * from './debugger';
-export * from './credentialValidator';
+export * from './networkCheck';
 export * from './connector';
 export * from './verifier';
+export * from './credentialValidator';
