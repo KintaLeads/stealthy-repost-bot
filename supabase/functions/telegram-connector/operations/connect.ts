@@ -1,6 +1,5 @@
-
 // Handler for 'connect' operation
-import { TelegramClientImplementation } from '../telegram-client.ts';
+import { TelegramClientImplementation } from '../client/telegram-client.ts';
 
 export async function handleConnect(client: TelegramClientImplementation, corsHeaders: Record<string, string>, data: any = {}) {
   // Connect to Telegram and return session string if successful

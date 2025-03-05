@@ -2,7 +2,7 @@
 // Main function handler for Telegram connector
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
-import { TelegramClientImplementation } from './telegram-client.ts';
+import { TelegramClientImplementation } from './client/telegram-client.ts';
 import { handleConnect } from './operations/connect.ts';
 import { handleListen } from './operations/listen.ts';
 import { handleRepost } from './operations/repost.ts';

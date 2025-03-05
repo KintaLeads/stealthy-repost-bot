@@ -1,6 +1,5 @@
-
 // Handler for 'validate' operation - to validate credentials without establishing a full connection
-import { TelegramClientImplementation } from '../telegram-client.ts';
+import { TelegramClientImplementation } from '../client/telegram-client.ts';
 
 export async function handleValidate(client: TelegramClientImplementation, corsHeaders: Record<string, string>) {
   try {
