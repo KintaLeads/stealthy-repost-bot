@@ -1,3 +1,4 @@
+
 // Real Telegram client implementation using GramJS
 import { TelegramClient } from "npm:telegram/client";
 import { StringSession } from "npm:telegram/sessions";
@@ -32,6 +33,30 @@ export class TelegramClientImplementation {
     });
     
     try {
+      // Check if API ID is a valid integer
+      if (isNaN(this.apiId)) {
+        return { 
+          success: false, 
+          error: "API ID must be a valid integer. Please check your Telegram API credentials." 
+        };
+      }
+      
+      // Check if API hash is a valid format (usually 32 hex characters)
+      if (!this.apiHash || this.apiHash.length !== 32 || !/^[a-f0-9]+$/i.test(this.apiHash)) {
+        return { 
+          success: false, 
+          error: "API Hash appears to be invalid. It should be a 32-character hexadecimal string." 
+        };
+      }
+      
+      // Check if phone number is in a reasonable format
+      if (!this.phoneNumber || !this.phoneNumber.startsWith('+')) {
+        return { 
+          success: false, 
+          error: "Phone number must be in international format starting with a + sign (e.g., +12345678901)." 
+        };
+      }
+      
       // Create a temporary client just to validate credentials
       console.log("Creating temporary TelegramClient instance for validation");
       const tempClient = new TelegramClient(
@@ -49,7 +74,40 @@ export class TelegramClientImplementation {
 
       // Try to connect (but don't log in)
       console.log("Attempting to establish basic connection to validate credentials");
-      await tempClient.connect();
+      try {
+        await tempClient.connect();
+      } catch (connectionError) {
+        console.error("Error connecting to Telegram:", connectionError);
+        
+        // Check for specific API errors
+        const errorMessage = connectionError.message || "";
+        
+        if (errorMessage.includes('API_ID_INVALID')) {
+          return { 
+            success: false, 
+            error: "The API ID is invalid. Please check your Telegram API credentials." 
+          };
+        }
+        
+        if (errorMessage.includes('API_HASH_INVALID')) {
+          return { 
+            success: false, 
+            error: "The API Hash is invalid. Please check your Telegram API credentials." 
+          };
+        }
+        
+        if (errorMessage.includes('PHONE_NUMBER_INVALID')) {
+          return { 
+            success: false, 
+            error: "The phone number format is invalid. Please use international format with + prefix." 
+          };
+        }
+        
+        return { 
+          success: false, 
+          error: `Connection error: ${errorMessage}` 
+        };
+      }
       
       // If we can connect, the credentials are valid
       const isConnected = tempClient.connected;

@@ -4,15 +4,17 @@ import { TelegramClientImplementation } from '../telegram-client.ts';
 
 export async function handleValidate(client: TelegramClientImplementation, corsHeaders: Record<string, string>) {
   try {
-    console.log("Validate operation called - testing API credentials");
+    console.log("⭐ Validate operation called - testing API credentials ⭐");
     
     // Try to establish a basic connection to validate credentials
     // We don't need a full connection, just enough to verify the API credentials work
+    console.log("Calling client.validateCredentials()...");
     const result = await client.validateCredentials();
     
     console.log("Validation result:", result);
     
     if (!result.success) {
+      console.error("⚠️ Validation failed:", result.error);
       return new Response(
         JSON.stringify({ 
           error: result.error,
@@ -30,7 +32,7 @@ export async function handleValidate(client: TelegramClientImplementation, corsH
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
-    console.error("Error in validate operation:", error);
+    console.error("⚠️ Unexpected error in validate operation:", error);
     return new Response(
       JSON.stringify({ 
         error: error.message,

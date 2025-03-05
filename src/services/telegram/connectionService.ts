@@ -16,36 +16,59 @@ export const validateTelegramCredentials = async (account: ApiAccount): Promise<
     console.log(`Account: ${account.nickname} (${account.phoneNumber})`);
     console.log(`API ID: ${account.apiKey}`);
     
-    // Call the Supabase function to validate credentials without storing
-    const { data, error } = await supabase.functions.invoke('telegram-connector', {
-      body: {
-        operation: 'validate',
-        apiId: account.apiKey,
-        apiHash: account.apiHash,
-        phoneNumber: account.phoneNumber,
-        accountId: 'temp-validation' // We don't have an account ID yet
+    // Try to make a connection to the Supabase function
+    try {
+      console.log("Calling Supabase function 'telegram-connector' for validation...");
+      
+      // Call the Supabase function to validate credentials without storing
+      const { data, error } = await supabase.functions.invoke('telegram-connector', {
+        body: {
+          operation: 'validate',
+          apiId: account.apiKey,
+          apiHash: account.apiHash,
+          phoneNumber: account.phoneNumber,
+          accountId: 'temp-validation' // We don't have an account ID yet
+        }
+      });
+      
+      console.log("Telegram credentials validation response:", data);
+      
+      if (error) {
+        console.error('Error validating Telegram credentials:', error);
+        // More descriptive error message for network issues
+        if (error.message && error.message.includes('Failed to fetch')) {
+          return { 
+            success: false, 
+            error: "Network error: Could not connect to the validation service. Please check your internet connection and try again." 
+          };
+        }
+        return { success: false, error: error.message };
       }
-    });
-    
-    console.log("Telegram credentials validation response:", data);
-    
-    if (error) {
-      console.error('Error validating Telegram credentials:', error);
-      return { success: false, error: error.message };
+      
+      if (data?.error) {
+        console.error('Error in Telegram validation:', data.error);
+        return { success: false, error: data.error };
+      }
+      
+      if (data?.success) {
+        console.log("Telegram credentials validated successfully");
+        return { success: true };
+      }
+      
+      console.warn("Unexpected response from Telegram connector:", data);
+      return { success: false, error: "Unknown error validating Telegram credentials" };
+      
+    } catch (fetchError) {
+      console.error('Error making request to Telegram connector:', fetchError);
+      // Handle specific network errors
+      if (fetchError.message && fetchError.message.includes('Failed to fetch')) {
+        return { 
+          success: false, 
+          error: "Network error: Failed to connect to the Edge Function. Please verify that your Supabase project is properly configured and the function is deployed." 
+        };
+      }
+      return { success: false, error: fetchError.message || "Failed to connect to validation service" };
     }
-    
-    if (data?.error) {
-      console.error('Error in Telegram validation:', data.error);
-      return { success: false, error: data.error };
-    }
-    
-    if (data?.success) {
-      console.log("Telegram credentials validated successfully");
-      return { success: true };
-    }
-    
-    console.warn("Unexpected response from Telegram connector:", data);
-    return { success: false, error: "Unknown error validating Telegram credentials" };
   } catch (error) {
     console.error('Exception validating Telegram credentials:', error);
     return { success: false, error: error instanceof Error ? error.message : "Unknown error" };

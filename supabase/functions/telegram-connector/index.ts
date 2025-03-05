@@ -28,12 +28,25 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const requestBody = await req.json();
-    console.log("⭐ REQUEST BODY ⭐", {
-      ...requestBody,
-      apiHash: requestBody.apiHash ? "***********" : undefined, // Mask sensitive data
-      verificationCode: requestBody.verificationCode ? "******" : undefined,
-    });
+    // Parse the request body
+    let requestBody;
+    try {
+      requestBody = await req.json();
+      console.log("⭐ REQUEST BODY ⭐", {
+        ...requestBody,
+        apiHash: requestBody.apiHash ? "***********" : undefined, // Mask sensitive data
+        verificationCode: requestBody.verificationCode ? "******" : undefined,
+      });
+    } catch (parseError) {
+      console.error("⚠️ Failed to parse request body:", parseError);
+      return new Response(
+        JSON.stringify({ 
+          error: 'Invalid request format: Could not parse JSON body',
+          success: false
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
     
     const { 
       apiId, 
@@ -79,23 +92,23 @@ Deno.serve(async (req) => {
       case 'validate':
         console.log("🔄 Handling validate operation");
         response = await handleValidate(client, corsHeaders);
-        console.log("🔄 Validate operation response:", JSON.parse(await response.text()));
+        console.log("🔄 Validate operation response:", JSON.parse(await response.clone().text()));
         return response;
         
       case 'connect':
         console.log("🔄 Handling connect operation, verificationCode provided:", !!verificationCode);
         response = await handleConnect(client, corsHeaders, { verificationCode });
-        console.log("🔄 Connect operation response:", JSON.parse(await response.text()));
+        console.log("🔄 Connect operation response:", JSON.parse(await response.clone().text()));
         return response;
         
       case 'listen':
         response = await handleListen(client, sourceChannels, corsHeaders);
-        console.log("🔄 Listen operation response:", JSON.parse(await response.text()));
+        console.log("🔄 Listen operation response:", JSON.parse(await response.clone().text()));
         return response;
         
       case 'repost':
         response = await handleRepost(client, messageId, sourceChannel, targetChannel, corsHeaders);
-        console.log("🔄 Repost operation response:", JSON.parse(await response.text()));
+        console.log("🔄 Repost operation response:", JSON.parse(await response.clone().text()));
         return response;
         
       default:
