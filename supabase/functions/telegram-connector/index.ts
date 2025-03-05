@@ -2,7 +2,7 @@
 // Main function handler for Telegram connector
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
-import { TelegramClientMock } from './telegram-client.ts';
+import { TelegramClientImplementation } from './telegram-client.ts';
 import { handleConnect } from './operations/connect.ts';
 import { handleListen } from './operations/listen.ts';
 import { handleRepost } from './operations/repost.ts';
@@ -29,8 +29,11 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Initialize Telegram client
-    const client = new TelegramClientMock(apiId, apiHash, phoneNumber);
+    // Get session from headers if available
+    const sessionString = req.headers.get('X-Telegram-Session') || '';
+
+    // Initialize Telegram client with the real implementation
+    const client = new TelegramClientImplementation(apiId, apiHash, phoneNumber, sessionString);
 
     // Check which operation is requested
     switch (operation) {
