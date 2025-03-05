@@ -1,7 +1,7 @@
 
 // Client implementation for Telegram authentication flow
 import { TelegramClient } from "npm:telegram@2.26.22";
-import { StringSession } from "npm:telegram/sessions/index.js";
+import { StringSession } from "npm:telegram@2.26.22/sessions/index.js";
 import { BaseTelegramClient } from "./base-client.ts";
 
 export class AuthClient extends BaseTelegramClient {
