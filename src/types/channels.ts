@@ -1,3 +1,4 @@
+
 // Add MetricsData type if it doesn't already exist in the file
 // If it's already defined in another file, you might need to adjust imports instead
 
@@ -7,6 +8,7 @@ export interface MetricsData {
   lastUpdate: string;
   uptime: string;
 }
+
 export interface ApiAccount {
   id: string;
   createdAt: string;
@@ -22,6 +24,7 @@ export interface ChannelPair {
   createdAt: string;
   sourceChannel: string;
   targetChannel: string;
+  targetUsername?: string; // Add targetUsername as optional property
   accountId: string;
   isActive: boolean;
 }

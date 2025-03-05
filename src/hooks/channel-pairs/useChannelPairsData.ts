@@ -29,12 +29,14 @@ export const useChannelPairsData = (selectedAccount: ApiAccount | null): UseChan
       
       // In a real implementation, this would fetch from the database
       // For this demo, we'll generate sample data
-      const samplePairs = [
+      const samplePairs: ChannelPair[] = [
         {
           id: '1',
+          createdAt: new Date().toISOString(),
           sourceChannel: 'competitor_channel',
           targetChannel: 'my_channel',
           targetUsername: 'my_username',
+          accountId: selectedAccount.id,
           isActive: true
         }
       ];

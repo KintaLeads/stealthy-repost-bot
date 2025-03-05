@@ -15,7 +15,7 @@ export interface UseChannelPairsStateInternal extends UseChannelPairsState {
 }
 
 export interface UseChannelPairsActions {
-  handleChannelPairChange: (index: number, field: keyof ChannelPair, value: string | boolean) => void;
+  handleChannelPairChange: (index: number, field: keyof ChannelPair | 'targetUsername', value: string | boolean) => void;
   addChannelPair: () => void;
   removeChannelPair: (index: number) => void;
   saveChannelPairs: () => Promise<boolean>;

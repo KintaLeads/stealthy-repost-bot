@@ -1,7 +1,8 @@
 
 import React, { useState } from 'react';
 import { toast } from "@/components/ui/use-toast";
-import { ApiAccount, MetricsData } from '../types/dashboard';
+import { ApiAccount } from '../types/channels';
+import { MetricsData } from '../types/channels';
 
 // Import refactored components
 import DashboardMetrics from './dashboard/DashboardMetrics';

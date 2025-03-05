@@ -10,7 +10,7 @@ import { ChannelPair } from "@/types/channels";
 interface ChannelPairItemProps {
   pair: ChannelPair;
   index: number;
-  onPairChange: (index: number, field: keyof ChannelPair, value: string | boolean) => void;
+  onPairChange: (index: number, field: keyof ChannelPair | 'targetUsername', value: string | boolean) => void;
   onPairRemove: (index: number) => void;
 }
 
@@ -76,7 +76,7 @@ const ChannelPairItem: React.FC<ChannelPairItemProps> = ({
               <Input
                 id={`targetUsername-${index}`}
                 placeholder="e.g., your_username"
-                value={pair.targetUsername}
+                value={pair.targetUsername || ''}
                 onChange={(e) => onPairChange(index, 'targetUsername', e.target.value)}
                 className="pl-9 transition-all focus:border-primary/30"
               />

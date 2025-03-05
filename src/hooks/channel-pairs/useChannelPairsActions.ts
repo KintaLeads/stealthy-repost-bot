@@ -10,7 +10,7 @@ export const useChannelPairsActions = (
   setIsSaving: (value: boolean) => void
 ): Omit<UseChannelPairsActions, 'setIsAutoRepost' | 'fetchChannelPairs'> => {
   
-  const handleChannelPairChange = (index: number, field: keyof ChannelPair, value: string | boolean) => {
+  const handleChannelPairChange = (index: number, field: keyof ChannelPair | 'targetUsername', value: string | boolean) => {
     const updatedPairs = [...channelPairs];
     updatedPairs[index] = {
       ...updatedPairs[index],
@@ -20,16 +20,17 @@ export const useChannelPairsActions = (
   };
   
   const addChannelPair = () => {
-    setChannelPairs([
-      ...channelPairs,
-      {
-        id: Date.now().toString(),
-        sourceChannel: '',
-        targetChannel: '',
-        targetUsername: '',
-        isActive: true
-      }
-    ]);
+    const newPair: ChannelPair = {
+      id: Date.now().toString(),
+      createdAt: new Date().toISOString(),
+      sourceChannel: '',
+      targetChannel: '',
+      targetUsername: '',
+      accountId: selectedAccount?.id || '',
+      isActive: true
+    };
+    
+    setChannelPairs([...channelPairs, newPair]);
   };
   
   const removeChannelPair = (index: number) => {
@@ -58,7 +59,7 @@ export const useChannelPairsActions = (
     
     // Validate channel configurations
     const emptyFields = channelPairs.some(pair => 
-      !pair.sourceChannel || !pair.targetChannel || !pair.targetUsername
+      !pair.sourceChannel || !pair.targetChannel
     );
     
     if (emptyFields) {
