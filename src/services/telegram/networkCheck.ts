@@ -52,36 +52,59 @@ export const runConnectivityChecks = async (projectId: string) => {
     logError(context, 'Telegram connectivity check failed', error);
   }
   
-  // Check Edge Function deployment
+  // Check Edge Function deployment with improved error handling
   try {
     logInfo(context, 'Checking Edge Function deployment...');
     // Construct Edge Function URL
     const edgeFunctionUrl = `https://${projectId}.supabase.co/functions/v1/telegram-connector`;
     results.edgeFunction.url = edgeFunctionUrl;
     
-    // Just perform a HEAD request to see if the function exists and is accessible
+    // Perform a health check request with detailed diagnostics
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // Increased timeout to 10 seconds
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // Increased timeout to 15 seconds
     
     try {
-      // Use the public anon key instead of accessing protected property
+      logInfo(context, `Sending OPTIONS request to ${edgeFunctionUrl}`);
+      
+      // Use the public anon key for authentication
       const response = await fetch(edgeFunctionUrl, {
         method: 'OPTIONS',
         signal: controller.signal,
         headers: {
-          // Use the public anon key
-          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVzd2ZyemRxeHNhaXprZHN3eGZuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA5ODM2ODQsImV4cCI6MjA1NjU1OTY4NH0.2onrHJHapQZbqi7RgsuK7A6G5xlJrNSgRv21_mUT7ik'
+          'apikey': supabase.auth.getSession() ? await supabase.auth.getSession().then(res => res.data.session?.access_token || '') : '',
+          'Origin': window.location.origin,
+          'Access-Control-Request-Method': 'POST',
+          'Access-Control-Request-Headers': 'content-type,authorization,apikey'
         }
       });
       
       clearTimeout(timeoutId);
+      logInfo(context, `Edge Function response status: ${response.status}`);
+      logInfo(context, `Edge Function response headers:`, Object.fromEntries([...response.headers.entries()]));
       
       if (response.status === 204 || response.ok) {
         results.edgeFunction.deployed = true;
         logInfo(context, 'Edge Function deployment check: Successful');
+        
+        // Additional health check with a simple POST request
+        try {
+          const healthResponse = await fetch(edgeFunctionUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': supabase.auth.getSession() ? await supabase.auth.getSession().then(res => res.data.session?.access_token || '') : '',
+              'Origin': window.location.origin
+            },
+            body: JSON.stringify({ operation: 'healthcheck' })
+          });
+          
+          logInfo(context, `Health check POST status: ${healthResponse.status}`);
+        } catch (healthError) {
+          logWarning(context, 'Health check POST failed but OPTIONS succeeded', healthError);
+        }
       } else {
-        // If we get a response but not 204/200, function exists but might have an issue
-        results.edgeFunction.deployed = true;
+        // Function exists but returned an unexpected status
+        results.edgeFunction.deployed = false;
         results.edgeFunction.error = `Unexpected status: ${response.status}`;
         logWarning(context, `Edge Function returns unexpected status: ${response.status}`);
       }
@@ -91,7 +114,7 @@ export const runConnectivityChecks = async (projectId: string) => {
       if (fetchError.name === 'AbortError') {
         results.edgeFunction.error = 'Connection timeout - the Edge Function didn\'t respond in time';
       } else if (fetchError.message?.includes('Failed to fetch')) {
-        results.edgeFunction.error = 'Network error - unable to connect to the Edge Function';
+        results.edgeFunction.error = 'Network error - unable to connect to the Edge Function. The function may not be deployed correctly.';
       } else {
         results.edgeFunction.error = fetchError.message || 'Unknown error';
       }
@@ -107,7 +130,7 @@ export const runConnectivityChecks = async (projectId: string) => {
 };
 
 /**
- * Tests if CORS is configured correctly for Supabase Edge Functions
+ * Tests if CORS is configured correctly for Supabase Edge Functions with detailed diagnostics
  */
 export const testCorsConfiguration = async (projectId: string) => {
   const context = 'CorsTest';
@@ -116,13 +139,26 @@ export const testCorsConfiguration = async (projectId: string) => {
   try {
     const edgeFunctionUrl = `https://${projectId}.supabase.co/functions/v1/telegram-connector`;
     
+    // Log the exact request we're about to make
+    const requestDetails = {
+      url: edgeFunctionUrl,
+      method: 'OPTIONS',
+      headers: {
+        'Origin': window.location.origin,
+        'Access-Control-Request-Method': 'POST',
+        'Access-Control-Request-Headers': 'Content-Type,Authorization,apikey'
+      }
+    };
+    
+    logInfo(context, 'Sending CORS preflight request with details:', requestDetails);
+    
     // First try with OPTIONS request
     const optionsResponse = await fetch(edgeFunctionUrl, {
       method: 'OPTIONS',
       headers: {
         'Origin': window.location.origin,
         'Access-Control-Request-Method': 'POST',
-        'Access-Control-Request-Headers': 'Content-Type,Authorization'
+        'Access-Control-Request-Headers': 'Content-Type,Authorization,apikey'
       }
     });
     
@@ -132,16 +168,56 @@ export const testCorsConfiguration = async (projectId: string) => {
       'Access-Control-Allow-Headers': optionsResponse.headers.get('Access-Control-Allow-Headers')
     };
     
+    // Get all response headers for debugging
+    const allResponseHeaders = Object.fromEntries([...optionsResponse.headers.entries()]);
+    
     logInfo(context, 'CORS preflight response', {
       status: optionsResponse.status,
-      headers: corsHeaders
+      corsHeaders: corsHeaders,
+      allHeaders: allResponseHeaders
     });
     
-    return {
-      success: optionsResponse.status === 204,
-      status: optionsResponse.status,
-      corsHeaders
-    };
+    // Now try a simple POST request to check actual CORS behavior
+    try {
+      const testPostResponse = await fetch(edgeFunctionUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Origin': window.location.origin,
+          'apikey': supabase.auth.getSession() ? await supabase.auth.getSession().then(res => res.data.session?.access_token || '') : ''
+        },
+        body: JSON.stringify({ operation: 'healthcheck' })
+      });
+      
+      logInfo(context, 'POST test response', {
+        status: testPostResponse.status,
+        statusText: testPostResponse.statusText,
+        headers: Object.fromEntries([...testPostResponse.headers.entries()]),
+        ok: testPostResponse.ok
+      });
+      
+      return {
+        success: optionsResponse.status === 204,
+        status: optionsResponse.status,
+        corsHeaders,
+        postTest: {
+          success: testPostResponse.ok,
+          status: testPostResponse.status
+        }
+      };
+    } catch (postError) {
+      logError(context, 'POST test failed', postError);
+      
+      return {
+        success: optionsResponse.status === 204,
+        status: optionsResponse.status,
+        corsHeaders,
+        postTest: {
+          success: false,
+          error: postError instanceof Error ? postError.message : 'Unknown error'
+        }
+      };
+    }
   } catch (error) {
     logError(context, 'CORS test failed', error);
     return {
