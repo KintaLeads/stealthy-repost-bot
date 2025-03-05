@@ -34,7 +34,8 @@ const VerificationCodeDialog: React.FC<VerificationCodeDialogProps> = ({
     
     try {
       console.log(`Submitting verification code for account ${account.id} (${account.nickname || account.phoneNumber})`);
-      const success = await verifyTelegramCode(account, code);
+      // Pass an empty options object as the third parameter to match the expected signature
+      const success = await verifyTelegramCode(account, code, {}); 
       
       if (success) {
         console.log("Verification successful");

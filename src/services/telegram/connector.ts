@@ -51,3 +51,6 @@ export const handleInitialConnection = async (account: ApiAccount) => {
     throw error;
   }
 };
+
+// Add the connectToTelegram alias to match the import in connectionService.ts
+export const connectToTelegram = handleInitialConnection;

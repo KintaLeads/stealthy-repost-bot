@@ -4,8 +4,12 @@ export * from './messageService';
 export * from './realtimeService';
 export * from './sessionManager';
 export * from './debugger';
-export * from './networkConnectivity';
-export * from './corsChecker';
+
+// Handle network-related exports to avoid naming conflicts
+export { runConnectivityChecks as runBasicConnectivityChecks } from './networkConnectivity';
+export { testCorsConfiguration as testCorsSettings } from './corsChecker';
+
+// Re-export these modules normally
 export * from './networkCheck';
 export * from './connector';
 export * from './verifier';
