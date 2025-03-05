@@ -1,106 +1,116 @@
-// Handler for 'connect' operation
-import { TelegramClientImplementation } from '../client/telegram-client.ts';
 
-export async function handleConnect(client: TelegramClientImplementation, corsHeaders: Record<string, string>, data: any = {}) {
-  // Connect to Telegram and return session string if successful
+// Connect to telegram and handle verification
+import { corsHeaders } from "../../_shared/cors.ts";
+import { TelegramClientImplementation } from "../client/telegram-client.ts";
+
+export async function handleConnect(
+  client: TelegramClientImplementation, 
+  corsHeaders: Record<string, string>,
+  options: { verificationCode?: string }
+): Promise<Response> {
+  console.log(`Handling connect operation, verificationCode provided: ${!!options.verificationCode}`);
+  
   try {
-    console.log("Connect operation called with data:", {
-      accountId: client.getAccountId(),
-      verificationCode: data.verificationCode ? "******" : undefined
-    });
-    
-    // If a verification code is provided, try to verify it
-    if (data.verificationCode) {
-      console.log("Verification code provided, attempting to verify");
-      const verifyResult = await client.verifyCode(data.verificationCode);
+    // If verification code is provided, verify it
+    if (options.verificationCode) {
+      console.log("Verifying code");
+      const verificationResult = await client.verifyCode(options.verificationCode);
       
-      if (!verifyResult.success) {
-        console.error("Verification failed:", verifyResult.error);
+      if (verificationResult.success) {
+        console.log("Code verification successful");
+        const session = client.getSession();
+        
         return new Response(
-          JSON.stringify({ 
-            error: verifyResult.error || 'Failed to verify code',
-            success: false 
+          JSON.stringify({
+            success: true,
+            message: "Authentication completed successfully",
+            session: session,
+            authState: client.getAuthState()
           }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { 
+            headers: { 
+              ...corsHeaders, 
+              "Content-Type": "application/json",
+              "X-Telegram-Session": session
+            } 
+          }
+        );
+      } else {
+        console.error("Code verification failed:", verificationResult.error);
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: verificationResult.error || "Failed to verify code"
+          }),
+          { 
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" } 
+          }
         );
       }
+    } 
+    // If no verification code is provided, attempt to connect
+    else {
+      console.log("Connecting to Telegram");
+      const connectResult = await client.connect();
       
-      console.log("Verification successful, getting session");
-      
-      // Code verification successful, get session for future requests
-      const sessionString = client.getSession();
-      console.log("Session generated, length:", sessionString.length);
-      
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          message: 'Successfully authenticated with Telegram API',
-          sessionString: sessionString,
-          accountId: client.getAccountId()
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      if (connectResult.success) {
+        if (connectResult.codeNeeded) {
+          console.log("Phone verification code needed");
+          return new Response(
+            JSON.stringify({
+              success: true,
+              codeRequested: true,
+              phoneCodeHash: connectResult.phoneCodeHash,
+              message: "Authentication code sent to phone"
+            }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        } else {
+          console.log("Already authenticated");
+          const session = client.getSession();
+          
+          return new Response(
+            JSON.stringify({
+              success: true,
+              message: "Already authenticated",
+              session: session,
+              authState: client.getAuthState()
+            }),
+            { 
+              headers: { 
+                ...corsHeaders, 
+                "Content-Type": "application/json",
+                "X-Telegram-Session": session
+              } 
+            }
+          );
+        }
+      } else {
+        console.error("Connection failed:", connectResult.error);
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: connectResult.error || "Failed to connect to Telegram"
+          }),
+          { 
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" } 
+          }
+        );
+      }
     }
-    
-    // If no verification code is provided, initiate connection
-    console.log("No verification code provided, initiating connection");
-    const connectResult = await client.connect();
-    
-    console.log("Connection result:", {
-      success: connectResult.success,
-      codeNeeded: connectResult.codeNeeded,
-      error: connectResult.error,
-      phoneCodeHash: connectResult.phoneCodeHash ? "exists" : "none"
-    });
-    
-    if (!connectResult.success) {
-      console.error("Connection failed:", connectResult.error);
-      return new Response(
-        JSON.stringify({ 
-          error: connectResult.error || 'Failed to connect to Telegram',
-          success: false
-        }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    
-    // If code is needed, return this information to the client
-    if (connectResult.codeNeeded) {
-      console.log("Code needed, returning phoneCodeHash");
-      return new Response(
-        JSON.stringify({
-          success: true,
-          codeNeeded: true,
-          phoneCodeHash: connectResult.phoneCodeHash,
-          message: 'Verification code sent to your phone',
-          accountId: client.getAccountId()
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    
-    // Already authenticated, return session string
-    console.log("Already authenticated, returning session string");
-    const sessionString = client.getSession();
-    console.log("Session string length:", sessionString.length);
-    
-    return new Response(
-      JSON.stringify({ 
-        success: true, 
-        message: 'Connected to Telegram API',
-        sessionString: sessionString,
-        accountId: client.getAccountId()
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
   } catch (error) {
     console.error("Error in connect operation:", error);
     return new Response(
-      JSON.stringify({ 
-        error: error.message,
-        success: false 
+      JSON.stringify({
+        success: false,
+        error: error.message
       }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { 
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+      }
     );
   }
 }

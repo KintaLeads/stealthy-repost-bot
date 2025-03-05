@@ -1,6 +1,6 @@
 
 // Base telegram client with core properties and utility methods
-import { StringSession } from "npm:telegram/sessions/index.js";
+import { StringSession } from "npm:telegram@2.26.22/sessions/index.js";
 
 export abstract class BaseTelegramClient {
   protected apiId: number;
