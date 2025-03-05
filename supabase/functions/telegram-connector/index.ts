@@ -14,7 +14,7 @@ const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY') || '';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 // This list contains all the allowed versions of the Telegram client library
-const SUPPORTED_TELEGRAM_VERSIONS = ['5.0.0', '4.12.2', '4.0.0', '2.26.22']; // Added the latest version
+const SUPPORTED_TELEGRAM_VERSIONS = ['5.0.0', '4.12.2', '4.0.0', '3.1.0', '2.26.22']; // Added more versions
 
 Deno.serve(async (req) => {
   // Measure function execution time
@@ -103,7 +103,7 @@ Deno.serve(async (req) => {
 
     // Initialize Telegram client with the real implementation
     console.log("🔄 Initializing TelegramClientImplementation with accountId:", accountId);
-    console.log("🔄 API ID format valid:", !isNaN(parseInt(apiId, 10)));
+    console.log("🔄 API ID format valid:", !isNaN(Number(apiId)));
     console.log("🔄 API Hash format reasonable:", apiHash?.length === 32);
     console.log("🔄 Phone number format:", phoneNumber);
     

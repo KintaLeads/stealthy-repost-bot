@@ -20,7 +20,7 @@ export async function handleValidate(client: TelegramClientImplementation, corsH
       console.log(`TypeScript version: ${Deno.version.typescript}`);
       
       // Try importing the Telegram client to check if it's available
-      const { version } = await import('npm:telegram/client');
+      const { version } = await import('npm:telegram');
       console.log("Telegram client library version:", version);
     } catch (envError) {
       console.error("Error getting environment information:", envError);

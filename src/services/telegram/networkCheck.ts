@@ -23,8 +23,7 @@ export const runConnectivityChecks = async (projectId: string) => {
   // Check Supabase connectivity
   try {
     logInfo(context, 'Checking Supabase connectivity...');
-    // Fix: use an existing table instead of "_unused_"
-    // We only care if the request succeeds, not the actual data
+    // Use a valid table to check connectivity
     const { error } = await supabase.from('api_credentials').select('count', { count: 'exact', head: true });
     
     // Even if we get an error from the query, if we get a response at all, 
@@ -62,15 +61,15 @@ export const runConnectivityChecks = async (projectId: string) => {
     
     // Just perform a HEAD request to see if the function exists and is accessible
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // Increased timeout to 10 seconds
     
     try {
-      // Fix: use anon key from URL instead of accessing supabaseKey directly
+      // Use the public anon key instead of accessing protected property
       const response = await fetch(edgeFunctionUrl, {
         method: 'OPTIONS',
         signal: controller.signal,
         headers: {
-          // Use the public anon key instead of accessing protected property
+          // Use the public anon key
           'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVzd2ZyemRxeHNhaXprZHN3eGZuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA5ODM2ODQsImV4cCI6MjA1NjU1OTY4NH0.2onrHJHapQZbqi7RgsuK7A6G5xlJrNSgRv21_mUT7ik'
         }
       });

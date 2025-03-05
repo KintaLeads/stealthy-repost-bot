@@ -16,7 +16,7 @@ export class TelegramClientImplementation {
     this.accountId = accountId;
     
     console.log(`Creating TelegramClientImplementation with accountId: ${accountId}`);
-    console.log(`API ID valid: ${!isNaN(parseInt(apiId, 10))}`);
+    console.log(`API ID valid: ${!isNaN(Number(apiId))}`);
     console.log(`API Hash length: ${apiHash?.length || 0}`);
     console.log(`Phone format valid: ${phoneNumber?.startsWith('+') || false}`);
     console.log(`Session string provided: ${sessionString ? "Yes (length: " + sessionString.length + ")" : "No"}`);

@@ -1,3 +1,4 @@
+
 // Client implementation for Telegram authentication flow
 import { TelegramClient } from "npm:telegram";
 import { StringSession } from "npm:telegram/sessions";
@@ -16,14 +17,14 @@ export class AuthClient extends BaseTelegramClient {
     try {
       console.log(`[AuthClient] Connecting to Telegram for account: ${this.accountId}`);
       
-      this.client = new TelegramClient(this.stringSession, this.apiId, this.apiHash, {
+      this.client = new TelegramClient(this.stringSession, Number(this.apiId), this.apiHash, {
         connectionRetries: 5,
         useWSS: true,
         deviceModel: "Web Client",
         systemVersion: "1.0.0",
         appVersion: "1.0.0",
         initConnectionParams: {
-          appId: this.apiId,
+          appId: Number(this.apiId),
           appVersion: "1.0",
           systemVersion: "1.0",
           deviceModel: "Telegram Web App"
@@ -38,7 +39,7 @@ export class AuthClient extends BaseTelegramClient {
         this.codeRequested = true;
         const result = await this.client.invoke('auth.sendCode', {
           phone_number: this.phoneNumber,
-          api_id: this.apiId,
+          api_id: Number(this.apiId),
           api_hash: this.apiHash,
           settings: {
             _: 'codeSettings',

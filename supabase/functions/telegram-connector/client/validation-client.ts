@@ -14,7 +14,7 @@ export class ValidationClient extends BaseTelegramClient {
     
     try {
       // Check if API ID is a valid integer
-      if (isNaN(this.apiId)) {
+      if (isNaN(Number(this.apiId))) {
         return { 
           success: false, 
           error: "API ID must be a valid integer. Please check your Telegram API credentials." 
@@ -41,7 +41,7 @@ export class ValidationClient extends BaseTelegramClient {
       console.log("Creating temporary TelegramClient instance for validation");
       const tempClient = new TelegramClient(
         new StringSession(""),
-        this.apiId,
+        Number(this.apiId),
         this.apiHash,
         {
           connectionRetries: 2, // Fewer retries for validation
@@ -49,17 +49,8 @@ export class ValidationClient extends BaseTelegramClient {
           deviceModel: "Web Client",
           systemVersion: "1.0.0",
           appVersion: "1.0.0",
-          connection: {
-            retries: 2, // Limit connection retries for validation
-            delay: 1000, // Less delay between attempts
-            logger: console, // Add logger for debugging
-          },
-          deviceModel: "TelegramValidator",
-          systemVersion: "1.0",
-          appVersion: "1.0",
-          useWSS: true, // Use secure WebSocket
           initConnectionParams: {
-            appId: this.apiId,
+            appId: Number(this.apiId),
             appVersion: "1.0",
             systemVersion: "1.0",
             deviceModel: "Telegram Web App"

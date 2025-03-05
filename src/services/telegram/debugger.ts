@@ -72,15 +72,16 @@ export class ConsoleDebugger {
       const errorData = args.length > 1 ? args.slice(1) : undefined;
       
       // Special handling for Error objects
-      let formattedError: any = errorData;
+      let formattedError: any = {}; // Initialize as empty object
       if (args[0] instanceof Error) {
-        // Fixed: Explicitly type formattedError as any object instead of inheriting from errorData
         formattedError = {
           name: args[0].name,
           message: args[0].message,
           stack: args[0].stack,
           additionalData: errorData
         };
+      } else if (errorData) {
+        formattedError = errorData;
       }
       
       this.logs.push({
