@@ -7,6 +7,7 @@ import { toast } from "@/components/ui/use-toast";
 import AuthForm from "@/components/AuthForm";
 import PageLayout from "@/components/PageLayout";
 import LoadingScreen from "@/components/LoadingScreen";
+import { useAuth } from "@/hooks/useAuth"; 
 
 const Index = () => {
   const {
@@ -18,24 +19,7 @@ const Index = () => {
     updateSettings
   } = useChannelConfig();
 
-  const [session, setSession] = useState(null);
-  const [isAuthLoading, setIsAuthLoading] = useState(true);
-
-  useEffect(() => {
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setIsAuthLoading(false);
-    });
-
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setIsAuthLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
+  const { session, isLoading: authLoading } = useAuth();
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -45,7 +29,7 @@ const Index = () => {
     });
   };
 
-  if (isAuthLoading) {
+  if (authLoading) {
     return <LoadingScreen />;
   }
 

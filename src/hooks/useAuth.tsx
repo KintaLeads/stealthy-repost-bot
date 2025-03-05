@@ -6,6 +6,7 @@ import { toast } from "@/components/ui/use-toast";
 export const useAuth = () => {
   const [userId, setUserId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [session, setSession] = useState<any>(null);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -16,6 +17,7 @@ export const useAuth = () => {
         if (session?.user) {
           console.log('User is authenticated:', session.user.id);
           setUserId(session.user.id);
+          setSession(session);
         } else {
           console.log('No authenticated user found');
           // Only show toast if we're not on the initial load
@@ -27,10 +29,12 @@ export const useAuth = () => {
             });
           }
           setUserId(null);
+          setSession(null);
         }
       } catch (error) {
         console.error('Authentication error:', error);
         setUserId(null);
+        setSession(null);
       } finally {
         setIsLoading(false);
       }
@@ -45,9 +49,11 @@ export const useAuth = () => {
         if (session?.user) {
           console.log('User authenticated:', session.user.id);
           setUserId(session.user.id);
+          setSession(session);
         } else {
           console.log('User signed out');
           setUserId(null);
+          setSession(null);
         }
       }
     );
@@ -55,7 +61,7 @@ export const useAuth = () => {
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
+  }, [isLoading]);
 
-  return { userId, isLoading };
+  return { userId, isLoading, session };
 };

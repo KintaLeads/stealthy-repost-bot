@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ApiAccount } from "@/types/channels";
 import { verifyTelegramCode } from "@/services/telegram";
+import { toast } from "@/components/ui/use-toast";
 
 interface VerificationCodeDialogProps {
   isOpen: boolean;
@@ -21,6 +22,7 @@ const VerificationCodeDialog: React.FC<VerificationCodeDialogProps> = ({
 }) => {
   const [code, setCode] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,14 +30,37 @@ const VerificationCodeDialog: React.FC<VerificationCodeDialogProps> = ({
     if (!code) return;
     
     setIsSubmitting(true);
+    setError(null);
     
     try {
+      console.log(`Submitting verification code for account ${account.id} (${account.nickname || account.phoneNumber})`);
       const success = await verifyTelegramCode(account, code);
       
       if (success) {
+        console.log("Verification successful");
+        toast({
+          title: "Verification Successful",
+          description: "Your Telegram account has been verified",
+        });
         onVerified();
         onClose();
+      } else {
+        console.error("Verification failed but no error was thrown");
+        setError("Verification failed. Please check your code and try again.");
+        toast({
+          title: "Verification Failed",
+          description: "Please check your code and try again",
+          variant: "destructive",
+        });
       }
+    } catch (error) {
+      console.error("Error during verification:", error);
+      setError(error instanceof Error ? error.message : "An unknown error occurred");
+      toast({
+        title: "Verification Error",
+        description: error instanceof Error ? error.message : "An unknown error occurred",
+        variant: "destructive",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -62,6 +87,10 @@ const VerificationCodeDialog: React.FC<VerificationCodeDialogProps> = ({
               autoComplete="one-time-code"
               className="text-center text-xl tracking-wider"
             />
+            
+            {error && (
+              <div className="text-destructive text-sm">{error}</div>
+            )}
           </div>
           
           <DialogFooter>
