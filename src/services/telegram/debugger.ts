@@ -74,10 +74,10 @@ export class ConsoleDebugger {
       // Special handling for Error objects
       let formattedError = errorData;
       if (args[0] instanceof Error) {
-        // Fixed: Using object literal instead of trying to add properties to an array
+        // Format error object properties as a regular object, not trying to add to an array
         formattedError = {
-          errorName: args[0].name,
-          errorMessage: args[0].message,
+          name: args[0].name,
+          message: args[0].message,
           stack: args[0].stack,
           additionalData: errorData
         };
