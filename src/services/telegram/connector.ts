@@ -1,176 +1,53 @@
 
-import { ApiAccount } from "@/types/channels";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/components/ui/use-toast";
-import { getStoredSession, storeSession } from "./sessionManager";
+import { supabase } from '@/integrations/supabase/client';
+import { ApiAccount } from '@/types/channels';
+import { logInfo, logError, trackApiCall } from './debugger';
 
 /**
- * Connect to Telegram API using the provided account credentials
+ * Handles the initial connection attempt to Telegram API
+ * This determines if verification is needed
  */
-export const connectToTelegram = async (account: ApiAccount): Promise<{
-  success: boolean, 
-  codeNeeded?: boolean, 
-  phoneCodeHash?: string,
-  error?: string
-}> => {
+export const handleInitialConnection = async (account: ApiAccount) => {
+  const context = 'TelegramConnector';
+  logInfo(context, `Initializing connection for account: ${account.nickname}`);
+  
   try {
-    console.log(`=== CONNECTING TO TELEGRAM ===`);
-    console.log(`Account: ${account.nickname} (${account.phoneNumber})`);
-    console.log(`API ID: ${account.apiKey}`);
-    console.log(`Account ID: ${account.id}`);
+    const requestData = {
+      operation: 'connect',
+      apiId: account.apiKey,
+      apiHash: account.apiHash,
+      phoneNumber: account.phoneNumber,
+      accountId: account.id || 'unknown'
+    };
     
-    // Check if we have a stored session for this account
-    const sessionString = getStoredSession(account.id);
+    logInfo(context, 'Calling Supabase function \'telegram-connector\' for connection...');
     
-    // Prepare the headers
-    const headers: Record<string, string> = {};
-    if (sessionString) {
-      headers['X-Telegram-Session'] = sessionString;
-      console.log(`Found stored session for account: ${account.nickname}, using it`);
-      console.log(`Session string length: ${sessionString.length}`);
-    } else {
-      console.log(`No stored session found for account: ${account.nickname}, will need to authenticate`);
-    }
-    
-    console.log(`Checking Edge Function status...`);
-    console.log(`Calling Supabase function 'telegram-connector'...`);
-    
-    // Call the Supabase function
     const { data, error } = await supabase.functions.invoke('telegram-connector', {
-      body: {
-        operation: 'connect',
-        apiId: account.apiKey,
-        apiHash: account.apiHash,
-        phoneNumber: account.phoneNumber,
-        accountId: account.id
-      },
-      headers
+      body: requestData
     });
     
-    console.log("Telegram connector response:", data);
+    // Track API call for debugging
+    trackApiCall('telegram-connector/connect', requestData, data, error);
     
     if (error) {
-      console.error('Error connecting to Telegram:', error);
-      
-      // Enhanced error handling for different error scenarios
-      if (error.message) {
-        if (error.message.includes('Failed to fetch')) {
-          toast({
-            title: "Connection Failed",
-            description: "Network error: Could not connect to the Edge Function. Please check if the function is deployed.",
-            variant: "destructive",
-          });
-          return { 
-            success: false, 
-            error: "Network error: Could not connect to the Edge Function. Please check if the function is deployed." 
-          };
-        }
-        
-        if (error.message.includes('not found') || error.message.includes('404')) {
-          toast({
-            title: "Connection Failed",
-            description: "Edge Function 'telegram-connector' not found. Please check your Supabase project.",
-            variant: "destructive",
-          });
-          return { 
-            success: false, 
-            error: "Edge Function 'telegram-connector' not found. Please check your Supabase project." 
-          };
-        }
-        
-        if (error.message.includes('timed out')) {
-          toast({
-            title: "Connection Failed",
-            description: "Edge Function execution timed out. This might indicate slow API response.",
-            variant: "destructive",
-          });
-          return { 
-            success: false, 
-            error: "Edge Function execution timed out. This might indicate slow API response." 
-          };
-        }
-      }
-      
-      toast({
-        title: "Connection Failed",
-        description: error.message,
-        variant: "destructive",
-      });
-      return { success: false, error: error.message };
+      logError(context, 'Error connecting to Telegram:', error);
+      throw new Error(error.message || 'Failed to connect to Telegram');
     }
     
-    if (data?.error) {
-      console.error('Error in Telegram connector:', data.error);
-      
-      // Check for known Telegram API errors
-      let errorMessage = data.error;
-      if (data.error.includes('API_ID_INVALID') || data.error.includes('API_HASH_INVALID')) {
-        errorMessage = "Invalid API credentials. Please check your Telegram API ID and Hash.";
-      } else if (data.error.includes('PHONE_NUMBER_INVALID')) {
-        errorMessage = "Invalid phone number format. Please use international format with country code.";
-      } else if (data.error.includes('PHONE_NUMBER_BANNED')) {
-        errorMessage = "This phone number has been banned from Telegram.";
-      } else if (data.error.includes('AUTH_KEY_UNREGISTERED')) {
-        errorMessage = "Authentication failed. The provided session is no longer valid.";
-      } else if (data.error.includes('VERSION_OUTDATED')) {
-        errorMessage = "Telegram client version is outdated. Please check the Edge Function logs.";
-      } else if (data.error.includes('FLOOD_WAIT')) {
-        // Extract wait time if available
-        const waitMatch = data.error.match(/FLOOD_WAIT_(\d+)/);
-        const waitTime = waitMatch ? parseInt(waitMatch[1], 10) : null;
-        errorMessage = waitTime 
-          ? `Too many requests. Please wait ${waitTime} seconds before trying again.` 
-          : "Too many requests. Please wait before trying again.";
-      }
-      
-      toast({
-        title: "Connection Failed",
-        description: errorMessage,
-        variant: "destructive",
-      });
-      return { success: false, error: errorMessage };
+    if (!data.success) {
+      logError(context, 'Connection request failed:', data.error);
+      throw new Error(data.error || 'Failed to connect to Telegram API');
     }
     
-    // Check if code verification is needed
-    if (data?.codeNeeded) {
-      console.log("Verification code needed for account:", account.nickname, "phoneCodeHash:", data.phoneCodeHash);
-      toast({
-        title: "Verification Required",
-        description: "Please enter the verification code sent to your phone",
-      });
-      return { 
-        success: true, 
-        codeNeeded: true, 
-        phoneCodeHash: data.phoneCodeHash 
-      };
-    }
+    logInfo(context, 'Connection response:', data);
     
-    if (data?.success && data?.sessionString) {
-      // Store the session for this account
-      console.log("Successfully connected with account:", account.nickname);
-      console.log("Session string length:", data.sessionString.length);
-      storeSession(account.id, data.sessionString);
-      toast({
-        title: "Connected",
-        description: "Successfully connected to Telegram API",
-      });
-      return { success: true };
-    }
-    
-    console.warn("Unexpected response from Telegram connector:", data);
-    toast({
-      title: "Connection Failed",
-      description: "Received unexpected response from Telegram connector",
-      variant: "destructive",
-    });
-    return { success: false, error: "Unknown error connecting to Telegram" };
+    return {
+      codeNeeded: data.codeNeeded || false,
+      phoneCodeHash: data.phoneCodeHash,
+      success: data.success
+    };
   } catch (error) {
-    console.error('Exception connecting to Telegram:', error);
-    toast({
-      title: "Connection Failed",
-      description: error instanceof Error ? error.message : "An unknown error occurred",
-      variant: "destructive",
-    });
-    return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
+    logError(context, 'Exception during connection attempt:', error);
+    throw error;
   }
 };
