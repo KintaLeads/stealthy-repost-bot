@@ -1,4 +1,3 @@
-
 import { ApiAccount } from "@/types/channels";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/use-toast";
@@ -146,26 +145,8 @@ export const validateTelegramCredentials = async (account: ApiAccount): Promise<
         console.error('Error validating Telegram credentials:', error);
         // More descriptive error message for network issues
         if (error.message && error.message.includes('Failed to fetch')) {
-          // Let's check if the Edge Function exists or if there's a deployment issue
-          try {
-            const { data: functionsList, error: functionsError } = await supabase.functions.list();
-            if (functionsError) {
-              console.error("Error listing functions:", functionsError);
-            } else {
-              console.log("Available Edge Functions:", functionsList);
-              const telegramConnector = functionsList.find(f => f.name === 'telegram-connector');
-              if (!telegramConnector) {
-                return {
-                  success: false,
-                  error: "The 'telegram-connector' Edge Function does not exist in your Supabase project. Please deploy it first."
-                };
-              } else {
-                console.log("Function exists but couldn't connect to it:", telegramConnector);
-              }
-            }
-          } catch (listError) {
-            console.error("Error checking functions list:", listError);
-          }
+          // Better error handling without using the .list() method that doesn't exist
+          console.error("Network error when connecting to Edge Function");
           
           return { 
             success: false, 
