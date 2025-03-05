@@ -5,31 +5,11 @@ import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/componen
 import { AlertTriangle, Loader2, RefreshCw } from "lucide-react";
 import { runConnectivityChecks, testCorsConfiguration } from "@/services/telegram";
 import DiagnosticResults from './DiagnosticResults';
-
-interface DiagnosticResults {
-  supabase: boolean;
-  telegram: boolean;
-  edgeFunction: {
-    deployed: boolean;
-    url: string;
-    error?: string;
-  };
-  cors?: {
-    success: boolean;
-    status?: number;
-    corsHeaders?: Record<string, string | null>;
-    error?: string;
-    postTest?: {
-      success: boolean;
-      status?: number;
-      error?: string;
-    };
-  };
-}
+import { DiagnosticResultData } from './types';
 
 const DiagnosticTool: React.FC = () => {
   const [isRunning, setIsRunning] = useState(false);
-  const [results, setResults] = useState<DiagnosticResults | null>(null);
+  const [results, setResults] = useState<DiagnosticResultData | null>(null);
 
   const runChecks = async () => {
     setIsRunning(true);

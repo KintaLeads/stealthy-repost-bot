@@ -1,61 +1,23 @@
 
 import React from 'react';
-import DiagnosticItem from './DiagnosticItem';
+import StatusSummary from './StatusSummary';
 import CorsDetails from './CorsDetails';
 import { ConnectionErrorAlert, CorsErrorAlert, AllGoodAlert } from './DiagnosticAlert';
-import { Button } from "@/components/ui/button";
-import { ExternalLink } from "lucide-react";
+import FunctionUrlDisplay from './FunctionUrlDisplay';
+import { DiagnosticResultData } from './types';
 
 interface DiagnosticResultsProps {
-  results: {
-    supabase: boolean;
-    telegram: boolean;
-    edgeFunction: {
-      deployed: boolean;
-      url: string;
-      error?: string;
-    };
-    cors?: {
-      success: boolean;
-      status?: number;
-      corsHeaders?: Record<string, string | null>;
-      error?: string;
-      postTest?: {
-        success: boolean;
-        status?: number;
-        error?: string;
-      };
-    };
-  };
+  results: DiagnosticResultData;
   onOpenSupabaseFunctions: () => void;
 }
 
-const DiagnosticResults: React.FC<DiagnosticResultsProps> = ({ results, onOpenSupabaseFunctions }) => {
+const DiagnosticResults: React.FC<DiagnosticResultsProps> = ({ 
+  results, 
+  onOpenSupabaseFunctions 
+}) => {
   return (
     <div className="space-y-4">
-      <div className="grid gap-4">
-        <DiagnosticItem
-          label="Supabase Connectivity"
-          isSuccess={results.supabase}
-        />
-        
-        <DiagnosticItem
-          label="Telegram API Connectivity"
-          isSuccess={results.telegram}
-        />
-        
-        <DiagnosticItem
-          label="Edge Function Deployment"
-          isSuccess={results.edgeFunction.deployed}
-        />
-        
-        {results.cors && (
-          <DiagnosticItem
-            label="CORS Configuration"
-            isSuccess={results.cors.success}
-          />
-        )}
-      </div>
+      <StatusSummary results={results} />
       
       {results.edgeFunction.deployed && results.cors && (
         <CorsDetails
@@ -84,9 +46,7 @@ const DiagnosticResults: React.FC<DiagnosticResultsProps> = ({ results, onOpenSu
       />
       
       {results.edgeFunction.url && (
-        <div className="text-xs text-muted-foreground text-center w-full">
-          Edge Function URL: {results.edgeFunction.url}
-        </div>
+        <FunctionUrlDisplay url={results.edgeFunction.url} />
       )}
     </div>
   );
