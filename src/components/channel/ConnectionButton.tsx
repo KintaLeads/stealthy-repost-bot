@@ -6,10 +6,11 @@ import { ApiAccount } from "@/types/channels";
 import { toast } from "@/components/ui/use-toast";
 import { connectToTelegram } from "@/services/telegram";
 import { setupRealtimeListener } from "@/services/telegram";
-import { runConnectivityChecks } from "@/services/telegram";
+import { runConnectivityChecks, testCorsConfiguration } from "@/services/telegram";
 import { Message } from "@/types/dashboard";
 import VerificationCodeDialog from './VerificationCodeDialog';
 import DiagnosticTool from '../debug/DiagnosticTool';
+import { logInfo, logError } from '@/services/telegram';
 
 interface ConnectionButtonProps {
   selectedAccount: ApiAccount | null;
@@ -34,6 +35,7 @@ const ConnectionButton: React.FC<ConnectionButtonProps> = ({
 }) => {
   const [showVerificationDialog, setShowVerificationDialog] = useState(false);
   const [showDiagnosticTool, setShowDiagnosticTool] = useState(false);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
   const [tempConnectionState, setTempConnectionState] = useState<{
     account: ApiAccount | null
   }>({ account: null });
@@ -57,7 +59,10 @@ const ConnectionButton: React.FC<ConnectionButtonProps> = ({
       });
     } else {
       try {
-        console.log("Starting Telegram connection process with account:", selectedAccount.nickname);
+        // Reset any previous errors
+        setConnectionError(null);
+        
+        logInfo('ConnectionButton', "Starting Telegram connection process with account:", selectedAccount.nickname);
         
         // First check connectivity
         const projectId = "eswfrzdqxsaizkdswxfn"; // Hardcoded for now
@@ -65,7 +70,7 @@ const ConnectionButton: React.FC<ConnectionButtonProps> = ({
         
         // If there are connectivity issues, show a detailed message
         if (!connectivityResults.supabase || !connectivityResults.telegram || !connectivityResults.edgeFunction.deployed) {
-          console.error("Connectivity issues detected:", connectivityResults);
+          logError('ConnectionButton', "Connectivity issues detected:", connectivityResults);
           
           let errorMessage = "Connection issues detected: ";
           if (!connectivityResults.supabase) {
@@ -78,6 +83,8 @@ const ConnectionButton: React.FC<ConnectionButtonProps> = ({
             errorMessage += "Edge Function issue: " + connectivityResults.edgeFunction.error;
           }
           
+          setConnectionError(errorMessage);
+          
           toast({
             title: "Connection Issues",
             description: errorMessage,
@@ -86,16 +93,33 @@ const ConnectionButton: React.FC<ConnectionButtonProps> = ({
           
           // Show diagnostic tool
           setShowDiagnosticTool(true);
+          
+          // If Edge Function is deployed but we're having issues, test CORS
+          if (connectivityResults.edgeFunction.deployed && connectivityResults.edgeFunction.error) {
+            logInfo('ConnectionButton', "Testing CORS configuration...");
+            const corsTest = await testCorsConfiguration(projectId);
+            logInfo('ConnectionButton', "CORS test results:", corsTest);
+            
+            if (!corsTest.success) {
+              toast({
+                title: "CORS Configuration Issue",
+                description: "There may be a CORS configuration issue with the Edge Function. This is a server-side problem that requires administrator attention.",
+                variant: "destructive",
+              });
+            }
+          }
+          
           return;
         }
         
         // First connect to Telegram API
+        logInfo('ConnectionButton', "Attempting to connect to Telegram with account:", selectedAccount.nickname);
         const connectionResult = await connectToTelegram(selectedAccount);
-        console.log("Connection result:", connectionResult);
+        logInfo('ConnectionButton', "Connection result:", connectionResult);
         
         if (connectionResult.success) {
           if (connectionResult.codeNeeded) {
-            console.log("Verification code needed, showing dialog");
+            logInfo('ConnectionButton', "Verification code needed, showing dialog");
             // Show verification dialog
             setTempConnectionState({ account: selectedAccount });
             setShowVerificationDialog(true);
@@ -106,12 +130,14 @@ const ConnectionButton: React.FC<ConnectionButtonProps> = ({
               description: "Please check your phone for the verification code sent by Telegram",
             });
           } else {
-            console.log("No verification needed, setting up listener directly");
+            logInfo('ConnectionButton', "No verification needed, setting up listener directly");
             // Already authenticated, setup the listener
             await setupListener(selectedAccount);
           }
         } else {
-          console.error("Connection failed:", connectionResult.error);
+          logError('ConnectionButton', "Connection failed:", connectionResult.error);
+          setConnectionError(connectionResult.error || "Unknown connection error");
+          
           toast({
             title: "Connection Failed",
             description: connectionResult.error || "Failed to connect to Telegram API",
@@ -122,10 +148,14 @@ const ConnectionButton: React.FC<ConnectionButtonProps> = ({
           setShowDiagnosticTool(true);
         }
       } catch (error) {
-        console.error('Error connecting to Telegram:', error);
+        logError('ConnectionButton', 'Error connecting to Telegram:', error);
+        
+        const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
+        setConnectionError(errorMessage);
+        
         toast({
           title: "Connection Failed",
-          description: error instanceof Error ? error.message : "An unknown error occurred",
+          description: errorMessage,
           variant: "destructive",
         });
         
@@ -137,7 +167,7 @@ const ConnectionButton: React.FC<ConnectionButtonProps> = ({
 
   const setupListener = async (account: ApiAccount) => {
     try {
-      console.log("Setting up realtime listener for account:", account.nickname);
+      logInfo('ConnectionButton', "Setting up realtime listener for account:", account.nickname);
       
       // Setup the realtime listener
       const listener = await setupRealtimeListener(
@@ -153,10 +183,14 @@ const ConnectionButton: React.FC<ConnectionButtonProps> = ({
         description: "Now listening to Telegram channels",
       });
     } catch (error) {
-      console.error('Error setting up realtime listener:', error);
+      logError('ConnectionButton', 'Error setting up realtime listener:', error);
+      
+      const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
+      setConnectionError(errorMessage);
+      
       toast({
         title: "Listener Setup Failed",
-        description: error instanceof Error ? error.message : "An unknown error occurred",
+        description: errorMessage,
         variant: "destructive",
       });
     }
@@ -164,14 +198,49 @@ const ConnectionButton: React.FC<ConnectionButtonProps> = ({
 
   const handleVerificationComplete = async () => {
     if (tempConnectionState.account) {
-      console.log("Verification completed, setting up listener");
+      logInfo('ConnectionButton', "Verification completed, setting up listener");
       await setupListener(tempConnectionState.account);
       setTempConnectionState({ account: null });
     }
   };
 
+  const runDiagnostics = async () => {
+    try {
+      setShowDiagnosticTool(true);
+      const projectId = "eswfrzdqxsaizkdswxfn";
+      
+      // Run both connectivity and CORS checks
+      const connectivityResults = await runConnectivityChecks(projectId);
+      const corsResults = await testCorsConfiguration(projectId);
+      
+      logInfo('ConnectionButton', "Diagnostics completed", {
+        connectivity: connectivityResults,
+        cors: corsResults
+      });
+      
+      toast({
+        title: "Diagnostics Completed",
+        description: "Check the diagnostic tool for results",
+      });
+    } catch (error) {
+      logError('ConnectionButton', "Error running diagnostics", error);
+      
+      toast({
+        title: "Diagnostics Failed",
+        description: error instanceof Error ? error.message : "An unknown error occurred",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="space-y-4">
+      {connectionError && (
+        <div className="bg-destructive/10 border border-destructive/30 text-destructive rounded-md p-3 text-sm mb-4">
+          <strong>Connection Error:</strong> {connectionError}
+        </div>
+      )}
+      
       <div className="flex flex-col sm:flex-row gap-2">
         <Button
           variant={isConnected ? "destructive" : "default"}
@@ -199,11 +268,11 @@ const ConnectionButton: React.FC<ConnectionButtonProps> = ({
         
         <Button
           variant="outline"
-          onClick={() => setShowDiagnosticTool(!showDiagnosticTool)}
+          onClick={runDiagnostics}
           className="flex items-center"
         >
           <AlertTriangle className="mr-2 h-4 w-4" />
-          {showDiagnosticTool ? "Hide Diagnostics" : "Connection Diagnostics"}
+          {showDiagnosticTool ? "Run Diagnostics Again" : "Run Connection Diagnostics"}
         </Button>
       </div>
 

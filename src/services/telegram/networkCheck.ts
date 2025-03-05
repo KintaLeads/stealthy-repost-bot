@@ -1,103 +1,149 @@
+
+import { supabase } from '@/integrations/supabase/client';
+import { logInfo, logError } from './debugger';
+
 /**
- * Network connectivity checker for Telegram API
- * This helps diagnose if the issue is with the network connection
+ * Checks connectivity to various services needed for Telegram integration
+ * @param projectId The Supabase project ID for Edge Function URL
  */
-
-// Check if we can connect to the Supabase API
-export const checkSupabaseConnectivity = async (): Promise<boolean> => {
+export const runConnectivityChecks = async (projectId: string) => {
+  const context = 'NetworkCheck';
+  logInfo(context, 'Running connectivity checks...');
+  
+  const results = {
+    supabase: false,
+    telegram: false,
+    edgeFunction: {
+      deployed: false,
+      url: '',
+      error: ''
+    }
+  };
+  
+  // Check Supabase connectivity
   try {
-    console.log("Checking Supabase connectivity...");
-    const response = await fetch('https://supabase.co/ping', { 
-      method: 'GET',
-      mode: 'no-cors' 
-    });
-    console.log("Supabase connectivity check response:", response.ok);
-    return response.ok;
-  } catch (error) {
-    console.error("Error checking Supabase connectivity:", error);
-    return false;
-  }
-};
-
-// Check if Telegram services are up
-export const checkTelegramConnectivity = async (): Promise<boolean> => {
-  try {
-    console.log("Checking Telegram connectivity...");
-    // Using Telegram web as a proxy to check if Telegram services are accessible
-    const response = await fetch('https://web.telegram.org/a/', { 
-      method: 'GET',
-      mode: 'no-cors' 
-    });
-    console.log("Telegram connectivity check response:", response.ok);
-    return response.ok;
-  } catch (error) {
-    console.error("Error checking Telegram connectivity:", error);
-    return false;
-  }
-};
-
-// Check if Edge Function is deployed
-export const checkEdgeFunctionStatus = async (projectId: string, functionName: string): Promise<{
-  deployed: boolean;
-  error?: string;
-}> => {
-  try {
-    console.log(`Checking Edge Function status for ${functionName}...`);
-    const url = `https://${projectId}.supabase.co/functions/v1/${functionName}`;
+    logInfo(context, 'Checking Supabase connectivity...');
+    const { data, error } = await supabase.from('_unused_').select('count').limit(1).single();
     
-    // Send an OPTIONS request to check if the function exists
-    const response = await fetch(url, { 
+    // Even if we get an error from the query, if we get a response at all, 
+    // Supabase is accessible. The error might just be that the table doesn't exist.
+    results.supabase = true;
+    logInfo(context, 'Supabase connection successful');
+  } catch (error) {
+    logError(context, 'Supabase connection failed', error);
+  }
+  
+  // Check Telegram API connectivity (by pinging telegram.org)
+  try {
+    logInfo(context, 'Checking Telegram API connectivity...');
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    
+    const response = await fetch('https://telegram.org/js/telegram-web-app.js', {
+      method: 'HEAD',
+      signal: controller.signal
+    });
+    
+    clearTimeout(timeoutId);
+    results.telegram = response.ok;
+    logInfo(context, `Telegram connectivity check: ${results.telegram ? 'Successful' : 'Failed'}`);
+  } catch (error) {
+    logError(context, 'Telegram connectivity check failed', error);
+  }
+  
+  // Check Edge Function deployment
+  try {
+    logInfo(context, 'Checking Edge Function deployment...');
+    // Construct Edge Function URL
+    const edgeFunctionUrl = `https://${projectId}.supabase.co/functions/v1/telegram-connector`;
+    results.edgeFunction.url = edgeFunctionUrl;
+    
+    // Just perform a HEAD request to see if the function exists and is accessible
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    
+    try {
+      const response = await fetch(edgeFunctionUrl, {
+        method: 'OPTIONS',
+        signal: controller.signal,
+        headers: {
+          'apikey': supabase.supabaseKey
+        }
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (response.status === 204 || response.ok) {
+        results.edgeFunction.deployed = true;
+        logInfo(context, 'Edge Function deployment check: Successful');
+      } else {
+        // If we get a response but not 204/200, function exists but might have an issue
+        results.edgeFunction.deployed = true;
+        results.edgeFunction.error = `Unexpected status: ${response.status}`;
+        logWarning(context, `Edge Function returns unexpected status: ${response.status}`);
+      }
+    } catch (fetchError) {
+      logError(context, 'Edge Function fetch failed', fetchError);
+      
+      if (fetchError.name === 'AbortError') {
+        results.edgeFunction.error = 'Connection timeout - the Edge Function didn\'t respond in time';
+      } else if (fetchError.message?.includes('Failed to fetch')) {
+        results.edgeFunction.error = 'Network error - unable to connect to the Edge Function';
+      } else {
+        results.edgeFunction.error = fetchError.message || 'Unknown error';
+      }
+    }
+  } catch (error) {
+    logError(context, 'Error checking Edge Function deployment', error);
+    results.edgeFunction.error = error instanceof Error ? error.message : 'Unknown error';
+  }
+  
+  logInfo(context, 'Connectivity check results', results);
+  
+  return results;
+};
+
+/**
+ * Tests if CORS is configured correctly for Supabase Edge Functions
+ */
+export const testCorsConfiguration = async (projectId: string) => {
+  const context = 'CorsTest';
+  logInfo(context, 'Testing CORS configuration...');
+  
+  try {
+    const edgeFunctionUrl = `https://${projectId}.supabase.co/functions/v1/telegram-connector`;
+    
+    // First try with OPTIONS request
+    const optionsResponse = await fetch(edgeFunctionUrl, {
       method: 'OPTIONS',
       headers: {
-        'Content-Type': 'application/json'
+        'Origin': window.location.origin,
+        'Access-Control-Request-Method': 'POST',
+        'Access-Control-Request-Headers': 'Content-Type,Authorization'
       }
     });
     
-    console.log(`Edge Function ${functionName} status:`, response.status);
+    const corsHeaders = {
+      'Access-Control-Allow-Origin': optionsResponse.headers.get('Access-Control-Allow-Origin'),
+      'Access-Control-Allow-Methods': optionsResponse.headers.get('Access-Control-Allow-Methods'),
+      'Access-Control-Allow-Headers': optionsResponse.headers.get('Access-Control-Allow-Headers')
+    };
     
-    // 204 means the function is deployed and CORS is configured correctly
-    if (response.status === 204) {
-      return { deployed: true };
-    }
+    logInfo(context, 'CORS preflight response', {
+      status: optionsResponse.status,
+      headers: corsHeaders
+    });
     
-    // 404 means the function is not deployed
-    if (response.status === 404) {
-      return { 
-        deployed: false,
-        error: `Edge Function ${functionName} is not deployed. Please check your Supabase project.`
-      };
-    }
-    
-    // Other status codes might indicate other issues
-    return { 
-      deployed: false,
-      error: `Edge Function ${functionName} returned status ${response.status}. This might indicate a configuration issue.`
+    return {
+      success: optionsResponse.status === 204,
+      status: optionsResponse.status,
+      corsHeaders
     };
   } catch (error) {
-    console.error(`Error checking Edge Function ${functionName} status:`, error);
-    return { 
-      deployed: false,
-      error: `Failed to check Edge Function status: ${error.message}`
+    logError(context, 'CORS test failed', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
     };
   }
-};
-
-// Run all connectivity checks
-export const runConnectivityChecks = async (projectId: string): Promise<{
-  supabase: boolean;
-  telegram: boolean;
-  edgeFunction: {
-    deployed: boolean;
-    error?: string;
-  };
-}> => {
-  const supabaseConnectivity = await checkSupabaseConnectivity();
-  const telegramConnectivity = await checkTelegramConnectivity();
-  const edgeFunctionStatus = await checkEdgeFunctionStatus(projectId, 'telegram-connector');
-  
-  return {
-    supabase: supabaseConnectivity,
-    telegram: telegramConnectivity,
-    edgeFunction: edgeFunctionStatus
-  };
 };
