@@ -1,9 +1,16 @@
+
 // Handler for 'validate' operation - to validate credentials without establishing a full connection
 import { TelegramClientImplementation } from '../client/telegram-client.ts';
 
 export async function handleValidate(client: TelegramClientImplementation, corsHeaders: Record<string, string>) {
   try {
     console.log("⭐ Validate operation called - testing API credentials ⭐");
+    console.log("Client configuration:", {
+      apiId: "MASKED",
+      apiHash: "MASKED", 
+      phoneNumber: "MASKED",
+      accountId: client.getAccountId()
+    });
     
     // Try to establish a basic connection to validate credentials
     // We don't need a full connection, just enough to verify the API credentials work

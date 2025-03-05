@@ -15,6 +15,12 @@ export class TelegramClientImplementation {
   constructor(apiId: string, apiHash: string, phoneNumber: string, accountId: string, sessionString: string = "") {
     this.accountId = accountId;
     
+    console.log(`Creating TelegramClientImplementation with accountId: ${accountId}`);
+    console.log(`API ID valid: ${!isNaN(parseInt(apiId, 10))}`);
+    console.log(`API Hash length: ${apiHash?.length || 0}`);
+    console.log(`Phone format valid: ${phoneNumber?.startsWith('+') || false}`);
+    console.log(`Session string provided: ${sessionString ? "Yes (length: " + sessionString.length + ")" : "No"}`);
+    
     // Initialize specialized clients
     this.validationClient = new ValidationClient(apiId, apiHash, phoneNumber, accountId, sessionString);
     this.authClient = new AuthClient(apiId, apiHash, phoneNumber, accountId, sessionString);
@@ -23,6 +29,7 @@ export class TelegramClientImplementation {
 
   // Validation methods
   async validateCredentials(): Promise<{ success: boolean, error?: string }> {
+    console.log(`TelegramClientImplementation.validateCredentials() called for account: ${this.accountId}`);
     return this.validationClient.validateCredentials();
   }
 

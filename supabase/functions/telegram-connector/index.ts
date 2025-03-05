@@ -13,7 +13,13 @@ const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
 const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY') || '';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+// This list contains all the allowed versions of the Telegram client library
+const SUPPORTED_TELEGRAM_VERSIONS = ['5.0.0', '4.12.2', '4.0.0']; // Add versions as needed
+
 Deno.serve(async (req) => {
+  // Measure function execution time
+  const startTime = Date.now();
+  
   // Log that the function was called with detailed info
   console.log("⭐⭐⭐ Telegram connector function called ⭐⭐⭐", {
     method: req.method,
@@ -28,6 +34,20 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Print Deno and environment information for debugging
+    console.log("Environment information:");
+    console.log(`Deno version: ${Deno.version.deno}`);
+    console.log(`V8 version: ${Deno.version.v8}`);
+    console.log(`TypeScript version: ${Deno.version.typescript}`);
+    
+    // Log if we have the required Supabase environment variables
+    console.log("Supabase configuration:", {
+      hasUrl: !!supabaseUrl, 
+      hasKey: !!supabaseKey,
+      urlLength: supabaseUrl?.length || 0,
+      keyLength: supabaseKey?.length || 0
+    });
+    
     // Parse the request body
     let requestBody;
     try {
@@ -83,6 +103,30 @@ Deno.serve(async (req) => {
 
     // Initialize Telegram client with the real implementation
     console.log("🔄 Initializing TelegramClientImplementation with accountId:", accountId);
+    console.log("🔄 API ID format valid:", !isNaN(parseInt(apiId, 10)));
+    console.log("🔄 API Hash format reasonable:", apiHash?.length === 32);
+    console.log("🔄 Phone number format:", phoneNumber);
+    
+    try {
+      // Try importing the Telegram client to check if it's available
+      const { version } = await import('npm:telegram/client');
+      console.log("✅ Successfully imported Telegram client library version:", version);
+      
+      // Check if the version is supported
+      if (!SUPPORTED_TELEGRAM_VERSIONS.includes(version)) {
+        console.warn(`⚠️ Using unsupported Telegram client version: ${version}. Supported versions are: ${SUPPORTED_TELEGRAM_VERSIONS.join(', ')}`);
+      }
+    } catch (importError) {
+      console.error("❌ Failed to import Telegram client library:", importError);
+      return new Response(
+        JSON.stringify({ 
+          error: 'Failed to load Telegram client library. The Edge Function might be missing dependencies.',
+          success: false
+        }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
     const client = new TelegramClientImplementation(apiId, apiHash, phoneNumber, accountId || 'temp', sessionString);
 
     // Check which operation is requested
@@ -93,23 +137,23 @@ Deno.serve(async (req) => {
         console.log("🔄 Handling validate operation");
         response = await handleValidate(client, corsHeaders);
         console.log("🔄 Validate operation response:", JSON.parse(await response.clone().text()));
-        return response;
+        break;
         
       case 'connect':
         console.log("🔄 Handling connect operation, verificationCode provided:", !!verificationCode);
         response = await handleConnect(client, corsHeaders, { verificationCode });
         console.log("🔄 Connect operation response:", JSON.parse(await response.clone().text()));
-        return response;
+        break;
         
       case 'listen':
         response = await handleListen(client, sourceChannels, corsHeaders);
         console.log("🔄 Listen operation response:", JSON.parse(await response.clone().text()));
-        return response;
+        break;
         
       case 'repost':
         response = await handleRepost(client, messageId, sourceChannel, targetChannel, corsHeaders);
         console.log("🔄 Repost operation response:", JSON.parse(await response.clone().text()));
-        return response;
+        break;
         
       default:
         console.error("⚠️ Invalid operation:", operation);
@@ -121,11 +165,18 @@ Deno.serve(async (req) => {
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
     }
+    
+    // Calculate and log execution time
+    const executionTime = Date.now() - startTime;
+    console.log(`✅ Function execution completed in ${executionTime}ms`);
+    
+    return response;
   } catch (error) {
     console.error('⚠️ Error processing request:', error);
     return new Response(
       JSON.stringify({ 
         error: error.message,
+        detailed: error.stack,
         success: false
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

@@ -49,6 +49,21 @@ export class ValidationClient extends BaseTelegramClient {
           deviceModel: "Web Client",
           systemVersion: "1.0.0",
           appVersion: "1.0.0",
+          connection: {
+            retries: 2, // Limit connection retries for validation
+            delay: 1000, // Less delay between attempts
+            logger: console, // Add logger for debugging
+          },
+          deviceModel: "TelegramValidator",
+          systemVersion: "1.0",
+          appVersion: "1.0",
+          useWSS: true, // Use secure WebSocket
+          initConnectionParams: {
+            appId: this.apiId,
+            appVersion: "1.0",
+            systemVersion: "1.0",
+            deviceModel: "Telegram Web App"
+          },
         }
       );
 
@@ -80,6 +95,13 @@ export class ValidationClient extends BaseTelegramClient {
           return { 
             success: false, 
             error: "The phone number format is invalid. Please use international format with + prefix." 
+          };
+        }
+        
+        if (errorMessage.includes('Failed to fetch') || errorMessage.includes('NetworkError')) {
+          return { 
+            success: false, 
+            error: "Network error: Unable to connect to Telegram servers. Please check your internet connection." 
           };
         }
         
@@ -116,6 +138,13 @@ export class ValidationClient extends BaseTelegramClient {
         return { 
           success: false, 
           error: "Invalid API ID or API Hash. Please check your Telegram API credentials." 
+        };
+      }
+      
+      if (error.message && error.message.includes('PHONE_NUMBER_INVALID')) {
+        return {
+          success: false,
+          error: "Invalid phone number format. Please use international format with country code (e.g., +12345678901)."
         };
       }
       
