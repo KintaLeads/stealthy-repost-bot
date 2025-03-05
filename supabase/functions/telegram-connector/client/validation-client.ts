@@ -1,6 +1,6 @@
 
 // Client implementation for validating Telegram credentials
-import { TelegramClient } from "npm:telegram/client";
+import { TelegramClient } from "npm:telegram";
 import { StringSession } from "npm:telegram/sessions";
 import { BaseTelegramClient } from "./base-client.ts";
 

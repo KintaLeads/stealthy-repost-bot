@@ -1,6 +1,7 @@
 
-// Client implementation for message operations with Telegram
-import { TelegramClient } from "npm:telegram/client";
+// Client implementation for Telegram message operations
+import { TelegramClient } from "npm:telegram";
+import { StringSession } from "npm:telegram/sessions";
 import { BaseTelegramClient } from "./base-client.ts";
 
 export class MessageClient extends BaseTelegramClient {

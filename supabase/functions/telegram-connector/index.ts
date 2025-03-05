@@ -14,7 +14,7 @@ const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY') || '';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 // This list contains all the allowed versions of the Telegram client library
-const SUPPORTED_TELEGRAM_VERSIONS = ['5.0.0', '4.12.2', '4.0.0']; // Add versions as needed
+const SUPPORTED_TELEGRAM_VERSIONS = ['5.0.0', '4.12.2', '4.0.0', '2.26.22']; // Added the latest version
 
 Deno.serve(async (req) => {
   // Measure function execution time
@@ -109,7 +109,7 @@ Deno.serve(async (req) => {
     
     try {
       // Try importing the Telegram client to check if it's available
-      const { version } = await import('npm:telegram/client');
+      const { version } = await import('npm:telegram');
       console.log("✅ Successfully imported Telegram client library version:", version);
       
       // Check if the version is supported
