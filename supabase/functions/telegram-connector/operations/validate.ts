@@ -37,7 +37,8 @@ export async function handleValidate(client: TelegramClientImplementation, corsH
       console.error("⚠️ Validation failed:", result.error);
       return new Response(
         JSON.stringify({ 
-          error: result.error,
+          error: result.error || "Invalid Telegram API credentials",
+          details: result.details || "The provided API ID, API Hash, or phone number is incorrect",
           success: false 
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -53,11 +54,24 @@ export async function handleValidate(client: TelegramClientImplementation, corsH
     );
   } catch (error) {
     console.error("⚠️ Unexpected error in validate operation:", error);
+    
+    // Determine if this is a network error
+    const isNetworkError = error instanceof Error && 
+      (error.message.includes('network') || 
+       error.message.includes('fetch') || 
+       error.message.includes('connection'));
+    
+    const errorResponse = {
+      error: error instanceof Error ? error.message : "Unknown error occurred",
+      type: isNetworkError ? "network_error" : "validation_error",
+      stack: error instanceof Error ? error.stack : undefined,
+      success: false
+    };
+    
+    console.error("Sending error response:", errorResponse);
+    
     return new Response(
-      JSON.stringify({ 
-        error: error instanceof Error ? error.message : "Unknown error occurred",
-        success: false 
-      }),
+      JSON.stringify(errorResponse),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
