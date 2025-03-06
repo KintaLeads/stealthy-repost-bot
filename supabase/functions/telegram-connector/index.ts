@@ -76,14 +76,18 @@ Deno.serve(async (req) => {
       return handleHealthcheck(corsHeaders);
     }
     
-    // Check if the telegram version is supported
-    if (telegramVersion && !validateTelegramVersion(telegramVersion, SUPPORTED_TELEGRAM_VERSIONS)) {
+    // CRITICAL: Force the Telegram version to 2.26.22 regardless of what was sent
+    const forcedTelegramVersion = '2.26.22';
+    console.log(`Forcing Telegram version to ${forcedTelegramVersion} (received: ${telegramVersion || 'not specified'})`);
+    
+    // Check if the telegram version is supported (skipping this validation since we're forcing it)
+    /*if (telegramVersion && !validateTelegramVersion(telegramVersion, SUPPORTED_TELEGRAM_VERSIONS)) {
       console.error(`⚠️ Using unsupported Telegram client version: ${telegramVersion}. Only version 2.26.22 is supported.`);
       return createBadRequestResponse(
         `Unsupported Telegram client version: ${telegramVersion}. Only version 2.26.22 is supported.`, 
         corsHeaders
       );
-    }
+    }*/
     
     // Validate required parameters based on operation type
     if (operation === 'validate' || operation === 'connect') {
@@ -104,7 +108,7 @@ Deno.serve(async (req) => {
     
     // Try importing the Telegram client to check if it's available and use the specified version
     try {
-      // IMPORTANT: Fixed the version import to make sure we're always using 2.26.22
+      // CRITICAL: Fixed the version import to make sure we're always using 2.26.22
       const { version } = await import('npm:telegram@2.26.22');
       console.log("✅ Successfully imported Telegram client library version:", version);
       

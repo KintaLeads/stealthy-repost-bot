@@ -1,101 +1,168 @@
 
-// Client implementation for Telegram authentication flow
-import { TelegramClient } from "npm:telegram@2.26.22";
-import { StringSession } from "npm:telegram@2.26.22/sessions/index.js";
-import { BaseTelegramClient } from "./base-client.ts";
+// Client class for handling Telegram authentication
+import { BaseTelegramClient, AuthState } from './base-client.ts';
 
 export class AuthClient extends BaseTelegramClient {
-  private client: TelegramClient | null = null;
-  private codeRequested: boolean = false;
+  // Store phone code hash during authentication flow
   private phoneCodeHash: string | null = null;
-  
+
   constructor(apiId: string, apiHash: string, phoneNumber: string, accountId: string, sessionString: string = "") {
     super(apiId, apiHash, phoneNumber, accountId, sessionString);
   }
   
-  async connect(): Promise<{ success: boolean, codeNeeded: boolean, phoneCodeHash?: string, error?: string }> {
+  /**
+   * Start the authentication process
+   */
+  async startAuthentication(options: Record<string, any> = {}): Promise<{ success: boolean; codeNeeded?: boolean; phoneCodeHash?: string; error?: string; session?: string }> {
     try {
-      console.log(`[AuthClient] Connecting to Telegram for account: ${this.accountId}`);
+      console.log("Starting authentication process...");
       
-      this.client = new TelegramClient(this.stringSession, Number(this.apiId), this.apiHash, {
-        connectionRetries: 5,
-        useWSS: true,
-        deviceModel: "Web Client",
-        systemVersion: "1.0.0",
-        appVersion: "1.0.0",
-        initConnectionParams: {
-          appId: Number(this.apiId),
-          appVersion: "1.0",
-          systemVersion: "1.0",
-          deviceModel: "Telegram Web App"
+      // Connect to Telegram
+      await this.startClient();
+      
+      // Check if already authenticated
+      const isAlreadyAuthenticated = await this.isAuthenticated();
+      
+      if (isAlreadyAuthenticated) {
+        console.log("Already authenticated");
+        
+        // Save the session string
+        const sessionString = this.getSessionString();
+        
+        return {
+          success: true,
+          codeNeeded: false,
+          session: sessionString
+        };
+      }
+      
+      // Not authenticated, so we need to send the code
+      console.log("Need to authenticate. Sending code to phone...");
+      
+      const { phoneCodeHash } = await this.client.sendCode(
+        {
+          apiId: parseInt(this.apiId, 10),
+          apiHash: this.apiHash
         },
-      });
+        this.phoneNumber
+      );
       
-      await this.client.connect();
+      // Store the phone code hash for later use
+      this.phoneCodeHash = phoneCodeHash;
+      this.authState = 'pending';
       
-      if (!this.client.isUserAuthorized()) {
-        console.log(`[AuthClient] User not authorized, sending code request for account: ${this.accountId}`);
-        
-        this.codeRequested = true;
-        const result = await this.client.invoke('auth.sendCode', {
-          phone_number: this.phoneNumber,
-          api_id: Number(this.apiId),
-          api_hash: this.apiHash,
-          settings: {
-            _: 'codeSettings',
-          },
-        });
-        
-        this.phoneCodeHash = result.phone_code_hash;
-        this.authState = 'code_needed';
-        
-        console.log(`[AuthClient] Code sent successfully, phoneCodeHash: ${this.phoneCodeHash}`);
-        
-        return { success: true, codeNeeded: true, phoneCodeHash: this.phoneCodeHash };
-      } else {
-        console.log(`[AuthClient] User already authorized for account: ${this.accountId}`);
-        this.authState = 'authenticated';
-        return { success: true, codeNeeded: false };
-      }
+      console.log("Code sent to phone successfully");
+      
+      return {
+        success: true,
+        codeNeeded: true,
+        phoneCodeHash: this.phoneCodeHash
+      };
     } catch (error) {
-      console.error(`[AuthClient] Error connecting to Telegram for account ${this.accountId}:`, error);
-      this.authState = 'none';
-      return { success: false, codeNeeded: false, error: error.message };
+      console.error("Error starting authentication:", error);
+      
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to start authentication process"
+      };
     }
   }
   
-  async verifyCode(code: string): Promise<{ success: boolean; error?: string }> {
+  /**
+   * Verify the authentication code sent to the user's phone
+   */
+  async verifyAuthenticationCode(code: string, options: Record<string, any> = {}): Promise<{ success: boolean; error?: string; session?: string }> {
     try {
-      if (!this.client) {
-        return { success: false, error: "Client not initialized. Call connect() first." };
+      console.log("Verifying authentication code...");
+      
+      if (!this.phoneCodeHash) {
+        return {
+          success: false,
+          error: "Authentication flow not started. Please call startAuthentication first."
+        };
       }
       
-      if (!this.codeRequested || !this.phoneCodeHash) {
-        return { success: false, error: "Code was not requested or phoneCodeHash is missing." };
+      if (!code || code.trim() === "") {
+        return {
+          success: false,
+          error: "Verification code is required"
+        };
       }
       
-      console.log(`[AuthClient] Verifying code for account ${this.accountId}`);
+      // Clean the code (remove spaces and special characters)
+      const cleanCode = code.replace(/\D/g, "");
       
-      await this.client.invoke('auth.signIn', {
-        phone_number: this.phoneNumber,
-        phone_code_hash: this.phoneCodeHash,
-        phone_code: code,
-      });
+      if (cleanCode.length < 5) {
+        return {
+          success: false,
+          error: "Invalid verification code format"
+        };
+      }
       
-      console.log(`[AuthClient] Code verified successfully for account ${this.accountId}`);
-      this.authState = 'authenticated';
-      return { success: true };
+      console.log("Signing in with code...");
+      
+      // Sign in with the provided code
+      await this.client.invoke(
+        {
+          _: "auth.signIn",
+          phoneNumber: this.phoneNumber,
+          phoneCodeHash: this.phoneCodeHash,
+          phoneCode: cleanCode
+        }
+      );
+      
+      // Check if we're authenticated after signing in
+      const isAuthenticated = await this.isAuthenticated();
+      
+      if (!isAuthenticated) {
+        return {
+          success: false,
+          error: "Failed to authenticate with provided code"
+        };
+      }
+      
+      console.log("Successfully authenticated!");
+      
+      // Get and return the session string for future use
+      const sessionString = this.getSessionString();
+      
+      return {
+        success: true,
+        session: sessionString
+      };
     } catch (error) {
-      console.error(`[AuthClient] Error verifying code for account ${this.accountId}:`, error);
-      return { success: false, error: error.message };
+      console.error("Error verifying authentication code:", error);
+      
+      // Handle specific errors
+      if (error instanceof Error) {
+        const errorMessage = error.message;
+        
+        if (errorMessage.includes("SESSION_PASSWORD_NEEDED")) {
+          return {
+            success: false,
+            error: "Two-factor authentication is enabled for this account. Please disable it temporarily or use a different account."
+          };
+        }
+        
+        if (errorMessage.includes("PHONE_CODE_INVALID")) {
+          return {
+            success: false,
+            error: "Invalid verification code. Please check the code and try again."
+          };
+        }
+        
+        if (errorMessage.includes("PHONE_CODE_EXPIRED")) {
+          return {
+            success: false,
+            error: "Verification code has expired. Please request a new code."
+          };
+        }
+      }
+      
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Failed to verify authentication code"
+      };
     }
-  }
-  
-  getSession(): string {
-    return this.stringSession.save();
-  }
-  
-  isConnected(): boolean {
-    return !!this.client?.connected;
   }
 }
