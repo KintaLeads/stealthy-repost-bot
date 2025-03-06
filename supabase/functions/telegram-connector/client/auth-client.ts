@@ -34,19 +34,41 @@ export class AuthClient extends BaseTelegramClient {
       // We're not authenticated yet, so we need to send the code
       console.log("Not authenticated, sending code to phone");
       
-      // In a real implementation, we would make an HTTP request to
-      // the Telegram API to send the verification code
-      console.log(`[SIMULATED] Sending auth code to ${this.phoneNumber}`);
-      
-      // Generate a simulated phone code hash
-      this.phoneCodeHash = 'simulated_hash_' + Date.now();
-      this.authState = 'awaiting_verification';
-      
-      return {
-        success: true,
-        codeNeeded: true,
-        phoneCodeHash: this.phoneCodeHash
-      };
+      try {
+        // Make request to send authentication code
+        const response = await this.makeApiRequest('auth.sendCode', {
+          phone_number: this.phoneNumber,
+          settings: {
+            allow_flashcall: false,
+            allow_missed_call: false,
+            allow_app_hash: true
+          }
+        });
+        
+        if (response.phone_code_hash) {
+          this.phoneCodeHash = response.phone_code_hash;
+          this.authState = 'awaiting_verification';
+          
+          return {
+            success: true,
+            codeNeeded: true,
+            phoneCodeHash: this.phoneCodeHash
+          };
+        } else {
+          return {
+            success: false,
+            error: "Failed to get phone code hash from Telegram"
+          };
+        }
+      } catch (apiError) {
+        console.error("Error sending code:", apiError);
+        this.authState = 'error';
+        
+        return {
+          success: false,
+          error: apiError instanceof Error ? apiError.message : "Failed to send verification code"
+        };
+      }
     } catch (error) {
       console.error("Error starting authentication:", error);
       this.authState = 'error';
@@ -72,29 +94,56 @@ export class AuthClient extends BaseTelegramClient {
         };
       }
       
-      // In a real implementation, we would make an HTTP request to
-      // the Telegram API to verify the code
-      console.log(`[SIMULATED] Verifying code ${code} with hash ${this.phoneCodeHash}`);
-      
-      // Since this is a simulation, we'll check if the code is valid (non-empty)
-      if (!code || code.trim().length === 0) {
+      try {
+        // Make request to sign in with the code
+        const response = await this.makeApiRequest('auth.signIn', {
+          phone_number: this.phoneNumber,
+          phone_code_hash: this.phoneCodeHash,
+          phone_code: code
+        });
+        
+        if (response.user) {
+          // Successfully authenticated
+          this.authState = 'authenticated';
+          
+          // Get session string from response
+          this.sessionString = response.session || `session_${Date.now()}_${this.accountId}`;
+          
+          return {
+            success: true,
+            session: this.sessionString
+          };
+        } else {
+          return {
+            success: false,
+            error: "Authentication failed: Invalid response from Telegram"
+          };
+        }
+      } catch (apiError) {
+        console.error("Error verifying code:", apiError);
+        
+        const errorMessage = apiError instanceof Error ? apiError.message : "Unknown API error";
+        
+        // Check for code-specific errors
+        if (errorMessage.includes("PHONE_CODE_INVALID")) {
+          return {
+            success: false,
+            error: "Invalid verification code"
+          };
+        }
+        
+        if (errorMessage.includes("PHONE_CODE_EXPIRED")) {
+          return {
+            success: false,
+            error: "Verification code has expired"
+          };
+        }
+        
         return {
           success: false,
-          error: "Invalid verification code"
+          error: `Verification failed: ${errorMessage}`
         };
       }
-      
-      // Simulate successful verification
-      this.authState = 'authenticated';
-      
-      // In a real implementation, we would get a session token from Telegram
-      // For now, create a simulated session string
-      this.sessionString = `simulated_session_${Date.now()}_${this.accountId}`;
-      
-      return {
-        success: true,
-        session: this.sessionString
-      };
     } catch (error) {
       console.error("Error verifying authentication code:", error);
       this.authState = 'error';

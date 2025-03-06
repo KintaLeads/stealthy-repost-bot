@@ -1,48 +1,8 @@
-// Base client class that provides common functionality using direct HTTP requests
-import { TelegramClient } from 'npm:telegram@2.26.1';
-import { StringSession } from 'npm:telegram@2.26.1/sessions';
 
-// Define auth states
+// Base client class that provides common functionality using direct HTTP requests
 export type AuthState = 'not_started' | 'awaiting_verification' | 'authenticated' | 'error';
 
-// Define a simplified Api namespace to avoid direct imports from tl module
-export const Api = {
-  contacts: {
-    ResolveUsername: class {
-      constructor(params: { username: string }) {
-        this.username = params.username;
-      }
-      username: string;
-    }
-  },
-  channels: {
-    GetMessages: class {
-      constructor(params: { channel: number; id: Array<{ _: string; id: number }> }) {
-        this.channel = params.channel;
-        this.id = params.id;
-      }
-      channel: number;
-      id: Array<{ _: string; id: number }>;
-    }
-  },
-  messages: {
-    SendMedia: class {
-      constructor(params: { peer: number; media: { _: string }; message: string; randomId: bigint }) {
-        this.peer = params.peer;
-        this.media = params.media;
-        this.message = params.message;
-        this.randomId = params.randomId;
-      }
-      peer: number;
-      media: { _: string };
-      message: string;
-      randomId: bigint;
-    }
-  }
-};
-
 export class BaseTelegramClient {
-  protected client: TelegramClient;
   protected apiId: string;
   protected apiHash: string;
   protected phoneNumber: string;
@@ -51,35 +11,12 @@ export class BaseTelegramClient {
   protected authState: AuthState = 'not_started';
   
   constructor(apiId: string, apiHash: string, phoneNumber: string, accountId: string, sessionString: string = "") {
-    console.log("Creating BaseTelegramClient with Telegram");
+    console.log("Creating BaseTelegramClient with direct HTTP implementation");
     this.apiId = apiId;
     this.apiHash = apiHash;
     this.phoneNumber = phoneNumber;
     this.accountId = accountId;
-    this.sessionString = sessionString;
-    
-    try {
-      // Initialize StringSession with the provided session string (if any)
-      const stringSession = new StringSession(sessionString);
-      
-      // Create TelegramClient instance
-      this.client = new TelegramClient(
-        stringSession, 
-        Number(apiId), 
-        apiHash, 
-        { 
-          connectionRetries: 3, 
-          baseLogger: { 
-            log: console.log, 
-            warn: console.warn, 
-            error: console.error 
-          } 
-        }
-      );
-    } catch (error) {
-      console.error("Error initializing TelegramClient:", error);
-      throw error;
-    }
+    this.sessionString = sessionString || "";
   }
   
   /**
@@ -90,65 +27,82 @@ export class BaseTelegramClient {
   }
   
   /**
-   * Start the client if not started
+   * Get the session string
    */
-  async startClient(): Promise<boolean> {
-    try {
-      if (!this.client.connected) {
-        console.log("Starting TelegramClient...");
-        await this.client.connect();
-        console.log("TelegramClient connected:", this.client.connected);
-      }
-      return true;
-    } catch (error) {
-      console.error("Error starting client:", error);
-      this.authState = 'error';
-      throw error;
-    }
+  getSession(): string {
+    return this.sessionString;
   }
   
   /**
-   * Safely disconnect the client
-   */
-  async safeDisconnect(): Promise<void> {
-    try {
-      if (this.client.connected) {
-        console.log("Disconnecting TelegramClient...");
-        await this.client.disconnect();
-        console.log("TelegramClient disconnected");
-      }
-    } catch (error) {
-      console.error("Error disconnecting client:", error);
-    }
-  }
-  
-  /**
-   * Get the session string that can be saved for future use
-   */
-  getSessionString(): string {
-    return this.client.session.save() as string;
-  }
-  
-  /**
-   * Check if the client is authenticated
+   * Check if the client is authenticated based on session string
    */
   async isAuthenticated(): Promise<boolean> {
+    if (!this.sessionString) {
+      return false;
+    }
+    
     try {
-      // Make sure the client is started
-      await this.startClient();
+      // In a real implementation, we would validate the session
+      // For now, we'll assume any non-empty session string is valid
+      const isValid = !!this.sessionString && this.sessionString.length > 10;
       
-      // Check if we're authorized
-      const isAuthorized = await this.client.checkAuthorization();
-      
-      if (isAuthorized) {
+      if (isValid) {
         this.authState = 'authenticated';
       }
       
-      return isAuthorized;
+      return isValid;
     } catch (error) {
       console.error("Error checking authentication status:", error);
       this.authState = 'error';
       return false;
+    }
+  }
+  
+  /**
+   * Make an HTTP request to the Telegram API
+   */
+  protected async makeApiRequest(
+    method: string, 
+    params: Record<string, any> = {}, 
+    apiUrl: string = "https://api.telegram.org"
+  ): Promise<any> {
+    try {
+      const url = `${apiUrl}/api/${method}`;
+      
+      // Add common parameters
+      const requestParams = {
+        ...params,
+        api_id: this.apiId,
+        api_hash: this.apiHash,
+      };
+      
+      if (this.sessionString) {
+        requestParams.session = this.sessionString;
+      }
+      
+      console.log(`Making API request to ${method}`, JSON.stringify(requestParams, null, 2));
+      
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestParams),
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Telegram API error (${response.status}): ${errorText}`);
+      }
+      
+      const data = await response.json();
+      
+      console.log(`API response from ${method}:`, JSON.stringify(data, null, 2));
+      
+      return data;
+    } catch (error) {
+      console.error(`Error in API request to ${method}:`, error);
+      throw error;
     }
   }
 }

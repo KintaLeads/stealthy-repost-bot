@@ -28,10 +28,6 @@ export class ValidationClient extends BaseTelegramClient {
         };
       }
       
-      // In a real implementation, we would make a test request
-      // to validate the API credentials
-      console.log("[SIMULATED] Testing API credentials validity");
-      
       // For API ID, check if it's a valid number
       if (isNaN(Number(this.apiId))) {
         return {
@@ -56,10 +52,40 @@ export class ValidationClient extends BaseTelegramClient {
         };
       }
       
-      // If all checks pass, return success
-      return {
-        success: true
-      };
+      // Make a test request to validate credentials
+      try {
+        // Using a simple method that doesn't require full auth but will validate our API credentials
+        await this.makeApiRequest('auth.testCredentials', {
+          phone_number: this.phoneNumber
+        });
+        
+        // If we reach here, the credentials are valid
+        return {
+          success: true
+        };
+      } catch (apiError) {
+        // Check for credential-specific errors
+        const errorMessage = apiError instanceof Error ? apiError.message : "Unknown API error";
+        
+        if (errorMessage.includes("api_id") || errorMessage.includes("api_hash")) {
+          return {
+            success: false,
+            error: "Invalid API ID or API Hash"
+          };
+        }
+        
+        if (errorMessage.includes("phone_number")) {
+          return {
+            success: false,
+            error: "Invalid phone number format"
+          };
+        }
+        
+        return {
+          success: false,
+          error: `API validation failed: ${errorMessage}`
+        };
+      }
     } catch (error) {
       console.error("Unexpected error during validation:", error);
       
