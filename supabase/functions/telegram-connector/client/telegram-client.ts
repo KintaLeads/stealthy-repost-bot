@@ -3,7 +3,6 @@
 import { AuthClient } from "./auth-client.ts";
 import { MessageClient } from "./message-client.ts";
 import { ValidationClient } from "./validation-client.ts";
-import { Api } from 'npm:telegram';
 
 // Re-export the AuthState type
 export { type AuthState } from "./base-client.ts";

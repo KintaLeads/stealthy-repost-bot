@@ -1,6 +1,7 @@
+
 // Client class for handling Telegram messages
 import { BaseTelegramClient } from './base-client.ts';
-import { TelegramClient, Api } from 'npm:telegram';
+import { Api } from 'npm:telegram/tl';
 
 export class MessageClient extends BaseTelegramClient {
   constructor(apiId: string, apiHash: string, phoneNumber: string, accountId: string, sessionString: string = "") {
@@ -53,12 +54,13 @@ export class MessageClient extends BaseTelegramClient {
       
       console.log(`Resolved channel IDs: ${validChannelIds.join(', ')}`);
       
-      // Update the event handler to use the correct Api import
+      // Add event handler for new messages
       this.client.addEventHandler((event: any) => {
-        if (event?.className === 'NewMessage') {
+        // Use a simpler check for message type
+        if (event && typeof event === 'object' && 'message' in event) {
           const message = event.message;
           
-          if (validChannelIds.includes(message?.peerId?.channelId as number)) {
+          if (message && validChannelIds.includes(message.peerId?.channelId as number)) {
             console.log(`New message from channel ${message.peerId?.channelId}: ${message.message}`);
           }
         }
@@ -144,30 +146,30 @@ export class MessageClient extends BaseTelegramClient {
       const messageToRepost = messages.messages[0];
       
       // Check if the message is an instance of Message
-      if (!(messageToRepost instanceof Api.Message)) {
+      if (messageToRepost && typeof messageToRepost === 'object' && '_' in messageToRepost) {
+        // Repost the message to the target channel
+        await this.client.invoke(
+          new Api.messages.SendMedia({
+            peer: targetChannelId,
+            media: {
+              _: 'InputMediaEmpty'
+            },
+            message: messageToRepost.message,
+            randomId: BigInt(Math.floor(Math.random() * 10000000000))
+          })
+        );
+        
+        console.log(`Reposted message ${messageId} from ${sourceChannel} to ${targetChannel}`);
+        
+        return {
+          success: true
+        };
+      } else {
         return {
           success: false,
-          error: `Unexpected message type: ${messageToRepost._}`
+          error: "Unexpected message format"
         };
       }
-      
-      // Repost the message to the target channel
-      await this.client.invoke(
-        new Api.messages.SendMedia({
-          peer: targetChannelId,
-          media: {
-            _: 'InputMediaEmpty'
-          },
-          message: messageToRepost.message,
-          randomId: BigInt(Math.floor(Math.random() * 10000000000))
-        })
-      );
-      
-      console.log(`Reposted message ${messageId} from ${sourceChannel} to ${targetChannel}`);
-      
-      return {
-        success: true
-      };
     } catch (error) {
       console.error("Error reposting message:", error);
       

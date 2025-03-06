@@ -1,6 +1,5 @@
 
 // Client for validating Telegram credentials
-import { TelegramClient, Api } from 'npm:telegram';
 import { BaseTelegramClient } from './base-client.ts';
 
 export class ValidationClient extends BaseTelegramClient {
