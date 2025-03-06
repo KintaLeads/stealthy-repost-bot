@@ -1,3 +1,4 @@
+
 // This file would need to be created or updated with better validation logic
 import { ApiAccount } from '@/types/channels';
 import { supabase } from '@/integrations/supabase/client';
@@ -48,12 +49,28 @@ export const validateTelegramCredentials = async (account: ApiAccount) => {
     // If all connectivity checks pass, call the Edge Function
     logInfo(context, 'Calling Supabase function \'telegram-connector\' for validation...');
     
+    // Validate input parameters before sending
+    if (!account.apiKey || !account.apiHash || !account.phoneNumber) {
+      const missingParams = {
+        apiKey: !account.apiKey,
+        apiHash: !account.apiHash,
+        phoneNumber: !account.phoneNumber
+      };
+      logError(context, 'Missing required parameters for validation', missingParams);
+      return {
+        success: false,
+        error: 'Missing required parameters. Please provide API ID, API Hash, and Phone Number.'
+      };
+    }
+    
     const requestData = {
       operation: 'validate',
       apiId: account.apiKey,
       apiHash: account.apiHash,
       phoneNumber: account.phoneNumber,
-      accountId: 'temp-validation' // Temporary ID for validation purposes
+      accountId: 'temp-validation', // Temporary ID for validation purposes
+      // Explicitly set the required Telegram version
+      telegramVersion: '2.26.22'
     };
     
     try {
@@ -78,16 +95,34 @@ export const validateTelegramCredentials = async (account: ApiAccount) => {
           };
         }
         
+        // Check for version mismatch
+        if (error.message?.includes('unsupported Telegram client version')) {
+          return {
+            success: false,
+            error: 'Unsupported Telegram client version. Please update to version 2.26.22.'
+          };
+        }
+        
         return { 
           success: false, 
           error: error.message || 'Unknown error occurred during validation'
         };
       }
       
-      if (!data.success) {
+      if (!data || !data.success) {
+        const errorMessage = data?.error || 'Invalid Telegram API credentials';
+        
+        // Check for version mismatch in the response
+        if (errorMessage.includes('unsupported Telegram client version')) {
+          return {
+            success: false,
+            error: 'Unsupported Telegram client version. Please update to version 2.26.22.'
+          };
+        }
+        
         return { 
           success: false, 
-          error: data.error || 'Invalid Telegram API credentials' 
+          error: errorMessage
         };
       }
       
@@ -99,6 +134,14 @@ export const validateTelegramCredentials = async (account: ApiAccount) => {
       
       // Provide more specific error messages
       if (invokeError instanceof Error) {
+        // Check for version mismatch
+        if (invokeError.message.includes('unsupported Telegram client version')) {
+          return {
+            success: false,
+            error: 'Unsupported Telegram client version. Please update to version 2.26.22.'
+          };
+        }
+        
         if (invokeError.message.includes('Failed to fetch')) {
           return { 
             success: false, 
@@ -110,6 +153,13 @@ export const validateTelegramCredentials = async (account: ApiAccount) => {
           return { 
             success: false, 
             error: 'Network error: Cross-Origin Request Blocked. This may be a CORS issue with the Edge Function.' 
+          };
+        }
+        
+        if (invokeError.message.includes('connect is not a function')) {
+          return { 
+            success: false, 
+            error: 'Internal validation error: The validation client is misconfigured. Please contact support.' 
           };
         }
         
@@ -126,6 +176,15 @@ export const validateTelegramCredentials = async (account: ApiAccount) => {
     }
   } catch (error) {
     logError(context, 'Unexpected error during validation process', error);
+    
+    // Check for version mismatch
+    if (error instanceof Error && error.message.includes('unsupported Telegram client version')) {
+      return {
+        success: false,
+        error: 'Unsupported Telegram client version. Please update to version 2.26.22.'
+      };
+    }
+    
     return { 
       success: false, 
       error: error instanceof Error ? error.message : 'An unexpected error occurred during validation'

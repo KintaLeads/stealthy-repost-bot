@@ -5,7 +5,7 @@ export * from './realtimeService';
 export * from './sessionManager';
 export * from './debugger';
 
-// Handle network-related exports to avoid naming conflicts
+// Handle network-related exports with explicit naming to avoid conflicts
 export { runConnectivityChecks as runBasicConnectivityChecks } from './networkConnectivity';
 export { testCorsConfiguration as testCorsSettings } from './corsChecker';
 
