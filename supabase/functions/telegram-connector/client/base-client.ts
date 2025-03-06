@@ -1,4 +1,3 @@
-
 // Base client class that provides common functionality using direct HTTP requests
 export type AuthState = 'not_started' | 'awaiting_verification' | 'authenticated' | 'error';
 
@@ -67,39 +66,36 @@ export class BaseTelegramClient {
     apiUrl: string = "https://api.telegram.org"
   ): Promise<any> {
     try {
-      const url = `${apiUrl}/api/${method}`;
+      // Format the URL correctly for Telegram API
+      // The bot token is required for most API methods
+      const url = `${apiUrl}/bot${this.apiHash}/${method}`;
       
-      // Add common parameters
-      const requestParams = {
-        ...params,
-        api_id: this.apiId,
-        api_hash: this.apiHash,
-      };
-      
-      if (this.sessionString) {
-        requestParams.session = this.sessionString;
-      }
-      
-      console.log(`Making API request to ${method}`, JSON.stringify(requestParams, null, 2));
+      console.log(`Making API request to ${url}`, {
+        method,
+        params: { ...params, api_id: this.apiId }
+      });
       
       const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(requestParams),
+        body: JSON.stringify({
+          ...params,
+          api_id: this.apiId
+        }),
       });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Telegram API error (${response.status}): ${errorText}`);
-      }
       
       const data = await response.json();
       
-      console.log(`API response from ${method}:`, JSON.stringify(data, null, 2));
+      if (!response.ok || !data.ok) {
+        const errorMessage = data.description || 'Unknown API error';
+        throw new Error(`Telegram API error (${response.status}): ${errorMessage}`);
+      }
       
-      return data;
+      console.log(`API response from ${method}:`, data);
+      
+      return data.result;
     } catch (error) {
       console.error(`Error in API request to ${method}:`, error);
       throw error;
