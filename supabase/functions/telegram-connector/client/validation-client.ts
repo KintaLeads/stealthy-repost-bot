@@ -1,7 +1,7 @@
 
-import { BaseClient } from "./base-client.ts";
+import { BaseTelegramClient } from "./base-client.ts";
 
-export class ValidationClient extends BaseClient {
+export class ValidationClient extends BaseTelegramClient {
   constructor(apiId: string, apiHash: string, phoneNumber: string, accountId: string, sessionString: string = "") {
     super(apiId, apiHash, phoneNumber, accountId, sessionString);
   }
@@ -10,7 +10,7 @@ export class ValidationClient extends BaseClient {
   async validateCredentials(): Promise<{ success: boolean; error?: string }> {
     try {
       console.log("ValidationClient: Validating credentials...");
-      console.log(`ValidationClient: Using API ID: ${this.apiId}, Phone: ${this.phoneNumber}`);
+      console.log(`ValidationClient: Using API ID: ${this.apiId}, Phone: ${this.maskPhone(this.phoneNumber)}`);
       
       // Simple validation check - ensure all required parameters exist
       if (!this.apiId || !this.apiHash || !this.phoneNumber) {
@@ -26,11 +26,10 @@ export class ValidationClient extends BaseClient {
         };
       }
       
-      // Log redacted version of credentials for debugging (no maskApiHash call)
-      console.log(`ValidationClient: Validating with API ID: ${this.apiId}, API Hash: ${this.apiHash.substring(0, 4)}...${this.apiHash.substring(this.apiHash.length - 4)}, Phone: ${this.phoneNumber}`);
+      // Log redacted version of credentials for debugging
+      console.log(`ValidationClient: Validating with API ID: ${this.apiId}, API Hash: ${this.maskApiHash(this.apiHash)}, Phone: ${this.maskPhone(this.phoneNumber)}`);
       
       // For this basic validation implementation, we're just checking parameter formats
-      // In a real implementation, you would make an actual connection attempt
       if (isNaN(Number(this.apiId))) {
         console.log("ValidationClient: Invalid API ID format, must be numeric");
         return { success: false, error: "Invalid API ID format. Must be numeric." };
@@ -41,7 +40,7 @@ export class ValidationClient extends BaseClient {
         return { success: false, error: "Invalid API Hash format. Must be 32 characters." };
       }
       
-      // Simple phone number format check - just checking if it starts with + and has digits
+      // Simple phone number format check
       if (!this.phoneNumber.startsWith("+") || !/\d/.test(this.phoneNumber)) {
         console.log("ValidationClient: Invalid phone number format");
         return { success: false, error: "Invalid phone number format." };

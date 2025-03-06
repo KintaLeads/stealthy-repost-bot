@@ -1,5 +1,4 @@
 
-// Base client for Telegram operations
 import { StringSession } from "npm:telegram@2.26.22/sessions/index.js";
 
 export type AuthState = 'none' | 'code_needed' | 'authenticated';
@@ -24,7 +23,6 @@ export class BaseTelegramClient {
     return this.authState;
   }
   
-  // Add masking functions for sensitive data in logs
   protected maskApiHash(apiHash: string): string {
     if (!apiHash) return '(undefined)';
     if (apiHash.length <= 8) return '********';
