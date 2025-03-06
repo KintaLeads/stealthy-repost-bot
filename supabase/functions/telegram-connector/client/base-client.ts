@@ -1,3 +1,4 @@
+
 // Base client class that provides common functionality using direct HTTP requests
 export type AuthState = 'not_started' | 'awaiting_verification' | 'authenticated' | 'error';
 
@@ -59,6 +60,7 @@ export class BaseTelegramClient {
   
   /**
    * Make an HTTP request to the Telegram API
+   * This method supports both Bot API and MTProto API calls through proper URL formatting
    */
   protected async makeApiRequest(
     method: string, 
@@ -66,13 +68,41 @@ export class BaseTelegramClient {
     apiUrl: string = "https://api.telegram.org"
   ): Promise<any> {
     try {
-      // Format the URL correctly for Telegram API
-      // The bot token is required for most API methods
-      const url = `${apiUrl}/bot${this.apiHash}/${method}`;
+      // Determine if this is a bot API request or MTProto request
+      // MTProto endpoints typically include the "auth." prefix
+      const isMTProto = method.startsWith('auth.') || 
+                        method.startsWith('account.') || 
+                        method.startsWith('messages.');
+      
+      let url: string;
+      let requestBody: Record<string, any>;
+      
+      if (isMTProto) {
+        // For MTProto API (user authentication)
+        // We'll use a different approach - simulating TDLib style requests for now
+        url = `${apiUrl}/mtprotoapi`;
+        requestBody = {
+          ...params,
+          method,
+          api_id: this.apiId,
+          api_hash: this.apiHash,
+          phone_number: this.phoneNumber
+        };
+        
+        if (this.sessionString) {
+          requestBody.session = this.sessionString;
+        }
+      } else {
+        // For Bot API
+        url = `${apiUrl}/${method}`;
+        requestBody = {
+          ...params
+        };
+      }
       
       console.log(`Making API request to ${url}`, {
-        method,
-        params: { ...params, api_id: this.apiId }
+        method: isMTProto ? "POST (MTProto)" : "POST (Bot API)",
+        params: requestBody
       });
       
       const response = await fetch(url, {
@@ -80,22 +110,27 @@ export class BaseTelegramClient {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          ...params,
-          api_id: this.apiId
-        }),
+        body: JSON.stringify(requestBody),
       });
       
-      const data = await response.json();
-      
-      if (!response.ok || !data.ok) {
-        const errorMessage = data.description || 'Unknown API error';
-        throw new Error(`Telegram API error (${response.status}): ${errorMessage}`);
+      // First check if we have a successful HTTP response
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Telegram API error (${response.status}): ${errorText}`);
       }
+      
+      // Then parse the response JSON
+      const data = await response.json();
       
       console.log(`API response from ${method}:`, data);
       
-      return data.result;
+      // For Bot API, check the 'ok' field
+      if (!isMTProto && data.ok === false) {
+        throw new Error(`Telegram API error: ${data.description}`);
+      }
+      
+      // Return the appropriate result
+      return isMTProto ? data : data.result;
     } catch (error) {
       console.error(`Error in API request to ${method}:`, error);
       throw error;

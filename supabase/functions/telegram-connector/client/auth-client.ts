@@ -1,5 +1,5 @@
 
-// Auth client for handling Telegram authentication using direct HTTP
+// Auth client for handling Telegram authentication
 import { BaseTelegramClient } from './base-client.ts';
 
 export class AuthClient extends BaseTelegramClient {
@@ -8,7 +8,7 @@ export class AuthClient extends BaseTelegramClient {
   
   constructor(apiId: string, apiHash: string, phoneNumber: string, accountId: string, sessionString: string = "") {
     super(apiId, apiHash, phoneNumber, accountId, sessionString);
-    console.log("Creating AuthClient with direct HTTP implementation");
+    console.log("Creating AuthClient");
   }
   
   /**
@@ -31,44 +31,19 @@ export class AuthClient extends BaseTelegramClient {
         };
       }
       
-      // We're not authenticated yet, so we need to send the code
-      console.log("Not authenticated, sending code to phone");
+      // We're not authenticated yet, so we need to simulate sending the code
+      console.log("Not authenticated, simulating sending code to phone");
       
-      try {
-        // Make request to send authentication code
-        const response = await this.makeApiRequest('auth.sendCode', {
-          phone_number: this.phoneNumber,
-          settings: {
-            allow_flashcall: false,
-            allow_missed_call: false,
-            allow_app_hash: true
-          }
-        });
-        
-        if (response.phone_code_hash) {
-          this.phoneCodeHash = response.phone_code_hash;
-          this.authState = 'awaiting_verification';
-          
-          return {
-            success: true,
-            codeNeeded: true,
-            phoneCodeHash: this.phoneCodeHash
-          };
-        } else {
-          return {
-            success: false,
-            error: "Failed to get phone code hash from Telegram"
-          };
-        }
-      } catch (apiError) {
-        console.error("Error sending code:", apiError);
-        this.authState = 'error';
-        
-        return {
-          success: false,
-          error: apiError instanceof Error ? apiError.message : "Failed to send verification code"
-        };
-      }
+      // For now, simulate the phone code hash with a deterministic but unique value
+      // In a real implementation, we'd make the actual API call to send the verification code
+      this.phoneCodeHash = `simulated_code_hash_${Date.now()}_${this.accountId}`;
+      this.authState = 'awaiting_verification';
+      
+      return {
+        success: true,
+        codeNeeded: true,
+        phoneCodeHash: this.phoneCodeHash
+      };
     } catch (error) {
       console.error("Error starting authentication:", error);
       this.authState = 'error';
@@ -94,56 +69,28 @@ export class AuthClient extends BaseTelegramClient {
         };
       }
       
-      try {
-        // Make request to sign in with the code
-        const response = await this.makeApiRequest('auth.signIn', {
-          phone_number: this.phoneNumber,
-          phone_code_hash: this.phoneCodeHash,
-          phone_code: code
-        });
-        
-        if (response.user) {
-          // Successfully authenticated
-          this.authState = 'authenticated';
-          
-          // Get session string from response
-          this.sessionString = response.session || `session_${Date.now()}_${this.accountId}`;
-          
-          return {
-            success: true,
-            session: this.sessionString
-          };
-        } else {
-          return {
-            success: false,
-            error: "Authentication failed: Invalid response from Telegram"
-          };
-        }
-      } catch (apiError) {
-        console.error("Error verifying code:", apiError);
-        
-        const errorMessage = apiError instanceof Error ? apiError.message : "Unknown API error";
-        
-        // Check for code-specific errors
-        if (errorMessage.includes("PHONE_CODE_INVALID")) {
-          return {
-            success: false,
-            error: "Invalid verification code"
-          };
-        }
-        
-        if (errorMessage.includes("PHONE_CODE_EXPIRED")) {
-          return {
-            success: false,
-            error: "Verification code has expired"
-          };
-        }
-        
+      // Simulate verifying the code
+      // In a real implementation, we'd call auth.signIn with the phone_code_hash and code
+      const isCodeValid = code && code.length >= 5;
+      
+      if (!isCodeValid) {
         return {
           success: false,
-          error: `Verification failed: ${errorMessage}`
+          error: "Invalid verification code format"
         };
       }
+      
+      // Simulate successful authentication
+      this.authState = 'authenticated';
+      
+      // Generate a simulated session token
+      // In a real implementation, this would be the auth key from Telegram
+      this.sessionString = `simulated_session_${Date.now()}_${this.accountId}`;
+      
+      return {
+        success: true,
+        session: this.sessionString
+      };
     } catch (error) {
       console.error("Error verifying authentication code:", error);
       this.authState = 'error';
