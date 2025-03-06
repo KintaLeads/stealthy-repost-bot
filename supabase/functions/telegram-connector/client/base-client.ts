@@ -1,7 +1,7 @@
 // Base client class that provides common functionality
 import { TelegramClient } from 'npm:telegram';
-import { StringSession } from 'npm:telegram/sessions';
-import { Api } from 'npm:telegram/tl';
+import { StringSession } from 'npm:telegram';
+import { Api } from 'npm:telegram';
 
 // Define auth states
 export type AuthState = 'not_started' | 'awaiting_verification' | 'authenticated' | 'error';
@@ -92,5 +92,28 @@ export class BaseTelegramClient {
    */
   getSessionString(): string {
     return this.client.session.save() as string;
+  }
+  
+  /**
+   * Check if the client is authenticated
+   */
+  async isAuthenticated(): Promise<boolean> {
+    try {
+      // Make sure the client is started
+      await this.startClient();
+      
+      // Check if we're authorized
+      const isAuthorized = await this.client.checkAuthorization();
+      
+      if (isAuthorized) {
+        this.authState = 'authenticated';
+      }
+      
+      return isAuthorized;
+    } catch (error) {
+      console.error("Error checking authentication status:", error);
+      this.authState = 'error';
+      return false;
+    }
   }
 }

@@ -1,64 +1,72 @@
-
-// Client class for handling Telegram message operations
+// Client class for handling Telegram messages
 import { BaseTelegramClient } from './base-client.ts';
-import { Api } from 'npm:telegram@2.26.22';
+import { Api } from 'npm:telegram/tl';
 
 export class MessageClient extends BaseTelegramClient {
   constructor(apiId: string, apiHash: string, phoneNumber: string, accountId: string, sessionString: string = "") {
     super(apiId, apiHash, phoneNumber, accountId, sessionString);
+    console.log("Creating MessageClient");
   }
   
   /**
-   * Start listening to specified channels
+   * Listen to messages from the specified channels
    */
   async listenToChannels(channels: string[]): Promise<{ success: boolean; error?: string }> {
     try {
-      if (!channels || channels.length === 0) {
-        return {
-          success: false,
-          error: "No channels specified"
-        };
-      }
+      console.log(`Starting to listen to channels: ${channels.join(', ')}`);
       
-      console.log(`Starting to listen to ${channels.length} channels...`);
-      
-      // Start the client if not already started
+      // Start the client
       await this.startClient();
       
-      // Check if authenticated
-      const isAuthenticated = await this.isAuthenticated();
+      // Resolve the channel IDs for the given channel names
+      const channelIds = await Promise.all(
+        channels.map(async (channel) => {
+          try {
+            const resolvedPeer = await this.client.invoke(
+              new Api.contacts.ResolveUsername({
+                username: channel
+              })
+            );
+            
+            if (resolvedPeer?.chats?.[0]?.id) {
+              return resolvedPeer.chats[0].id;
+            } else {
+              console.warn(`Could not resolve channel ID for ${channel}`);
+              return null;
+            }
+          } catch (resolveError) {
+            console.error(`Error resolving channel ${channel}:`, resolveError);
+            return null;
+          }
+        })
+      );
       
-      if (!isAuthenticated) {
+      // Filter out any channels that couldn't be resolved
+      const validChannelIds = channelIds.filter((id): id is number => id !== null);
+      
+      if (validChannelIds.length === 0) {
         return {
           success: false,
-          error: "Not authenticated. Please authenticate before listening to channels."
+          error: "No valid channels to listen to"
         };
       }
       
-      // Process each channel to make sure it exists and we can access it
-      for (const channelUsername of channels) {
-        try {
-          // Normalize the channel username
-          const normalizedUsername = channelUsername.startsWith('@') 
-            ? channelUsername.substring(1) 
-            : channelUsername;
-          
-          console.log(`Checking access to channel: ${normalizedUsername}`);
-          
-          // Try to resolve the channel entity
-          await this.client.getEntity(normalizedUsername);
-          
-          console.log(`Successfully verified access to channel: ${normalizedUsername}`);
-        } catch (channelError) {
-          console.error(`Error accessing channel ${channelUsername}:`, channelError);
-          return {
-            success: false,
-            error: `Could not access channel ${channelUsername}: ${channelError instanceof Error ? channelError.message : "Unknown error"}`
-          };
-        }
-      }
+      console.log(`Resolved channel IDs: ${validChannelIds.join(', ')}`);
       
-      console.log("Successfully verified access to all channels");
+      // Add event handler for new messages
+      this.client.addEventHandler((event) => {
+        if (event instanceof Api.events.NewMessage) {
+          const message = event.message;
+          
+          // Check if the message is from one of the channels we're listening to
+          if (validChannelIds.includes(message.peerId?.channelId as number)) {
+            console.log(`New message from channel ${message.peerId?.channelId}: ${message.message}`);
+            // TODO: Implement logic to handle the new message (e.g., save to database, repost, etc.)
+          }
+        }
+      });
+      
+      console.log("Listening for new messages...");
       
       return {
         success: true
@@ -68,7 +76,7 @@ export class MessageClient extends BaseTelegramClient {
       
       return {
         success: false,
-        error: error instanceof Error ? error.message : "An error occurred while listening to channels"
+        error: error instanceof Error ? error.message : "Failed to listen to channels"
       };
     }
   }
@@ -78,101 +86,96 @@ export class MessageClient extends BaseTelegramClient {
    */
   async repostMessage(messageId: number, sourceChannel: string, targetChannel: string): Promise<{ success: boolean; error?: string }> {
     try {
-      if (!messageId || !sourceChannel || !targetChannel) {
-        return {
-          success: false,
-          error: "Missing required parameters: messageId, sourceChannel, and targetChannel are required"
-        };
-      }
+      console.log(`Reposting message ${messageId} from ${sourceChannel} to ${targetChannel}`);
       
-      console.log(`Reposting message (${messageId}) from ${sourceChannel} to ${targetChannel}...`);
-      
-      // Start the client if not already started
+      // Start the client
       await this.startClient();
       
-      // Check if authenticated
-      const isAuthenticated = await this.isAuthenticated();
+      // Resolve the source channel ID
+      const sourcePeer = await this.client.invoke(
+        new Api.contacts.ResolveUsername({
+          username: sourceChannel
+        })
+      );
       
-      if (!isAuthenticated) {
+      const sourceChannelId = sourcePeer?.chats?.[0]?.id;
+      
+      if (!sourceChannelId) {
         return {
           success: false,
-          error: "Not authenticated. Please authenticate before reposting messages."
+          error: `Could not resolve source channel ID for ${sourceChannel}`
         };
       }
       
-      // Normalize channel usernames
-      const normalizedSourceChannel = sourceChannel.startsWith('@') 
-        ? sourceChannel.substring(1) 
-        : sourceChannel;
+      // Resolve the target channel ID
+      const targetPeer = await this.client.invoke(
+        new Api.contacts.ResolveUsername({
+          username: targetChannel
+        })
+      );
       
-      const normalizedTargetChannel = targetChannel.startsWith('@') 
-        ? targetChannel.substring(1) 
-        : targetChannel;
+      const targetChannelId = targetPeer?.chats?.[0]?.id;
       
-      // Try to resolve the source channel entity
-      let sourceChannelEntity;
-      try {
-        console.log(`Resolving source channel: ${normalizedSourceChannel}`);
-        sourceChannelEntity = await this.client.getEntity(normalizedSourceChannel);
-      } catch (sourceError) {
-        console.error(`Error resolving source channel ${normalizedSourceChannel}:`, sourceError);
+      if (!targetChannelId) {
         return {
           success: false,
-          error: `Could not access source channel ${normalizedSourceChannel}: ${sourceError instanceof Error ? sourceError.message : "Unknown error"}`
-        };
-      }
-      
-      // Try to resolve the target channel entity
-      let targetChannelEntity;
-      try {
-        console.log(`Resolving target channel: ${normalizedTargetChannel}`);
-        targetChannelEntity = await this.client.getEntity(normalizedTargetChannel);
-      } catch (targetError) {
-        console.error(`Error resolving target channel ${normalizedTargetChannel}:`, targetError);
-        return {
-          success: false,
-          error: `Could not access target channel ${normalizedTargetChannel}: ${targetError instanceof Error ? targetError.message : "Unknown error"}`
+          error: `Could not resolve target channel ID for ${targetChannel}`
         };
       }
       
       // Get the message from the source channel
-      try {
-        console.log(`Fetching message with ID ${messageId} from ${normalizedSourceChannel}`);
-        
-        // Get messages from the source channel
-        const messages = await this.client.getMessages(sourceChannelEntity, { ids: [messageId] });
-        
-        if (!messages || messages.length === 0) {
-          return {
-            success: false,
-            error: `Message with ID ${messageId} not found in ${normalizedSourceChannel}`
-          };
-        }
-        
-        const message = messages[0];
-        
-        // Forward the message to the target channel
-        console.log(`Forwarding message to ${normalizedTargetChannel}`);
-        await this.client.forwardMessages(targetChannelEntity, { messages: [message.id], fromPeer: sourceChannelEntity });
-        
-        console.log("Message forwarded successfully");
-        
-        return {
-          success: true
-        };
-      } catch (messageError) {
-        console.error("Error reposting message:", messageError);
+      const messages = await this.client.invoke(
+        new Api.channels.GetMessages({
+          channel: sourceChannelId,
+          id: [
+            {
+              _: 'InputMessageID',
+              id: messageId
+            }
+          ]
+        })
+      );
+      
+      if (!messages?.messages?.[0]) {
         return {
           success: false,
-          error: `Error reposting message: ${messageError instanceof Error ? messageError.message : "Unknown error"}`
+          error: `Message ${messageId} not found in channel ${sourceChannel}`
         };
       }
+      
+      const messageToRepost = messages.messages[0];
+      
+      // Check if the message is an instance of Message
+      if (!(messageToRepost instanceof Api.Message)) {
+        return {
+          success: false,
+          error: `Unexpected message type: ${messageToRepost._}`
+        };
+      }
+      
+      // Repost the message to the target channel
+      await this.client.invoke(
+        new Api.messages.SendMedia({
+          peer: targetChannelId,
+          media: {
+            _: 'InputMediaEmpty'
+          },
+          message: messageToRepost.message,
+          randomId: BigInt(Math.floor(Math.random() * 10000000000))
+        })
+      );
+      
+      console.log(`Reposted message ${messageId} from ${sourceChannel} to ${targetChannel}`);
+      
+      return {
+        success: true
+      };
     } catch (error) {
       console.error("Error reposting message:", error);
       
       return {
         success: false,
-        error: error instanceof Error ? error.message : "An error occurred while reposting the message"
+        error: error instanceof Error ? error.message : "Failed to repost message"
       };
     }
   }
