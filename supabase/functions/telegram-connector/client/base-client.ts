@@ -1,6 +1,5 @@
-
 // Base client class that provides common functionality
-import { TelegramClient } from 'npm:telegram/client';
+import { TelegramClient } from 'npm:telegram';
 import { StringSession } from 'npm:telegram/sessions';
 import { Api } from 'npm:telegram/tl';
 
