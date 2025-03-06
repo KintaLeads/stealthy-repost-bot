@@ -1,3 +1,4 @@
+
 // Handler for 'listen' operation
 import { TelegramClientImplementation } from '../client/telegram-client.ts';
 
@@ -7,61 +8,43 @@ export async function handleListen(
   corsHeaders: Record<string, string>
 ) {
   try {
-    await client.connect();
+    console.log("Starting listen operation...");
     
     if (!sourceChannels || sourceChannels.length === 0) {
       return new Response(
-        JSON.stringify({ error: 'No source channels provided' }),
+        JSON.stringify({ 
+          success: false,
+          error: 'No source channels provided' 
+        }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
     
     // Start listening to the channels
-    const results = [];
-    for (const channelUsername of sourceChannels) {
-      try {
-        // Get the channel entity
-        const channel = await client.getEntity(channelUsername);
-        
-        // Get recent messages
-        const messages = await client.getMessages(channel, { limit: 10 });
-        
-        // Process messages for the response
-        const processedMessages = messages.map(msg => ({
-          id: msg.id,
-          text: msg.message || '',
-          date: msg.date,
-          media: msg.media ? true : undefined, // Simplify media info for the response
-          mediaAlbum: msg.groupedId ? true : undefined
-        }));
-        
-        results.push({
-          channel: channelUsername,
-          success: true,
-          messageCount: messages.length,
-          sampleMessages: processedMessages
-        });
-      } catch (error) {
-        console.error(`Error getting messages from ${channelUsername}:`, error);
-        results.push({
-          channel: channelUsername,
-          success: false,
-          error: error.message
-        });
-      }
+    const listenResult = await client.listenToChannels(sourceChannels);
+    
+    if (!listenResult.success) {
+      console.error("Error listening to channels:", listenResult.error);
+      return new Response(
+        JSON.stringify(listenResult),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
     
-    // Get session string for future requests
-    const sessionString = client.getSession();
-    
     return new Response(
-      JSON.stringify({ results, sessionString }),
+      JSON.stringify({ 
+        success: true,
+        message: `Now listening to ${sourceChannels.length} channels`
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
     console.error("Error in listen operation:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        success: false, 
+        error: error instanceof Error ? error.message : "An unknown error occurred" 
+      }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

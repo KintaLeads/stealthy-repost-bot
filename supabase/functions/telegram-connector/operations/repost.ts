@@ -1,71 +1,52 @@
+
 // Handler for 'repost' operation
 import { TelegramClientImplementation } from '../client/telegram-client.ts';
 
 export async function handleRepost(
   client: TelegramClientImplementation,
-  messageId: string,
+  messageId: number,
   sourceChannel: string,
   targetChannel: string,
   corsHeaders: Record<string, string>
 ) {
   try {
-    await client.connect();
+    console.log("Starting repost operation...");
     
     if (!messageId || !sourceChannel || !targetChannel) {
       return new Response(
-        JSON.stringify({ error: 'Missing required parameters for repost operation' }),
+        JSON.stringify({ 
+          success: false,
+          error: 'Missing required parameters for repost operation' 
+        }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
     
-    // Get the source channel entity
-    const sourceEntity = await client.getEntity(sourceChannel);
+    // Repost the message
+    const repostResult = await client.repostMessage(messageId, sourceChannel, targetChannel);
     
-    // Get the specific message to repost
-    const messages = await client.getMessages(sourceEntity, { ids: [parseInt(messageId, 10)] });
-    
-    if (!messages || messages.length === 0) {
+    if (!repostResult.success) {
+      console.error("Error reposting message:", repostResult.error);
       return new Response(
-        JSON.stringify({ error: 'Message not found' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify(repostResult),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
     
-    // Get the target channel entity
-    const targetEntity = await client.getEntity(targetChannel);
-    
-    // Re-post the message
-    const message = messages[0];
-    let result;
-    
-    if (message.media) {
-      // For messages with media, we need to forward them
-      result = await client.sendMessage(targetEntity, { 
-        message: message.message || '',
-        // In a real implementation, you would handle media forwarding here
-      });
-    } else {
-      // For text-only messages
-      result = await client.sendMessage(targetEntity, { 
-        message: message.message || '' 
-      });
-    }
-    
-    // Get session string for future requests
-    const sessionString = client.getSession();
-    
     return new Response(
       JSON.stringify({ 
-        success: true, 
-        messageId: result.id,
-        sessionString
+        success: true,
+        message: `Message ${messageId} reposted from ${sourceChannel} to ${targetChannel}`
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
     console.error("Error in repost operation:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        success: false, 
+        error: error instanceof Error ? error.message : "An unknown error occurred" 
+      }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
