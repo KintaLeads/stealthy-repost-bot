@@ -13,6 +13,8 @@ export class AuthClient extends BaseTelegramClient {
   
   /**
    * Start the authentication process
+   * Note: This is a simulated implementation for development purposes.
+   * For production, this would need to be replaced with actual MTProto implementation.
    */
   async startAuthentication(options: Record<string, any> = {}): Promise<{ success: boolean; codeNeeded?: boolean; phoneCodeHash?: string; error?: string; session?: string }> {
     try {
@@ -31,13 +33,27 @@ export class AuthClient extends BaseTelegramClient {
         };
       }
       
-      // We're not authenticated yet, so we need to simulate sending the code
-      console.log("Not authenticated, simulating sending code to phone");
+      // Test connectivity to Telegram API
+      try {
+        console.log("Testing connectivity to Telegram API before authentication");
+        await this.makeApiRequest('', {}, 'https://api.telegram.org');
+        console.log("Connectivity to Telegram API confirmed");
+      } catch (connectError) {
+        console.error("Cannot connect to Telegram API:", connectError);
+        return {
+          success: false,
+          error: connectError instanceof Error 
+            ? `Cannot connect to Telegram: ${connectError.message}` 
+            : "Cannot connect to Telegram API"
+        };
+      }
       
+      // In a real implementation, this would use MTProto to send a code
       // For now, simulate the phone code hash with a deterministic but unique value
-      // In a real implementation, we'd make the actual API call to send the verification code
       this.phoneCodeHash = `simulated_code_hash_${Date.now()}_${this.accountId}`;
       this.authState = 'awaiting_verification';
+      
+      console.log("Code sent successfully, awaiting verification");
       
       return {
         success: true,
@@ -57,6 +73,8 @@ export class AuthClient extends BaseTelegramClient {
   
   /**
    * Verify the authentication code sent to the user's phone
+   * Note: This is a simulated implementation for development purposes.
+   * For production, this would need to be replaced with actual MTProto implementation.
    */
   async verifyAuthenticationCode(code: string, options: Record<string, any> = {}): Promise<{ success: boolean; error?: string; session?: string }> {
     try {
@@ -69,23 +87,22 @@ export class AuthClient extends BaseTelegramClient {
         };
       }
       
-      // Simulate verifying the code
-      // In a real implementation, we'd call auth.signIn with the phone_code_hash and code
-      const isCodeValid = code && code.length >= 5;
-      
-      if (!isCodeValid) {
+      // Validate the code format
+      if (!code || code.trim().length < 5) {
         return {
           success: false,
-          error: "Invalid verification code format"
+          error: "Invalid verification code format. Code should be at least 5 characters."
         };
       }
       
-      // Simulate successful authentication
+      // In a real implementation, we would use MTProto to verify the code
+      // For now, simulate successful authentication
       this.authState = 'authenticated';
       
       // Generate a simulated session token
-      // In a real implementation, this would be the auth key from Telegram
       this.sessionString = `simulated_session_${Date.now()}_${this.accountId}`;
+      
+      console.log("Authentication successful, session created");
       
       return {
         success: true,

@@ -52,27 +52,41 @@ export class ValidationClient extends BaseTelegramClient {
         };
       }
       
-      // For actual API validation, we'll test basic connectivity to Telegram
-      // We'll use a simplified approach since we can't do a full MTProto handshake via HTTP
+      // Instead of trying to use auth.testCredentials directly (which doesn't exist),
+      // we'll check connectivity to Telegram's public API
       try {
-        // Use a simple Bot API method that doesn't require auth to test connectivity
-        await this.makeApiRequest('getMe', {}, 'https://api.telegram.org/bot123456789:DUMMY_TOKEN');
+        console.log("Testing connectivity to Telegram API...");
         
-        // If we reach here without error, we consider the basic validation passed
-        // This doesn't fully validate the API credentials but checks basic connectivity
-        console.log("Basic Telegram API connectivity validated");
+        // First, test connectivity to Telegram's API server
+        const telegramTestResponse = await fetch("https://api.telegram.org/");
+        if (!telegramTestResponse.ok) {
+          console.error("Cannot connect to Telegram API:", await telegramTestResponse.text());
+          return {
+            success: false,
+            error: "Cannot connect to Telegram API. Please check your internet connection."
+          };
+        }
+        
+        console.log("Basic Telegram connectivity confirmed");
+        
+        // For a more accurate test of API credentials, we would need to implement the actual
+        // MTProto authentication flow, which requires a more complex implementation.
+        // For now, we'll consider the validation successful if the API ID, API Hash and 
+        // phone number are in the correct format and we can connect to Telegram's servers.
+        console.log("Credential format validated successfully");
         
         return {
-          success: true
+          success: true,
+          message: "Basic validation of Telegram API credential format successful"
         };
       } catch (apiError) {
-        // We expect a 401/404 error for an invalid token, but that confirms API connectivity
-        console.log("Expected error from test API call (confirms API accessibility):", apiError);
+        console.error("Error connecting to Telegram:", apiError);
         
-        // For now, consider this a successful validation of API connectivity
-        // In a real implementation, we'd need to use the MTProto API for full validation
         return {
-          success: true
+          success: false,
+          error: apiError instanceof Error 
+            ? `Cannot connect to Telegram: ${apiError.message}` 
+            : "Cannot connect to Telegram API"
         };
       }
     } catch (error) {
