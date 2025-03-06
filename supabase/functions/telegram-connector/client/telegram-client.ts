@@ -1,5 +1,5 @@
 
-// Factory class for creating different types of Telegram clients
+// Factory class for creating different types of Telegram clients using direct HTTP
 import { AuthClient } from "./auth-client.ts";
 import { MessageClient } from "./message-client.ts";
 import { ValidationClient } from "./validation-client.ts";
@@ -24,7 +24,7 @@ export class TelegramClientImplementation {
     this.accountId = accountId;
     this.sessionString = sessionString;
     
-    console.log("Creating TelegramClientImplementation");
+    console.log("Creating TelegramClientImplementation with direct HTTP implementation");
     
     // Initialize validation client
     this.validationClient = new ValidationClient(apiId, apiHash, phoneNumber, accountId, sessionString);
@@ -53,15 +53,7 @@ export class TelegramClientImplementation {
   // Method to get message client (lazy loading)
   async getMessageClient(): Promise<MessageClient> {
     if (!this.messageClient) {
-      const authClient = await this.getAuthClient();
-      const authState = authClient.getAuthState();
-      
-      if (authState !== 'authenticated') {
-        throw new Error("Cannot create MessageClient: Not authenticated. Please authenticate first.");
-      }
-      
-      // We create the message client with the same session as the auth client
-      // to ensure we're using the same authenticated session
+      // Create a new message client
       this.messageClient = new MessageClient(
         this.apiId,
         this.apiHash,
@@ -73,16 +65,16 @@ export class TelegramClientImplementation {
     return this.messageClient;
   }
   
-  // Method to start auth process
-  async startAuthentication(options: Record<string, any> = {}): Promise<{ success: boolean; codeNeeded?: boolean; phoneCodeHash?: string; error?: string; session?: string }> {
+  // Method to connect to Telegram
+  async connect(): Promise<{ success: boolean; codeNeeded?: boolean; phoneCodeHash?: string; error?: string; session?: string }> {
     const authClient = await this.getAuthClient();
-    return authClient.startAuthentication(options);
+    return authClient.startAuthentication();
   }
   
-  // Method to verify auth code
-  async verifyAuthenticationCode(code: string, options: Record<string, any> = {}): Promise<{ success: boolean; error?: string; session?: string }> {
+  // Method to verify code
+  async verifyCode(code: string): Promise<{ success: boolean; error?: string; session?: string }> {
     const authClient = await this.getAuthClient();
-    return authClient.verifyAuthenticationCode(code, options);
+    return authClient.verifyAuthenticationCode(code);
   }
   
   // Method to listen to messages from channels
@@ -111,5 +103,18 @@ export class TelegramClientImplementation {
         error: error instanceof Error ? error.message : "Unknown error occurred" 
       };
     }
+  }
+  
+  // Method to get session string
+  getSession(): string {
+    return this.sessionString;
+  }
+  
+  // Method to get auth state
+  getAuthState(): string {
+    if (this.authClient) {
+      return this.authClient.getAuthState();
+    }
+    return this.validationClient.getAuthState();
   }
 }

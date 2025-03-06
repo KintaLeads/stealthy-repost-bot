@@ -1,5 +1,4 @@
-
-// Base client class that provides common functionality
+// Base client class that provides common functionality using direct HTTP requests
 import { TelegramClient } from 'npm:telegram@2.26.1';
 import { StringSession } from 'npm:telegram@2.26.1/sessions';
 

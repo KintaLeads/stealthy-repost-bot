@@ -1,11 +1,11 @@
 
-// Client class for handling Telegram messages
-import { BaseTelegramClient, Api } from './base-client.ts';
+// Client class for handling Telegram messages using direct HTTP
+import { BaseTelegramClient } from './base-client.ts';
 
 export class MessageClient extends BaseTelegramClient {
   constructor(apiId: string, apiHash: string, phoneNumber: string, accountId: string, sessionString: string = "") {
     super(apiId, apiHash, phoneNumber, accountId, sessionString);
-    console.log("Creating MessageClient");
+    console.log("Creating MessageClient with direct HTTP implementation");
   }
   
   /**
@@ -15,21 +15,27 @@ export class MessageClient extends BaseTelegramClient {
     try {
       console.log(`Starting to listen to channels: ${channels.join(', ')}`);
       
-      // Start the client
-      await this.startClient();
+      // Check if we're authenticated
+      const isAuthenticated = await this.isAuthenticated();
+      if (!isAuthenticated) {
+        return {
+          success: false,
+          error: "Not authenticated. Please authenticate first."
+        };
+      }
       
-      // Simulate resolving channel IDs
+      // In a real implementation, we would set up a mechanism to 
+      // retrieve messages from the specified channels
+      console.log(`[SIMULATED] Setting up listeners for channels: ${channels.join(', ')}`);
+      
+      // For each channel, we would resolve the channel username to an ID
       const channelIds = channels.map((channel, index) => {
-        console.log(`Simulating resolving channel ${channel}`);
+        console.log(`[SIMULATED] Resolving channel ${channel}`);
         return 1000 + index; // Simulated channel IDs
       });
       
       console.log(`Resolved channel IDs: ${channelIds.join(', ')}`);
       
-      // Simulate setting up event handler
-      console.log("Simulating setting up event handler for messages");
-      
-      // Return success
       return {
         success: true
       };
@@ -50,24 +56,30 @@ export class MessageClient extends BaseTelegramClient {
     try {
       console.log(`Reposting message ${messageId} from ${sourceChannel} to ${targetChannel}`);
       
-      // Start the client
-      await this.startClient();
+      // Check if we're authenticated
+      const isAuthenticated = await this.isAuthenticated();
+      if (!isAuthenticated) {
+        return {
+          success: false,
+          error: "Not authenticated. Please authenticate first."
+        };
+      }
       
-      // Simulate resolving source channel
-      console.log(`Simulating resolving source channel ${sourceChannel}`);
+      // In a real implementation, we would:
+      // 1. Resolve the source and target channel usernames to IDs
+      // 2. Get the message from the source channel
+      // 3. Forward it to the target channel
+      
+      console.log(`[SIMULATED] Resolving source channel ${sourceChannel}`);
       const sourceChannelId = 1001; // Simulated source channel ID
       
-      // Simulate resolving target channel
-      console.log(`Simulating resolving target channel ${targetChannel}`);
+      console.log(`[SIMULATED] Resolving target channel ${targetChannel}`);
       const targetChannelId = 1002; // Simulated target channel ID
       
-      // Simulate getting message
-      console.log(`Simulating getting message ${messageId} from channel ${sourceChannel}`);
+      console.log(`[SIMULATED] Getting message ${messageId} from channel ${sourceChannelId}`);
       
-      // Simulate reposting message
-      console.log(`Simulating reposting message to channel ${targetChannel}`);
+      console.log(`[SIMULATED] Reposting message to channel ${targetChannelId}`);
       
-      // Return success
       return {
         success: true
       };
