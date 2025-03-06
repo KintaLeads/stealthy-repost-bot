@@ -7,6 +7,9 @@ import { handleConnect } from './operations/connect.ts';
 import { handleListen } from './operations/listen.ts';
 import { handleRepost } from './operations/repost.ts';
 import { handleValidate } from './operations/validate.ts';
+import { handleHealthcheck } from './utils/healthcheck.ts';
+import { createErrorResponse, createBadRequestResponse, validateRequiredParams, validateTelegramVersion } from './utils/errorHandler.ts';
+import { logEnvironmentInfo, logSupabaseConfig, logRequestInfo, logRequestBody, logExecutionComplete } from './utils/logger.ts';
 
 // Create a Supabase client
 const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
@@ -21,11 +24,7 @@ Deno.serve(async (req) => {
   const startTime = Date.now();
   
   // Log that the function was called with detailed info
-  console.log("⭐⭐⭐ Telegram connector function called ⭐⭐⭐", {
-    method: req.method,
-    url: req.url,
-    headers: Object.fromEntries(req.headers.entries()),
-  });
+  logRequestInfo(req);
   
   // Handle CORS
   if (req.method === 'OPTIONS') {
@@ -35,18 +34,10 @@ Deno.serve(async (req) => {
 
   try {
     // Print Deno and environment information for debugging
-    console.log("Environment information:");
-    console.log(`Deno version: ${Deno.version.deno}`);
-    console.log(`V8 version: ${Deno.version.v8}`);
-    console.log(`TypeScript version: ${Deno.version.typescript}`);
+    logEnvironmentInfo();
     
     // Log if we have the required Supabase environment variables
-    console.log("Supabase configuration:", {
-      hasUrl: !!supabaseUrl, 
-      hasKey: !!supabaseKey,
-      urlLength: supabaseUrl?.length || 0,
-      keyLength: supabaseKey?.length || 0
-    });
+    logSupabaseConfig(supabaseUrl, supabaseKey);
     
     // Parse the request body
     let requestBody;
@@ -56,30 +47,14 @@ Deno.serve(async (req) => {
       
       // Handle empty body case
       if (!text.trim()) {
-        return new Response(
-          JSON.stringify({ 
-            error: 'Empty request body',
-            success: false
-          }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        return createBadRequestResponse('Empty request body', corsHeaders);
       }
       
       requestBody = JSON.parse(text);
-      console.log("⭐ PARSED REQUEST BODY ⭐", {
-        ...requestBody,
-        apiHash: requestBody.apiHash ? "***********" : undefined, // Mask sensitive data
-        verificationCode: requestBody.verificationCode ? "******" : undefined,
-      });
+      logRequestBody(requestBody);
     } catch (parseError) {
       console.error("⚠️ Failed to parse request body:", parseError);
-      return new Response(
-        JSON.stringify({ 
-          error: 'Invalid request format: Could not parse JSON body',
-          success: false
-        }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return createBadRequestResponse('Invalid request format: Could not parse JSON body', corsHeaders);
     }
     
     const { 
@@ -96,38 +71,29 @@ Deno.serve(async (req) => {
       telegramVersion
     } = requestBody;
     
-    // Handle healthcheck operation - FIXED: Now handled properly
+    // Handle healthcheck operation
     if (operation === 'healthcheck') {
-      console.log("✅ Processing healthcheck operation");
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          message: "Telegram connector is running", 
-          version: "2.26.22"
-        }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      return handleHealthcheck(corsHeaders);
+    }
+    
+    // Check if the telegram version is supported
+    if (telegramVersion && !validateTelegramVersion(telegramVersion, SUPPORTED_TELEGRAM_VERSIONS)) {
+      console.error(`⚠️ Using unsupported Telegram client version: ${telegramVersion}. Only version 2.26.22 is supported.`);
+      return createBadRequestResponse(
+        `Unsupported Telegram client version: ${telegramVersion}. Only version 2.26.22 is supported.`, 
+        corsHeaders
       );
     }
     
-    // Enhanced validation - check for missing, empty, or undefined parameters
-    const isApiIdValid = apiId !== undefined && apiId !== '';
-    const isApiHashValid = apiHash !== undefined && apiHash !== '';
-    const isPhoneNumberValid = phoneNumber !== undefined && phoneNumber !== '';
-    
     // Validate required parameters based on operation type
     if (operation === 'validate' || operation === 'connect') {
-      if (!isApiIdValid || !isApiHashValid || !isPhoneNumberValid) {
-        console.error("⚠️ Missing required parameters:", {
-          hasApiId: isApiIdValid,
-          hasApiHash: isApiHashValid,
-          hasPhoneNumber: isPhoneNumberValid
-        });
-        return new Response(
-          JSON.stringify({ 
-            error: 'Missing required Telegram API credentials. Please ensure apiId, apiHash, and phoneNumber are provided.',
-            success: false
-          }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      const { isValid, missingParams } = validateRequiredParams(apiId, apiHash, phoneNumber);
+      
+      if (!isValid) {
+        console.error("⚠️ Missing required parameters:", missingParams);
+        return createBadRequestResponse(
+          `Missing required Telegram API credentials: ${missingParams.join(', ')}. Please ensure apiId, apiHash, and phoneNumber are provided.`,
+          corsHeaders
         );
       }
     }
@@ -135,134 +101,79 @@ Deno.serve(async (req) => {
     // Get session from headers if available
     const sessionString = req.headers.get('X-Telegram-Session') || '';
     console.log("Session provided:", sessionString ? "Yes (length: " + sessionString.length + ")" : "No");
-
-    // Check if the telegram version is supported
-    // FIXED: Now this happens before client creation, and properly handles telegramVersion
-    if (telegramVersion && !SUPPORTED_TELEGRAM_VERSIONS.includes(telegramVersion)) {
-      console.error(`⚠️ Using unsupported Telegram client version: ${telegramVersion}. Only version 2.26.22 is supported.`);
-      return new Response(
-        JSON.stringify({ 
-          error: `Unsupported Telegram client version: ${telegramVersion}. Only version 2.26.22 is supported.`,
-          success: false
-        }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
     
-    // Initialize Telegram client with the real implementation
-    console.log("🔄 Initializing TelegramClientImplementation with accountId:", accountId);
-    console.log("🔄 API ID format valid:", !isNaN(Number(apiId)));
-    console.log("🔄 API Hash format reasonable:", apiHash?.length === 32);
-    console.log("🔄 Phone number format:", phoneNumber ? "Provided" : "Not provided");
-    
+    // Try importing the Telegram client to check if it's available and use the specified version
     try {
-      // Try importing the Telegram client to check if it's available and use the specified version
-      // IMPORTANT: Make sure to use EXACTLY version 2.26.22
       const { version } = await import('npm:telegram@2.26.22');
       console.log("✅ Successfully imported Telegram client library version:", version);
       
       // Check if the version is supported (must be exactly 2.26.22)
       if (!SUPPORTED_TELEGRAM_VERSIONS.includes(version)) {
         console.error(`⚠️ Using unsupported Telegram client version: ${version}. Only version 2.26.22 is supported.`);
-        return new Response(
-          JSON.stringify({ 
-            error: `Unsupported Telegram client version: ${version}. Only version 2.26.22 is supported.`,
-            success: false
-          }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        return createBadRequestResponse(
+          `Unsupported Telegram client version: ${version}. Only version 2.26.22 is supported.`,
+          corsHeaders
         );
       }
     } catch (importError) {
       console.error("❌ Failed to import Telegram client library:", importError);
-      return new Response(
-        JSON.stringify({ 
-          error: 'Failed to load Telegram client library. The Edge Function might be missing dependencies.',
-          success: false
-        }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      return createBadRequestResponse(
+        'Failed to load Telegram client library. The Edge Function might be missing dependencies.',
+        corsHeaders
       );
     }
+    
+    // Initialize Telegram client
+    console.log("🔄 Initializing TelegramClientImplementation with accountId:", accountId);
+    console.log("🔄 API ID format valid:", !isNaN(Number(apiId)));
+    console.log("🔄 API Hash format reasonable:", apiHash?.length === 32);
+    console.log("🔄 Phone number format:", phoneNumber ? "Provided" : "Not provided");
     
     const client = new TelegramClientImplementation(apiId, apiHash, phoneNumber, accountId || 'temp', sessionString);
 
     // Check which operation is requested
     if (!operation) {
       console.error("⚠️ No operation specified");
-      return new Response(
-        JSON.stringify({ 
-          error: 'No operation specified. Please provide an operation parameter.',
-          success: false
-        }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return createBadRequestResponse('No operation specified. Please provide an operation parameter.', corsHeaders);
     }
     
+    // Route to the appropriate operation handler
     console.log(`🔄 Processing ${operation} operation`);
     let response;
     switch (operation) {
       case 'validate':
-        console.log("🔄 Handling validate operation");
         response = await handleValidate(client, corsHeaders);
-        console.log("🔄 Validate operation response status:", response.status);
-        console.log("🔄 Validate operation response:", await response.clone().text());
         break;
         
       case 'connect':
-        console.log("🔄 Handling connect operation, verificationCode provided:", !!verificationCode);
         response = await handleConnect(client, corsHeaders, { verificationCode });
-        console.log("🔄 Connect operation response status:", response.status);
-        console.log("🔄 Connect operation response:", await response.clone().text());
         break;
         
       case 'listen':
         response = await handleListen(client, sourceChannels, corsHeaders);
-        console.log("🔄 Listen operation response status:", response.status);
-        console.log("🔄 Listen operation response:", await response.clone().text());
         break;
         
       case 'repost':
         response = await handleRepost(client, messageId, sourceChannel, targetChannel, corsHeaders);
-        console.log("🔄 Repost operation response status:", response.status);
-        console.log("🔄 Repost operation response:", await response.clone().text());
         break;
         
       case 'healthcheck':
-        // This is a failsafe - we already handled healthcheck above
-        response = new Response(
-          JSON.stringify({ 
-            success: true, 
-            message: "Telegram connector is running", 
-            version: "2.26.22"
-          }),
-          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        response = handleHealthcheck(corsHeaders);
         break;
         
       default:
         console.error("⚠️ Invalid operation:", operation);
-        return new Response(
-          JSON.stringify({ 
-            error: `Invalid operation: ${operation}. Supported operations are: validate, connect, listen, repost, healthcheck`,
-            success: false
-          }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        return createBadRequestResponse(
+          `Invalid operation: ${operation}. Supported operations are: validate, connect, listen, repost, healthcheck`,
+          corsHeaders
         );
     }
     
-    // Calculate and log execution time
-    const executionTime = Date.now() - startTime;
-    console.log(`✅ Function execution completed in ${executionTime}ms`);
-    
+    // Log execution time and return response
+    logExecutionComplete(startTime);
     return response;
+    
   } catch (error) {
-    console.error('⚠️ Error processing request:', error);
-    return new Response(
-      JSON.stringify({ 
-        error: error instanceof Error ? error.message : "An unknown error occurred",
-        detailed: error instanceof Error ? error.stack : "No stack trace available",
-        success: false
-      }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return createErrorResponse(error, 500, corsHeaders);
   }
 });
