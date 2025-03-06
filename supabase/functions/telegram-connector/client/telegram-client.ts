@@ -46,7 +46,12 @@ export class TelegramClientImplementation {
       return await validationClient.validateCredentials();
     } catch (error) {
       console.error("Error validating credentials:", error);
-      return { success: false, error: error.message };
+      return { 
+        success: false, 
+        error: error instanceof Error 
+          ? error.message 
+          : "An unknown error occurred during validation"
+      };
     }
   }
   
@@ -68,7 +73,7 @@ export class TelegramClientImplementation {
       return result;
     } catch (error) {
       console.error("Error connecting to Telegram:", error);
-      return { success: false, error: error.message };
+      return { success: false, error: error instanceof Error ? error.message : "An unknown error occurred" };
     }
   }
   
@@ -86,53 +91,65 @@ export class TelegramClientImplementation {
       return result;
     } catch (error) {
       console.error("Error verifying code:", error);
-      return { success: false, error: error.message };
+      return { success: false, error: error instanceof Error ? error.message : "An unknown error occurred" };
     }
   }
   
-  // Fetch messages from a channel
-  async fetchChannelMessages(channelUsername: string, limit: number = 10): Promise<{ success: boolean, messages?: any[], error?: string }> {
+  // Get entity by username or phone number
+  async getEntity(identifier: string) {
     try {
       const messageClient = this.createClient("message");
       await messageClient.connect();
-      return await messageClient.fetchChannelMessages(channelUsername, limit);
+      return await messageClient.getEntity(identifier);
     } catch (error) {
-      console.error("Error fetching channel messages:", error);
-      return { success: false, error: error.message };
+      console.error("Error getting entity:", error);
+      throw error;
     }
   }
   
-  // Repost a message from one channel to another
-  async repostMessage(messageId: number, sourceChannel: string, targetChannel: string): Promise<{ success: boolean, error?: string }> {
+  // Get messages from a chat entity
+  async getMessages(entity: any, options: any) {
     try {
       const messageClient = this.createClient("message");
-      const connectResult = await messageClient.connect();
-      
-      if (!connectResult.success) {
-        return connectResult;
-      }
-      
-      return await messageClient.repostMessage(messageId, sourceChannel, targetChannel);
+      await messageClient.connect();
+      return await messageClient.getMessages(entity, options);
     } catch (error) {
-      console.error("Error reposting message:", error);
-      return { success: false, error: error.message };
+      console.error("Error getting messages:", error);
+      throw error;
     }
   }
   
-  // Listen to multiple channels
-  async listenToChannels(channels: string[]): Promise<{ success: boolean, error?: string }> {
+  // Send a message to a chat entity
+  async sendMessage(entity: any, options: any) {
     try {
       const messageClient = this.createClient("message");
-      const connectResult = await messageClient.connect();
-      
-      if (!connectResult.success) {
-        return connectResult;
-      }
-      
-      return await messageClient.listenToChannels(channels);
+      await messageClient.connect();
+      return await messageClient.sendMessage(entity, options);
     } catch (error) {
-      console.error("Error setting up channel listeners:", error);
-      return { success: false, error: error.message };
+      console.error("Error sending message:", error);
+      throw error;
+    }
+  }
+  
+  // Get the session string for future requests
+  getSession(): string {
+    try {
+      const authClient = this.createClient("auth");
+      return authClient.getSession();
+    } catch (error) {
+      console.error("Error getting session:", error);
+      return '';
+    }
+  }
+  
+  // Get the current authentication state
+  getAuthState(): string {
+    try {
+      const authClient = this.createClient("auth");
+      return authClient.getAuthState();
+    } catch (error) {
+      console.error("Error getting auth state:", error);
+      return 'unknown';
     }
   }
 }

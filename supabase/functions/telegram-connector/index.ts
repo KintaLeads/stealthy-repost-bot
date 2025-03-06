@@ -13,7 +13,7 @@ const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
 const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY') || '';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// This list contains all the allowed versions of the Telegram client library - ONLY use 2.26.22
+// This list contains all the allowed versions of the Telegram client library
 const SUPPORTED_TELEGRAM_VERSIONS = ['2.26.22']; // Only 2.26.22 is supported
 
 Deno.serve(async (req) => {
@@ -92,10 +92,11 @@ Deno.serve(async (req) => {
       messageId, 
       sourceChannel, 
       targetChannel, 
-      verificationCode 
+      verificationCode,
+      telegramVersion
     } = requestBody;
     
-    // Handle healthcheck operation - special case
+    // Handle healthcheck operation - FIXED: Now handled properly
     if (operation === 'healthcheck') {
       console.log("✅ Processing healthcheck operation");
       return new Response(
@@ -135,6 +136,19 @@ Deno.serve(async (req) => {
     const sessionString = req.headers.get('X-Telegram-Session') || '';
     console.log("Session provided:", sessionString ? "Yes (length: " + sessionString.length + ")" : "No");
 
+    // Check if the telegram version is supported
+    // FIXED: Now this happens before client creation, and properly handles telegramVersion
+    if (telegramVersion && !SUPPORTED_TELEGRAM_VERSIONS.includes(telegramVersion)) {
+      console.error(`⚠️ Using unsupported Telegram client version: ${telegramVersion}. Only version 2.26.22 is supported.`);
+      return new Response(
+        JSON.stringify({ 
+          error: `Unsupported Telegram client version: ${telegramVersion}. Only version 2.26.22 is supported.`,
+          success: false
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
     // Initialize Telegram client with the real implementation
     console.log("🔄 Initializing TelegramClientImplementation with accountId:", accountId);
     console.log("🔄 API ID format valid:", !isNaN(Number(apiId)));
@@ -244,8 +258,8 @@ Deno.serve(async (req) => {
     console.error('⚠️ Error processing request:', error);
     return new Response(
       JSON.stringify({ 
-        error: error.message,
-        detailed: error.stack,
+        error: error instanceof Error ? error.message : "An unknown error occurred",
+        detailed: error instanceof Error ? error.stack : "No stack trace available",
         success: false
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

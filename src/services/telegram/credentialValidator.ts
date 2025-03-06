@@ -156,10 +156,10 @@ export const validateTelegramCredentials = async (account: ApiAccount) => {
           };
         }
         
-        if (invokeError.message.includes('connect is not a function')) {
+        if (invokeError.message.includes('maskApiHash is not a function')) {
           return { 
             success: false, 
-            error: 'Internal validation error: The validation client is misconfigured. Please contact support.' 
+            error: 'Internal validation error: Function \'maskApiHash\' is not defined. Please contact support.' 
           };
         }
         

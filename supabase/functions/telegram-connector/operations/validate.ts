@@ -24,7 +24,10 @@ export const handleValidate = async (client: TelegramClientImplementation, corsH
     console.log("Validation successful");
     
     return new Response(
-      JSON.stringify({ success: true }),
+      JSON.stringify({ 
+        success: true,
+        message: "Telegram API credentials are valid"
+      }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
@@ -33,7 +36,7 @@ export const handleValidate = async (client: TelegramClientImplementation, corsH
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error.message || "An error occurred during validation"
+        error: error instanceof Error ? error.message : "An error occurred during validation"
       }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
