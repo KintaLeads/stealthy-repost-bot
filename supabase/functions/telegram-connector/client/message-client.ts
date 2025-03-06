@@ -1,7 +1,6 @@
-
 // Client class for handling Telegram messages
 import { BaseTelegramClient } from './base-client.ts';
-import { Api } from 'npm:telegram/tl';
+import { TelegramClient, Api } from 'npm:telegram';
 
 export class MessageClient extends BaseTelegramClient {
   constructor(apiId: string, apiHash: string, phoneNumber: string, accountId: string, sessionString: string = "") {
@@ -54,15 +53,13 @@ export class MessageClient extends BaseTelegramClient {
       
       console.log(`Resolved channel IDs: ${validChannelIds.join(', ')}`);
       
-      // Add event handler for new messages
-      this.client.addEventHandler((event) => {
-        if (event instanceof Api.events.NewMessage) {
+      // Update the event handler to use the correct Api import
+      this.client.addEventHandler((event: any) => {
+        if (event?.className === 'NewMessage') {
           const message = event.message;
           
-          // Check if the message is from one of the channels we're listening to
-          if (validChannelIds.includes(message.peerId?.channelId as number)) {
+          if (validChannelIds.includes(message?.peerId?.channelId as number)) {
             console.log(`New message from channel ${message.peerId?.channelId}: ${message.message}`);
-            // TODO: Implement logic to handle the new message (e.g., save to database, repost, etc.)
           }
         }
       });

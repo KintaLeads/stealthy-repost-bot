@@ -1,8 +1,5 @@
-
 // Base client class that provides common functionality
-import { TelegramClient } from 'npm:telegram';
-import { StringSession } from 'npm:telegram/sessions';
-import { Api } from 'npm:telegram/tl';
+import { TelegramClient, Api, StringSession } from 'npm:telegram';
 
 // Define auth states
 export type AuthState = 'not_started' | 'awaiting_verification' | 'authenticated' | 'error';

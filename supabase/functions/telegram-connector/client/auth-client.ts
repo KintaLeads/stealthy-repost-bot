@@ -1,6 +1,7 @@
 
-// Client class for handling Telegram authentication
-import { BaseTelegramClient, AuthState } from './base-client.ts';
+// Auth client for handling Telegram authentication
+import { TelegramClient, Api } from 'npm:telegram';
+import { BaseTelegramClient } from './base-client.ts';
 
 export class AuthClient extends BaseTelegramClient {
   // Store phone code hash during authentication flow
