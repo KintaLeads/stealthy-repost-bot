@@ -25,12 +25,15 @@ export class TelegramClientImplementation {
     this.accountId = accountId;
     this.sessionString = sessionString;
     
+    console.log("Creating TelegramClientImplementation with Telegram version 2.26.22");
+    
     // Initialize validation client
     this.validationClient = new ValidationClient(apiId, apiHash, phoneNumber, accountId, sessionString);
   }
   
   // Method to validate credentials
   async validateCredentials(): Promise<{ success: boolean; error?: string }> {
+    console.log("Validating credentials using Telegram version 2.26.22");
     return this.validationClient.validateCredentials();
   }
   

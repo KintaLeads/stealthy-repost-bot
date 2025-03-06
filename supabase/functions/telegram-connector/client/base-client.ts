@@ -32,7 +32,7 @@ export class BaseTelegramClient {
     // Create a string session (empty or with provided session data)
     this.stringSession = new StringSession(sessionString);
     
-    // Create the TelegramClient instance
+    // Create the TelegramClient instance with fixed version 2.26.22
     this.client = new TelegramClient(
       this.stringSession,
       apiIdNumber,

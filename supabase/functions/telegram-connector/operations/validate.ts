@@ -4,7 +4,7 @@ import { TelegramClientImplementation } from "../client/telegram-client.ts";
 
 export const handleValidate = async (client: TelegramClientImplementation, corsHeaders: Record<string, string>) => {
   try {
-    console.log("Starting validation process...");
+    console.log("Starting validation process with Telegram version 2.26.22...");
     
     // Try to validate credentials
     const validationResult = await client.validateCredentials();
@@ -26,7 +26,8 @@ export const handleValidate = async (client: TelegramClientImplementation, corsH
     return new Response(
       JSON.stringify({ 
         success: true,
-        message: "Telegram API credentials are valid"
+        message: "Telegram API credentials are valid",
+        version: "2.26.22" // Include version info in successful response
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

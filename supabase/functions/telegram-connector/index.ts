@@ -17,7 +17,8 @@ const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY') || '';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 // This list contains all the allowed versions of the Telegram client library
-const SUPPORTED_TELEGRAM_VERSIONS = ['2.26.22']; // Only 2.26.22 is supported
+// CRITICAL: We only support exactly version 2.26.22
+const SUPPORTED_TELEGRAM_VERSIONS = ['2.26.22']; 
 
 Deno.serve(async (req) => {
   // Measure function execution time
@@ -67,8 +68,7 @@ Deno.serve(async (req) => {
       messageId, 
       sourceChannel, 
       targetChannel, 
-      verificationCode,
-      telegramVersion
+      verificationCode
     } = requestBody;
     
     // Handle healthcheck operation
@@ -76,18 +76,31 @@ Deno.serve(async (req) => {
       return handleHealthcheck(corsHeaders);
     }
     
-    // CRITICAL: Force the Telegram version to 2.26.22 regardless of what was sent
+    // CRITICAL: Always force the exact version 2.26.22 
     const forcedTelegramVersion = '2.26.22';
-    console.log(`Forcing Telegram version to ${forcedTelegramVersion} (received: ${telegramVersion || 'not specified'})`);
+    console.log(`Using Telegram version ${forcedTelegramVersion}`);
     
-    // Check if the telegram version is supported (skipping this validation since we're forcing it)
-    /*if (telegramVersion && !validateTelegramVersion(telegramVersion, SUPPORTED_TELEGRAM_VERSIONS)) {
-      console.error(`⚠️ Using unsupported Telegram client version: ${telegramVersion}. Only version 2.26.22 is supported.`);
+    // Verify Telegram client version by importing it directly
+    try {
+      // Fixed import to ensure we're using 2.26.22
+      const { version } = await import('npm:telegram@2.26.22');
+      console.log("✅ Using Telegram client library version:", version);
+      
+      // Verify that the imported version matches our supported version
+      if (version !== '2.26.22') {
+        console.error(`⚠️ Error: Imported Telegram version ${version} does not match required version 2.26.22`);
+        return createBadRequestResponse(
+          `Unsupported Telegram client version: ${version}. Only version 2.26.22 is supported.`,
+          corsHeaders
+        );
+      }
+    } catch (importError) {
+      console.error("❌ Failed to import Telegram client library:", importError);
       return createBadRequestResponse(
-        `Unsupported Telegram client version: ${telegramVersion}. Only version 2.26.22 is supported.`, 
+        'Failed to load Telegram client library. The Edge Function might be missing dependencies.',
         corsHeaders
       );
-    }*/
+    }
     
     // Validate required parameters based on operation type
     if (operation === 'validate' || operation === 'connect') {
@@ -105,28 +118,6 @@ Deno.serve(async (req) => {
     // Get session from headers if available
     const sessionString = req.headers.get('X-Telegram-Session') || '';
     console.log("Session provided:", sessionString ? "Yes (length: " + sessionString.length + ")" : "No");
-    
-    // Try importing the Telegram client to check if it's available and use the specified version
-    try {
-      // CRITICAL: Fixed the version import to make sure we're always using 2.26.22
-      const { version } = await import('npm:telegram@2.26.22');
-      console.log("✅ Successfully imported Telegram client library version:", version);
-      
-      // Check if the version is supported (must be exactly 2.26.22)
-      if (!SUPPORTED_TELEGRAM_VERSIONS.includes(version)) {
-        console.error(`⚠️ Using unsupported Telegram client version: ${version}. Only version 2.26.22 is supported.`);
-        return createBadRequestResponse(
-          `Unsupported Telegram client version: ${version}. Only version 2.26.22 is supported.`,
-          corsHeaders
-        );
-      }
-    } catch (importError) {
-      console.error("❌ Failed to import Telegram client library:", importError);
-      return createBadRequestResponse(
-        'Failed to load Telegram client library. The Edge Function might be missing dependencies.',
-        corsHeaders
-      );
-    }
     
     // Initialize Telegram client
     console.log("🔄 Initializing TelegramClientImplementation with accountId:", accountId);
