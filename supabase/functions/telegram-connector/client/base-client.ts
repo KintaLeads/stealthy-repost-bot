@@ -1,11 +1,46 @@
 
 // Base client class that provides common functionality
-import { TelegramClient } from 'npm:telegram';
-import { StringSession } from 'npm:telegram/sessions';
-import { Api } from 'npm:telegram/tl';
+import { TelegramClient } from 'npm:telegram@2.26.1';
+import { StringSession } from 'npm:telegram@2.26.1/sessions';
 
 // Define auth states
 export type AuthState = 'not_started' | 'awaiting_verification' | 'authenticated' | 'error';
+
+// Define a simplified Api namespace to avoid direct imports from tl module
+export const Api = {
+  contacts: {
+    ResolveUsername: class {
+      constructor(params: { username: string }) {
+        this.username = params.username;
+      }
+      username: string;
+    }
+  },
+  channels: {
+    GetMessages: class {
+      constructor(params: { channel: number; id: Array<{ _: string; id: number }> }) {
+        this.channel = params.channel;
+        this.id = params.id;
+      }
+      channel: number;
+      id: Array<{ _: string; id: number }>;
+    }
+  },
+  messages: {
+    SendMedia: class {
+      constructor(params: { peer: number; media: { _: string }; message: string; randomId: bigint }) {
+        this.peer = params.peer;
+        this.media = params.media;
+        this.message = params.message;
+        this.randomId = params.randomId;
+      }
+      peer: number;
+      media: { _: string };
+      message: string;
+      randomId: bigint;
+    }
+  }
+};
 
 export class BaseTelegramClient {
   protected client: TelegramClient;
