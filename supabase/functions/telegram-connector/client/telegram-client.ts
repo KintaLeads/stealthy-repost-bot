@@ -1,154 +1,113 @@
+
 // Factory class for creating different types of Telegram clients
 import { AuthClient } from "./auth-client.ts";
 import { MessageClient } from "./message-client.ts";
 import { ValidationClient } from "./validation-client.ts";
+import { BaseTelegramClient } from "./base-client.ts";
 
-// Define the allowed client types
-type TelegramClientType = "auth" | "message" | "validation";
+// Re-export the AuthState type
+export { type AuthState } from "./base-client.ts";
 
-// Factory class that creates the appropriate client
 export class TelegramClientImplementation {
   private apiId: string;
   private apiHash: string;
   private phoneNumber: string;
   private accountId: string;
   private sessionString: string;
-  
+  private validationClient: ValidationClient;
+  private authClient: AuthClient | null = null;
+  private messageClient: MessageClient | null = null;
+
   constructor(apiId: string, apiHash: string, phoneNumber: string, accountId: string, sessionString: string = "") {
     this.apiId = apiId;
     this.apiHash = apiHash;
     this.phoneNumber = phoneNumber;
-    this.accountId = accountId || 'temp';
-    this.sessionString = sessionString || '';
+    this.accountId = accountId;
+    this.sessionString = sessionString;
+    
+    // Initialize validation client
+    this.validationClient = new ValidationClient(apiId, apiHash, phoneNumber, accountId, sessionString);
   }
   
-  // Method to create a client of the specified type
-  createClient(type: TelegramClientType) {
-    switch (type) {
-      case "auth":
-        return new AuthClient(this.apiId, this.apiHash, this.phoneNumber, this.accountId, this.sessionString);
-      case "message":
-        return new MessageClient(this.apiId, this.apiHash, this.phoneNumber, this.accountId, this.sessionString);
-      case "validation":
-        return new ValidationClient(this.apiId, this.apiHash, this.phoneNumber, this.accountId, this.sessionString);
-      default:
-        throw new Error(`Invalid client type: ${type}`);
+  // Method to validate credentials
+  async validateCredentials(): Promise<{ success: boolean; error?: string }> {
+    return this.validationClient.validateCredentials();
+  }
+  
+  // Method to get auth client (lazy loading)
+  async getAuthClient(): Promise<AuthClient> {
+    if (!this.authClient) {
+      this.authClient = new AuthClient(
+        this.apiId, 
+        this.apiHash, 
+        this.phoneNumber, 
+        this.accountId, 
+        this.sessionString
+      );
     }
+    return this.authClient;
   }
   
-  // Check credentials by trying to connect
-  async validateCredentials(): Promise<{ success: boolean, error?: string }> {
+  // Method to get message client (lazy loading)
+  async getMessageClient(): Promise<MessageClient> {
+    if (!this.messageClient) {
+      const authClient = await this.getAuthClient();
+      const authState = authClient.getAuthState();
+      
+      if (authState !== 'authenticated') {
+        throw new Error("Cannot create MessageClient: Not authenticated. Please authenticate first.");
+      }
+      
+      // We create the message client with the same session as the auth client
+      // to ensure we're using the same authenticated session
+      this.messageClient = new MessageClient(
+        this.apiId,
+        this.apiHash,
+        this.phoneNumber,
+        this.accountId,
+        this.sessionString
+      );
+    }
+    return this.messageClient;
+  }
+  
+  // Method to start auth process
+  async startAuthentication(options: Record<string, any> = {}): Promise<{ success: boolean; codeNeeded?: boolean; phoneCodeHash?: string; error?: string; session?: string }> {
+    const authClient = await this.getAuthClient();
+    return authClient.startAuthentication(options);
+  }
+  
+  // Method to verify auth code
+  async verifyAuthenticationCode(code: string, options: Record<string, any> = {}): Promise<{ success: boolean; error?: string; session?: string }> {
+    const authClient = await this.getAuthClient();
+    return authClient.verifyAuthenticationCode(code, options);
+  }
+  
+  // Method to listen to messages from channels
+  async listenToChannels(channels: string[]): Promise<{ success: boolean; error?: string }> {
     try {
-      console.log("Creating validation client...");
-      const validationClient = this.createClient("validation");
-      console.log("Calling validation client validateCredentials method...");
-      return await validationClient.validateCredentials();
+      const messageClient = await this.getMessageClient();
+      return messageClient.listenToChannels(channels);
     } catch (error) {
-      console.error("Error validating credentials:", error);
+      console.error("Error in listenToChannels:", error);
       return { 
         success: false, 
-        error: error instanceof Error 
-          ? error.message 
-          : "An unknown error occurred during validation"
+        error: error instanceof Error ? error.message : "Unknown error occurred" 
       };
     }
   }
   
-  // Connect to Telegram (either with existing session or requesting code)
-  async connect(): Promise<{ success: boolean, codeNeeded?: boolean, phoneCodeHash?: string, sessionString?: string, error?: string }> {
+  // Method to repost a message from one channel to another
+  async repostMessage(messageId: number, sourceChannel: string, targetChannel: string): Promise<{ success: boolean; error?: string }> {
     try {
-      const authClient = this.createClient("auth");
-      const result = await authClient.connect();
-      
-      if (result.success) {
-        if (!result.codeNeeded) {
-          // If we're already authenticated, get the session string
-          const sessionString = authClient.getSession();
-          return { ...result, sessionString };
-        }
-        return result; // Code needed, return phoneCodeHash
-      }
-      
-      return result;
+      const messageClient = await this.getMessageClient();
+      return messageClient.repostMessage(messageId, sourceChannel, targetChannel);
     } catch (error) {
-      console.error("Error connecting to Telegram:", error);
-      return { success: false, error: error instanceof Error ? error.message : "An unknown error occurred" };
-    }
-  }
-  
-  // Verify a code sent to the user's phone
-  async verifyCode(code: string): Promise<{ success: boolean, sessionString?: string, error?: string }> {
-    try {
-      const authClient = this.createClient("auth");
-      const result = await authClient.verifyCode(code);
-      
-      if (result.success) {
-        const sessionString = authClient.getSession();
-        return { ...result, sessionString };
-      }
-      
-      return result;
-    } catch (error) {
-      console.error("Error verifying code:", error);
-      return { success: false, error: error instanceof Error ? error.message : "An unknown error occurred" };
-    }
-  }
-  
-  // Get entity by username or phone number
-  async getEntity(identifier: string) {
-    try {
-      const messageClient = this.createClient("message");
-      await messageClient.connect();
-      return await messageClient.getEntity(identifier);
-    } catch (error) {
-      console.error("Error getting entity:", error);
-      throw error;
-    }
-  }
-  
-  // Get messages from a chat entity
-  async getMessages(entity: any, options: any) {
-    try {
-      const messageClient = this.createClient("message");
-      await messageClient.connect();
-      return await messageClient.getMessages(entity, options);
-    } catch (error) {
-      console.error("Error getting messages:", error);
-      throw error;
-    }
-  }
-  
-  // Send a message to a chat entity
-  async sendMessage(entity: any, options: any) {
-    try {
-      const messageClient = this.createClient("message");
-      await messageClient.connect();
-      return await messageClient.sendMessage(entity, options);
-    } catch (error) {
-      console.error("Error sending message:", error);
-      throw error;
-    }
-  }
-  
-  // Get the session string for future requests
-  getSession(): string {
-    try {
-      const authClient = this.createClient("auth");
-      return authClient.getSession();
-    } catch (error) {
-      console.error("Error getting session:", error);
-      return '';
-    }
-  }
-  
-  // Get the current authentication state
-  getAuthState(): string {
-    try {
-      const authClient = this.createClient("auth");
-      return authClient.getAuthState();
-    } catch (error) {
-      console.error("Error getting auth state:", error);
-      return 'unknown';
+      console.error("Error in repostMessage:", error);
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : "Unknown error occurred" 
+      };
     }
   }
 }

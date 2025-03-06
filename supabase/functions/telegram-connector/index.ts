@@ -104,6 +104,7 @@ Deno.serve(async (req) => {
     
     // Try importing the Telegram client to check if it's available and use the specified version
     try {
+      // IMPORTANT: Fixed the version import to make sure we're always using 2.26.22
       const { version } = await import('npm:telegram@2.26.22');
       console.log("✅ Successfully imported Telegram client library version:", version);
       
