@@ -212,6 +212,18 @@ Deno.serve(async (req) => {
         console.log("🔄 Repost operation response:", await response.clone().text());
         break;
         
+      case 'healthcheck':
+        // This is a failsafe - we already handled healthcheck above
+        response = new Response(
+          JSON.stringify({ 
+            success: true, 
+            message: "Telegram connector is running", 
+            version: "2.26.22"
+          }),
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+        break;
+        
       default:
         console.error("⚠️ Invalid operation:", operation);
         return new Response(

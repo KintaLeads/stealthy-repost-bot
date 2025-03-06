@@ -1,74 +1,41 @@
 
-// Validate telegram credentials
 import { corsHeaders } from "../../_shared/cors.ts";
 import { TelegramClientImplementation } from "../client/telegram-client.ts";
 
-export async function handleValidate(
-  client: TelegramClientImplementation,
-  corsHeaders: Record<string, string>
-): Promise<Response> {
-  console.log("Handling validate operation");
-  
+export const handleValidate = async (client: TelegramClientImplementation, corsHeaders: Record<string, string>) => {
   try {
-    // Validate required parameters before proceeding
-    if (!client.apiId || !client.apiHash || !client.phoneNumber) {
-      const missingParams = {
-        hasApiId: !!client.apiId,
-        hasApiHash: !!client.apiHash,
-        hasPhoneNumber: !!client.phoneNumber,
-      };
-      
-      console.error("⚠️ Missing required parameters:", missingParams);
+    console.log("Starting validation process...");
+    
+    // Try to validate credentials
+    const validationResult = await client.validateCredentials();
+    
+    if (!validationResult.success) {
+      console.error("Validation failed:", validationResult.error);
       
       return new Response(
-        JSON.stringify({
-          success: false,
-          error: "Missing required parameters. Please provide API ID, API Hash, and Phone Number."
+        JSON.stringify({ 
+          success: false, 
+          error: validationResult.error || "Failed to validate Telegram credentials" 
         }),
-        { 
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
-        }
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
     
-    console.log("Calling validateCredentials method...");
-    const result = await client.validateCredentials();
-    console.log("Validation result:", result);
+    console.log("Validation successful");
     
-    if (result.success) {
-      console.log("Validation successful");
-      return new Response(
-        JSON.stringify({
-          success: true,
-          message: "Telegram API credentials validated successfully"
-        }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    } else {
-      console.error("Validation failed:", result.error);
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: result.error || "Failed to validate Telegram API credentials"
-        }),
-        { 
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" } 
-        }
-      );
-    }
-  } catch (error) {
-    console.error("Error in validate operation:", error);
     return new Response(
-      JSON.stringify({
-        success: false,
-        error: error.message
+      JSON.stringify({ success: true }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  } catch (error) {
+    console.error("Error validating credentials:", error);
+    
+    return new Response(
+      JSON.stringify({ 
+        success: false, 
+        error: error.message || "An error occurred during validation"
       }),
-      { 
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" } 
-      }
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
-}
+};

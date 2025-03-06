@@ -43,7 +43,6 @@ export class TelegramClientImplementation {
       console.log("Creating validation client...");
       const validationClient = this.createClient("validation");
       console.log("Calling validation client validateCredentials method...");
-      // Fixed: Call validateCredentials instead of connect
       return await validationClient.validateCredentials();
     } catch (error) {
       console.error("Error validating credentials:", error);
