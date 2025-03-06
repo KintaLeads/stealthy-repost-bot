@@ -13,8 +13,8 @@ const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
 const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY') || '';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// This list contains all the allowed versions of the Telegram client library
-const SUPPORTED_TELEGRAM_VERSIONS = ['5.0.0', '4.12.2', '4.0.0', '3.1.0', '2.26.22']; // Using exactly 2.26.22
+// This list contains all the allowed versions of the Telegram client library - ONLY use 2.26.22
+const SUPPORTED_TELEGRAM_VERSIONS = ['2.26.22']; // Only 2.26.22 is supported
 
 Deno.serve(async (req) => {
   // Measure function execution time
@@ -95,6 +95,19 @@ Deno.serve(async (req) => {
       verificationCode 
     } = requestBody;
     
+    // Handle healthcheck operation - special case
+    if (operation === 'healthcheck') {
+      console.log("✅ Processing healthcheck operation");
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: "Telegram connector is running", 
+          version: "2.26.22"
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
     // Enhanced validation - check for missing, empty, or undefined parameters
     const isApiIdValid = apiId !== undefined && apiId !== '';
     const isApiHashValid = apiHash !== undefined && apiHash !== '';
@@ -126,16 +139,24 @@ Deno.serve(async (req) => {
     console.log("🔄 Initializing TelegramClientImplementation with accountId:", accountId);
     console.log("🔄 API ID format valid:", !isNaN(Number(apiId)));
     console.log("🔄 API Hash format reasonable:", apiHash?.length === 32);
-    console.log("🔄 Phone number format:", phoneNumber);
+    console.log("🔄 Phone number format:", phoneNumber ? "Provided" : "Not provided");
     
     try {
       // Try importing the Telegram client to check if it's available and use the specified version
+      // IMPORTANT: Make sure to use EXACTLY version 2.26.22
       const { version } = await import('npm:telegram@2.26.22');
       console.log("✅ Successfully imported Telegram client library version:", version);
       
-      // Check if the version is supported
+      // Check if the version is supported (must be exactly 2.26.22)
       if (!SUPPORTED_TELEGRAM_VERSIONS.includes(version)) {
-        console.warn(`⚠️ Using unsupported Telegram client version: ${version}. Supported versions are: ${SUPPORTED_TELEGRAM_VERSIONS.join(', ')}`);
+        console.error(`⚠️ Using unsupported Telegram client version: ${version}. Only version 2.26.22 is supported.`);
+        return new Response(
+          JSON.stringify({ 
+            error: `Unsupported Telegram client version: ${version}. Only version 2.26.22 is supported.`,
+            success: false
+          }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
     } catch (importError) {
       console.error("❌ Failed to import Telegram client library:", importError);
@@ -195,7 +216,7 @@ Deno.serve(async (req) => {
         console.error("⚠️ Invalid operation:", operation);
         return new Response(
           JSON.stringify({ 
-            error: `Invalid operation: ${operation}. Supported operations are: validate, connect, listen, repost`,
+            error: `Invalid operation: ${operation}. Supported operations are: validate, connect, listen, repost, healthcheck`,
             success: false
           }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

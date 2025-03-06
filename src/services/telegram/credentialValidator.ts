@@ -68,8 +68,8 @@ export const validateTelegramCredentials = async (account: ApiAccount) => {
       apiId: account.apiKey,
       apiHash: account.apiHash,
       phoneNumber: account.phoneNumber,
-      accountId: 'temp-validation', // Temporary ID for validation purposes
-      // Explicitly set the required Telegram version
+      accountId: account.id || 'temp-validation', // Use actual account ID when available
+      // CRITICAL: Explicitly set the required Telegram version to 2.26.22
       telegramVersion: '2.26.22'
     };
     

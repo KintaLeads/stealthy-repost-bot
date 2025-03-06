@@ -23,4 +23,17 @@ export class BaseTelegramClient {
   getAuthState(): AuthState {
     return this.authState;
   }
+  
+  // Add masking functions for sensitive data in logs
+  protected maskApiHash(apiHash: string): string {
+    if (!apiHash) return '(undefined)';
+    if (apiHash.length <= 8) return '********';
+    return apiHash.substring(0, 4) + '********' + apiHash.substring(apiHash.length - 4);
+  }
+  
+  protected maskPhone(phone: string): string {
+    if (!phone) return '(undefined)';
+    if (phone.length <= 6) return '******';
+    return phone.substring(0, 3) + '******' + phone.substring(phone.length - 3);
+  }
 }
