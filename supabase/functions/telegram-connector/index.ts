@@ -14,7 +14,7 @@ const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY') || '';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 // This list contains all the allowed versions of the Telegram client library
-const SUPPORTED_TELEGRAM_VERSIONS = ['5.0.0', '4.12.2', '4.0.0', '3.1.0', '2.26.22']; // Added more versions
+const SUPPORTED_TELEGRAM_VERSIONS = ['5.0.0', '4.12.2', '4.0.0', '3.1.0', '2.26.22']; // Using exactly 2.26.22
 
 Deno.serve(async (req) => {
   // Measure function execution time
@@ -51,8 +51,22 @@ Deno.serve(async (req) => {
     // Parse the request body
     let requestBody;
     try {
-      requestBody = await req.json();
-      console.log("⭐ REQUEST BODY ⭐", {
+      const text = await req.text();
+      console.log("Raw request body:", text);
+      
+      // Handle empty body case
+      if (!text.trim()) {
+        return new Response(
+          JSON.stringify({ 
+            error: 'Empty request body',
+            success: false
+          }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      requestBody = JSON.parse(text);
+      console.log("⭐ PARSED REQUEST BODY ⭐", {
         ...requestBody,
         apiHash: requestBody.apiHash ? "***********" : undefined, // Mask sensitive data
         verificationCode: requestBody.verificationCode ? "******" : undefined,
@@ -81,20 +95,27 @@ Deno.serve(async (req) => {
       verificationCode 
     } = requestBody;
     
-    // Validate required parameters
-    if (!apiId || !apiHash || !phoneNumber) {
-      console.error("⚠️ Missing required parameters:", {
-        hasApiId: !!apiId,
-        hasApiHash: !!apiHash,
-        hasPhoneNumber: !!phoneNumber
-      });
-      return new Response(
-        JSON.stringify({ 
-          error: 'Missing required Telegram API credentials',
-          success: false
-        }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    // Enhanced validation - check for missing, empty, or undefined parameters
+    const isApiIdValid = apiId !== undefined && apiId !== '';
+    const isApiHashValid = apiHash !== undefined && apiHash !== '';
+    const isPhoneNumberValid = phoneNumber !== undefined && phoneNumber !== '';
+    
+    // Validate required parameters based on operation type
+    if (operation === 'validate' || operation === 'connect') {
+      if (!isApiIdValid || !isApiHashValid || !isPhoneNumberValid) {
+        console.error("⚠️ Missing required parameters:", {
+          hasApiId: isApiIdValid,
+          hasApiHash: isApiHashValid,
+          hasPhoneNumber: isPhoneNumberValid
+        });
+        return new Response(
+          JSON.stringify({ 
+            error: 'Missing required Telegram API credentials. Please ensure apiId, apiHash, and phoneNumber are provided.',
+            success: false
+          }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     // Get session from headers if available
@@ -130,36 +151,51 @@ Deno.serve(async (req) => {
     const client = new TelegramClientImplementation(apiId, apiHash, phoneNumber, accountId || 'temp', sessionString);
 
     // Check which operation is requested
+    if (!operation) {
+      console.error("⚠️ No operation specified");
+      return new Response(
+        JSON.stringify({ 
+          error: 'No operation specified. Please provide an operation parameter.',
+          success: false
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
     console.log(`🔄 Processing ${operation} operation`);
     let response;
     switch (operation) {
       case 'validate':
         console.log("🔄 Handling validate operation");
         response = await handleValidate(client, corsHeaders);
-        console.log("🔄 Validate operation response:", JSON.parse(await response.clone().text()));
+        console.log("🔄 Validate operation response status:", response.status);
+        console.log("🔄 Validate operation response:", await response.clone().text());
         break;
         
       case 'connect':
         console.log("🔄 Handling connect operation, verificationCode provided:", !!verificationCode);
         response = await handleConnect(client, corsHeaders, { verificationCode });
-        console.log("🔄 Connect operation response:", JSON.parse(await response.clone().text()));
+        console.log("🔄 Connect operation response status:", response.status);
+        console.log("🔄 Connect operation response:", await response.clone().text());
         break;
         
       case 'listen':
         response = await handleListen(client, sourceChannels, corsHeaders);
-        console.log("🔄 Listen operation response:", JSON.parse(await response.clone().text()));
+        console.log("🔄 Listen operation response status:", response.status);
+        console.log("🔄 Listen operation response:", await response.clone().text());
         break;
         
       case 'repost':
         response = await handleRepost(client, messageId, sourceChannel, targetChannel, corsHeaders);
-        console.log("🔄 Repost operation response:", JSON.parse(await response.clone().text()));
+        console.log("🔄 Repost operation response status:", response.status);
+        console.log("🔄 Repost operation response:", await response.clone().text());
         break;
         
       default:
         console.error("⚠️ Invalid operation:", operation);
         return new Response(
           JSON.stringify({ 
-            error: 'Invalid operation',
+            error: `Invalid operation: ${operation}. Supported operations are: validate, connect, listen, repost`,
             success: false
           }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

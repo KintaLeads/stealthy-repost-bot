@@ -5,8 +5,9 @@ import { StringSession } from "npm:telegram@2.26.22/sessions/index.js";
 import { BaseTelegramClient } from "./base-client.ts";
 
 export class ValidationClient extends BaseTelegramClient {
-  async validateCredentials(): Promise<{ success: boolean, error?: string }> {
-    console.log('Validating Telegram credentials with:', { 
+  // Add the connect method that was missing
+  async connect(): Promise<{ success: boolean, error?: string }> {
+    console.log('Connecting to Telegram to validate credentials with:', { 
       apiId: this.apiId, 
       apiHash: this.maskApiHash(this.apiHash), 
       phone: this.maskPhone(this.phoneNumber)
@@ -179,6 +180,25 @@ export class ValidationClient extends BaseTelegramClient {
         };
       }
       
+      return { 
+        success: false, 
+        error: `Validation failed: ${error.message}` 
+      };
+    }
+  }
+  
+  async validateCredentials(): Promise<{ success: boolean, error?: string }> {
+    console.log('Validating Telegram credentials with:', { 
+      apiId: this.apiId, 
+      apiHash: this.maskApiHash(this.apiHash), 
+      phone: this.maskPhone(this.phoneNumber)
+    });
+    
+    try {
+      // Just use the connect method we just implemented to avoid duplicate code
+      return await this.connect();
+    } catch (error) {
+      console.error("Error validating Telegram credentials:", error);
       return { 
         success: false, 
         error: `Validation failed: ${error.message}` 

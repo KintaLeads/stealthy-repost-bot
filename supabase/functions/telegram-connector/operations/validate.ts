@@ -10,7 +10,9 @@ export async function handleValidate(
   console.log("Handling validate operation");
   
   try {
+    console.log("Calling validateCredentials method...");
     const result = await client.validateCredentials();
+    console.log("Validation result:", result);
     
     if (result.success) {
       console.log("Validation successful");

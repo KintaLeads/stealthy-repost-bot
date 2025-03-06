@@ -40,7 +40,9 @@ export class TelegramClientImplementation {
   // Check credentials by trying to connect
   async validateCredentials(): Promise<{ success: boolean, error?: string }> {
     try {
+      console.log("Creating validation client...");
       const validationClient = this.createClient("validation");
+      console.log("Calling validation client connect method...");
       return await validationClient.connect();
     } catch (error) {
       console.error("Error validating credentials:", error);
