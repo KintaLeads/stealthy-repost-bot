@@ -10,16 +10,11 @@ import { handleValidate } from './operations/validate.ts';
 import { handleHealthcheck } from './utils/healthcheck.ts';
 import { createErrorResponse, createBadRequestResponse, validateRequiredParams } from './utils/errorHandler.ts';
 import { logEnvironmentInfo, logSupabaseConfig, logRequestInfo, logRequestBody, logExecutionComplete } from './utils/logger.ts';
-import { version } from 'npm:telegram@2.26.22';
 
 // Create a Supabase client
 const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
 const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY') || '';
 const supabase = createClient(supabaseUrl, supabaseKey);
-
-// This list contains all the allowed versions of the Telegram client library
-// CRITICAL: We only support exactly version 2.26.22
-const SUPPORTED_TELEGRAM_VERSIONS = ['2.26.22']; 
 
 Deno.serve(async (req) => {
   // Measure function execution time
@@ -75,17 +70,6 @@ Deno.serve(async (req) => {
     // Handle healthcheck operation
     if (operation === 'healthcheck') {
       return handleHealthcheck(corsHeaders);
-    }
-    
-    // CRITICAL: Verify the imported Telegram version
-    console.log(`Checking Telegram version... Current: ${version}, Required: 2.26.22`);
-    
-    if (version !== '2.26.22') {
-      console.error(`⚠️ Using unsupported Telegram client version: ${version}. Only version 2.26.22 is supported.`);
-      return createBadRequestResponse(
-        `Unsupported Telegram client version: ${version}. Only version 2.26.22 is supported.`,
-        corsHeaders
-      );
     }
     
     // Validate required parameters based on operation type

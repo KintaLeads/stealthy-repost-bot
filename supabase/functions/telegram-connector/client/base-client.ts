@@ -1,8 +1,8 @@
 
 // Base client class that provides common functionality
-import { TelegramClient } from 'npm:telegram@2.26.22';
-import { StringSession } from 'npm:telegram@2.26.22/sessions';
-import { Api } from 'npm:telegram@2.26.22/tl';
+import { TelegramClient } from 'npm:telegram/client';
+import { StringSession } from 'npm:telegram/sessions';
+import { Api } from 'npm:telegram/tl';
 
 // Define auth states
 export type AuthState = 'not_started' | 'awaiting_verification' | 'authenticated' | 'error';
@@ -17,7 +17,7 @@ export class BaseTelegramClient {
   protected authState: AuthState = 'not_started';
   
   constructor(apiId: string, apiHash: string, phoneNumber: string, accountId: string, sessionString: string = "") {
-    console.log("Creating BaseTelegramClient with Telegram version 2.26.22");
+    console.log("Creating BaseTelegramClient with Telegram");
     this.apiId = apiId;
     this.apiHash = apiHash;
     this.phoneNumber = phoneNumber;
