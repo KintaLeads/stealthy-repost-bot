@@ -3,7 +3,7 @@
 import { AuthClient } from "./auth-client.ts";
 import { MessageClient } from "./message-client.ts";
 import { ValidationClient } from "./validation-client.ts";
-import { BaseTelegramClient } from "./base-client.ts";
+import { version } from 'npm:telegram@2.26.22';
 
 // Re-export the AuthState type
 export { type AuthState } from "./base-client.ts";
@@ -25,7 +25,7 @@ export class TelegramClientImplementation {
     this.accountId = accountId;
     this.sessionString = sessionString;
     
-    console.log("Creating TelegramClientImplementation with Telegram version 2.26.22");
+    console.log("Creating TelegramClientImplementation with Telegram version:", version);
     
     // Initialize validation client
     this.validationClient = new ValidationClient(apiId, apiHash, phoneNumber, accountId, sessionString);
@@ -33,7 +33,17 @@ export class TelegramClientImplementation {
   
   // Method to validate credentials
   async validateCredentials(): Promise<{ success: boolean; error?: string }> {
-    console.log("Validating credentials using Telegram version 2.26.22");
+    console.log("Validating credentials using Telegram version:", version);
+    
+    // First, verify we're using the correct version
+    if (version !== '2.26.22') {
+      console.error(`Error: Telegram version mismatch. Using ${version} but required 2.26.22`);
+      return {
+        success: false,
+        error: `Unsupported Telegram client version: ${version}. Only version 2.26.22 is supported.`
+      };
+    }
+    
     return this.validationClient.validateCredentials();
   }
   

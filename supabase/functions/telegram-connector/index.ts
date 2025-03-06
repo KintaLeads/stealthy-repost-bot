@@ -8,8 +8,9 @@ import { handleListen } from './operations/listen.ts';
 import { handleRepost } from './operations/repost.ts';
 import { handleValidate } from './operations/validate.ts';
 import { handleHealthcheck } from './utils/healthcheck.ts';
-import { createErrorResponse, createBadRequestResponse, validateRequiredParams, validateTelegramVersion } from './utils/errorHandler.ts';
+import { createErrorResponse, createBadRequestResponse, validateRequiredParams } from './utils/errorHandler.ts';
 import { logEnvironmentInfo, logSupabaseConfig, logRequestInfo, logRequestBody, logExecutionComplete } from './utils/logger.ts';
+import { version } from 'npm:telegram@2.26.22';
 
 // Create a Supabase client
 const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
@@ -76,28 +77,13 @@ Deno.serve(async (req) => {
       return handleHealthcheck(corsHeaders);
     }
     
-    // CRITICAL: Always force the exact version 2.26.22 
-    const forcedTelegramVersion = '2.26.22';
-    console.log(`Using Telegram version ${forcedTelegramVersion}`);
+    // CRITICAL: Verify the imported Telegram version
+    console.log(`Checking Telegram version... Current: ${version}, Required: 2.26.22`);
     
-    // Verify Telegram client version by importing it directly
-    try {
-      // Fixed import to ensure we're using 2.26.22
-      const { version } = await import('npm:telegram@2.26.22');
-      console.log("✅ Using Telegram client library version:", version);
-      
-      // Verify that the imported version matches our supported version
-      if (version !== '2.26.22') {
-        console.error(`⚠️ Error: Imported Telegram version ${version} does not match required version 2.26.22`);
-        return createBadRequestResponse(
-          `Unsupported Telegram client version: ${version}. Only version 2.26.22 is supported.`,
-          corsHeaders
-        );
-      }
-    } catch (importError) {
-      console.error("❌ Failed to import Telegram client library:", importError);
+    if (version !== '2.26.22') {
+      console.error(`⚠️ Using unsupported Telegram client version: ${version}. Only version 2.26.22 is supported.`);
       return createBadRequestResponse(
-        'Failed to load Telegram client library. The Edge Function might be missing dependencies.',
+        `Unsupported Telegram client version: ${version}. Only version 2.26.22 is supported.`,
         corsHeaders
       );
     }

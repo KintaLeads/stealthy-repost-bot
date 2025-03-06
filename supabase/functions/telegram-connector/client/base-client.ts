@@ -1,110 +1,97 @@
 
-// Base class for Telegram client implementations
-import { Api, TelegramClient } from 'npm:telegram@2.26.22';
-import { StringSession } from 'npm:telegram@2.26.22/sessions/index.js';
+// Base client class that provides common functionality
+import { TelegramClient } from 'npm:telegram@2.26.22/client';
+import { StringSession } from 'npm:telegram@2.26.22/sessions';
+import { Api } from 'npm:telegram@2.26.22/tl';
 
-// Define types for authentication state
-export type AuthState = 'unauthenticated' | 'pending' | 'authenticated' | 'error';
+// Define auth states
+export type AuthState = 'not_started' | 'awaiting_verification' | 'authenticated' | 'error';
 
-// Base class that all other client types will extend
 export class BaseTelegramClient {
   protected client: TelegramClient;
   protected apiId: string;
   protected apiHash: string;
   protected phoneNumber: string;
   protected accountId: string;
-  protected stringSession: StringSession;
-  protected authState: AuthState = 'unauthenticated';
-
+  protected sessionString: string;
+  protected authState: AuthState = 'not_started';
+  
   constructor(apiId: string, apiHash: string, phoneNumber: string, accountId: string, sessionString: string = "") {
-    // Convert API ID to number
-    const apiIdNumber = parseInt(apiId, 10);
-    
-    if (isNaN(apiIdNumber)) {
-      throw new Error(`Invalid API ID: ${apiId}. API ID must be a number.`);
-    }
-    
+    console.log("Creating BaseTelegramClient with Telegram version 2.26.22");
     this.apiId = apiId;
     this.apiHash = apiHash;
     this.phoneNumber = phoneNumber;
     this.accountId = accountId;
+    this.sessionString = sessionString;
     
-    // Create a string session (empty or with provided session data)
-    this.stringSession = new StringSession(sessionString);
-    
-    // Create the TelegramClient instance with fixed version 2.26.22
-    this.client = new TelegramClient(
-      this.stringSession,
-      apiIdNumber,
-      apiHash,
-      {
-        connectionRetries: 5,
-        useWSS: true,
-        requestRetries: 5,
-        autoReconnect: true,
-        baseLogger: console
-      }
-    );
+    try {
+      // Initialize StringSession with the provided session string (if any)
+      const stringSession = new StringSession(sessionString);
+      
+      // Create TelegramClient instance
+      this.client = new TelegramClient(
+        stringSession, 
+        Number(apiId), 
+        apiHash, 
+        { 
+          connectionRetries: 3, 
+          baseLogger: { 
+            log: console.log, 
+            warn: console.warn, 
+            error: console.error 
+          } 
+        }
+      );
+    } catch (error) {
+      console.error("Error initializing TelegramClient:", error);
+      throw error;
+    }
   }
   
-  // Method to get authentication state
-  public getAuthState(): AuthState {
+  /**
+   * Gets the current auth state
+   */
+  getAuthState(): AuthState {
     return this.authState;
   }
   
-  // Method to get session string
-  public getSessionString(): string {
-    return this.stringSession.save();
-  }
-  
-  // Method to start the client
-  protected async startClient(): Promise<void> {
-    if (!this.client.connected) {
-      console.log("Starting Telegram client...");
-      await this.client.connect();
-      console.log("Telegram client started");
-    } else {
-      console.log("Telegram client already connected");
+  /**
+   * Start the client if not started
+   */
+  async startClient(): Promise<boolean> {
+    try {
+      if (!this.client.connected) {
+        console.log("Starting TelegramClient...");
+        await this.client.connect();
+        console.log("TelegramClient connected:", this.client.connected);
+      }
+      return true;
+    } catch (error) {
+      console.error("Error starting client:", error);
+      this.authState = 'error';
+      throw error;
     }
   }
   
-  // Method to determine if the client is authenticated
-  public async isAuthenticated(): Promise<boolean> {
+  /**
+   * Safely disconnect the client
+   */
+  async safeDisconnect(): Promise<void> {
     try {
-      await this.startClient();
-      
-      // Attempt to get current user to determine if authenticated
-      try {
-        const currentUser = await this.client.getMe();
-        
-        if (currentUser) {
-          this.authState = 'authenticated';
-          return true;
-        } else {
-          this.authState = 'unauthenticated';
-          return false;
-        }
-      } catch (error) {
-        console.error("Error checking authentication status:", error);
-        this.authState = 'unauthenticated';
-        return false;
+      if (this.client.connected) {
+        console.log("Disconnecting TelegramClient...");
+        await this.client.disconnect();
+        console.log("TelegramClient disconnected");
       }
     } catch (error) {
-      console.error("Failed to start client for authentication check:", error);
-      this.authState = 'error';
-      return false;
+      console.error("Error disconnecting client:", error);
     }
   }
   
-  // Helper to safely disconnect client
-  protected async safeDisconnect(): Promise<void> {
-    if (this.client && this.client.connected) {
-      try {
-        await this.client.disconnect();
-        console.log("Telegram client disconnected");
-      } catch (error) {
-        console.error("Error disconnecting Telegram client:", error);
-      }
-    }
+  /**
+   * Get the session string that can be saved for future use
+   */
+  getSessionString(): string {
+    return this.client.session.save() as string;
   }
 }

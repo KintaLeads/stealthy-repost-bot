@@ -1,10 +1,12 @@
 
 // Client class for validating Telegram API credentials
 import { BaseTelegramClient } from './base-client.ts';
+import { version } from 'npm:telegram@2.26.22';
 
 export class ValidationClient extends BaseTelegramClient {
   constructor(apiId: string, apiHash: string, phoneNumber: string, accountId: string, sessionString: string = "") {
     super(apiId, apiHash, phoneNumber, accountId, sessionString);
+    console.log("Creating ValidationClient with Telegram version:", version);
   }
   
   /**
@@ -12,7 +14,16 @@ export class ValidationClient extends BaseTelegramClient {
    */
   async validateCredentials(): Promise<{ success: boolean; error?: string }> {
     try {
-      console.log("Starting validation of Telegram API credentials");
+      console.log("Starting validation of Telegram API credentials with version:", version);
+      
+      // Verify that we're using the correct Telegram version
+      if (version !== '2.26.22') {
+        console.error(`Error: Telegram version mismatch. Using ${version} but required 2.26.22`);
+        return {
+          success: false,
+          error: `Unsupported Telegram client version: ${version}. Only version 2.26.22 is supported.`
+        };
+      }
       
       // Check for missing required parameters
       if (!this.apiId || !this.apiHash || !this.phoneNumber) {
