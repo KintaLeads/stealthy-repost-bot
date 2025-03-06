@@ -49,7 +49,7 @@ export class AuthClient extends BaseTelegramClient {
       
       // Store the phone code hash for later use
       this.phoneCodeHash = phoneCodeHash;
-      this.authState = 'pending';
+      this.authState = 'awaiting_verification';
       
       console.log("Code sent to phone successfully");
       
