@@ -1,6 +1,7 @@
+
 // Base class for Telegram client implementations
 import { Api, TelegramClient } from 'npm:telegram@2.26.22';
-import { StringSession } from 'npm:telegram@2.26.22/sessions';
+import { StringSession } from 'npm:telegram@2.26.22/sessions/index.js';
 
 // Define types for authentication state
 export type AuthState = 'unauthenticated' | 'pending' | 'authenticated' | 'error';
