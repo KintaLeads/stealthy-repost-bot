@@ -4,13 +4,13 @@ import { TelegramClientImplementation } from "../client/telegram-client.ts";
 
 export const handleValidate = async (client: TelegramClientImplementation, corsHeaders: Record<string, string>) => {
   try {
-    console.log(`Starting validation process...`);
+    console.log(`Starting validation process with MTProto...`);
     
-    // Try to validate credentials
+    // Use the actual MTProto validation method
     const validationResult = await client.validateCredentials();
     
     if (!validationResult.success) {
-      console.error("Validation failed:", validationResult.error);
+      console.error("MTProto validation failed:", validationResult.error);
       
       return new Response(
         JSON.stringify({ 
@@ -22,7 +22,7 @@ export const handleValidate = async (client: TelegramClientImplementation, corsH
       );
     }
     
-    console.log("Validation successful");
+    console.log("MTProto validation successful");
     
     return new Response(
       JSON.stringify({ 
@@ -33,12 +33,12 @@ export const handleValidate = async (client: TelegramClientImplementation, corsH
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
-    console.error("Error validating credentials:", error);
+    console.error("Error in MTProto validation:", error);
     
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error instanceof Error ? error.message : "An error occurred during validation",
+        error: error instanceof Error ? error.message : "An error occurred during MTProto validation",
         errorDetails: error instanceof Error ? { 
           name: error.name,
           message: error.message,

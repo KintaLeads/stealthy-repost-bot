@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { ApiAccount } from "@/types/channels";
 import VerificationCodeDialog from './VerificationCodeDialog';
 
@@ -20,10 +20,14 @@ const VerificationDialog: React.FC<VerificationDialogProps> = ({
     return null;
   }
 
+  const handleClose = () => {
+    setShowVerificationDialog(false);
+  };
+
   return (
     <VerificationCodeDialog
       isOpen={showVerificationDialog}
-      onClose={() => setShowVerificationDialog(false)}
+      onClose={handleClose}
       account={tempConnectionState.account}
       onVerified={onVerificationComplete}
     />

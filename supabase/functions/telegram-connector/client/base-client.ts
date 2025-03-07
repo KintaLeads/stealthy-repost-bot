@@ -1,5 +1,7 @@
 
-// Base client class that provides common functionality using direct HTTP requests
+// Base client class that implements MTProto protocol
+import { MTProto } from "../proto/mtproto.ts";
+
 export type AuthState = 'not_started' | 'awaiting_verification' | 'authenticated' | 'error';
 
 export class BaseTelegramClient {
@@ -9,14 +11,41 @@ export class BaseTelegramClient {
   protected accountId: string;
   protected sessionString: string;
   protected authState: AuthState = 'not_started';
+  protected mtproto: MTProto | null = null;
   
   constructor(apiId: string, apiHash: string, phoneNumber: string, accountId: string, sessionString: string = "") {
-    console.log("Creating BaseTelegramClient with direct HTTP implementation");
+    console.log("Creating BaseTelegramClient with MTProto implementation");
     this.apiId = apiId;
     this.apiHash = apiHash;
     this.phoneNumber = phoneNumber;
     this.accountId = accountId;
     this.sessionString = sessionString || "";
+  }
+  
+  /**
+   * Initialize the MTProto client
+   */
+  protected async initMTProto(): Promise<MTProto> {
+    if (!this.mtproto) {
+      console.log("Initializing MTProto client...");
+      try {
+        // Create MTProto instance with session if available
+        this.mtproto = new MTProto({
+          apiId: parseInt(this.apiId, 10),
+          apiHash: this.apiHash,
+          storageOptions: {
+            session: this.sessionString
+          }
+        });
+        
+        console.log("MTProto client initialized successfully");
+      } catch (error) {
+        console.error("Error initializing MTProto client:", error);
+        throw new Error(`Failed to initialize MTProto client: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
+    
+    return this.mtproto;
   }
   
   /**
@@ -34,6 +63,16 @@ export class BaseTelegramClient {
   }
   
   /**
+   * Save the session string from MTProto
+   */
+  protected async saveSession(): Promise<void> {
+    if (this.mtproto) {
+      this.sessionString = await this.mtproto.exportSession();
+      console.log("Session saved successfully");
+    }
+  }
+  
+  /**
    * Check if the client is authenticated based on session string
    */
   async isAuthenticated(): Promise<boolean> {
@@ -42,92 +81,68 @@ export class BaseTelegramClient {
     }
     
     try {
-      // In a real implementation, we would validate the session
-      // For now, we'll assume any non-empty session string is valid
-      const isValid = !!this.sessionString && this.sessionString.length > 10;
+      // Initialize MTProto if needed
+      const mtproto = await this.initMTProto();
+      
+      // Try to use getMe method to check if session is valid
+      const result = await mtproto.call('users.getMe', {});
+      
+      const isValid = !!result && !result.error;
       
       if (isValid) {
         this.authState = 'authenticated';
+        console.log("Authentication verified with MTProto");
+      } else {
+        console.log("Session exists but is not valid");
       }
       
       return isValid;
     } catch (error) {
-      console.error("Error checking authentication status:", error);
+      console.error("Error checking authentication status with MTProto:", error);
       this.authState = 'error';
       return false;
     }
   }
   
   /**
-   * Make an HTTP request to the Telegram API
-   * Note: Direct access to Telegram's MTProto API via HTTP is not supported.
-   * This method can only be used for Bot API endpoints, not for MTProto.
+   * Make a secure request to the Telegram API using MTProto
    */
-  protected async makeApiRequest(
-    method: string, 
-    params: Record<string, any> = {}, 
-    apiBaseUrl: string = "https://api.telegram.org"
-  ): Promise<any> {
+  protected async callMTProto(method: string, params: Record<string, any> = {}): Promise<any> {
     try {
-      // Determine if this is a Bot API request or another type
-      const isBotApiRequest = !method.includes('.');
+      // Initialize MTProto if needed
+      const mtproto = await this.initMTProto();
       
-      let url: string;
-      let requestBody: Record<string, any>;
-      let headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
+      console.log(`Making MTProto request: ${method}`);
+      const result = await mtproto.call(method, params);
       
-      if (isBotApiRequest) {
-        // For Bot API requests (like getMe, sendMessage, etc.)
-        // Note: We're using a dummy token here since we don't have a real bot token
-        // In a real implementation, you would use a real bot token
-        url = `${apiBaseUrl}/bot123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11/${method}`;
-        requestBody = params;
-      } else {
-        // For test connectivity only - NOT real MTProto
-        // We're just using this to test if we can connect to Telegram's API
-        url = `${apiBaseUrl}/`;
-        requestBody = {};
+      if (result.error) {
+        throw new Error(`MTProto error: ${result.error.message || JSON.stringify(result.error)}`);
       }
       
-      console.log(`Making API request to ${url}`);
-      
-      const response = await fetch(url, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(requestBody),
-      });
-      
-      // First check if we have a successful HTTP response
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Telegram API error (${response.status}): ${errorText}`);
-      }
-      
-      // For the base connectivity test, we don't expect valid JSON
-      if (method === '') {
-        return { ok: true };
-      }
-      
-      // Then parse the response JSON
-      try {
-        const data = await response.json();
-        console.log(`API response:`, data);
-        
-        // For Bot API, check the 'ok' field
-        if (isBotApiRequest && data.ok === false) {
-          throw new Error(`Telegram API error: ${data.description}`);
-        }
-        
-        return data;
-      } catch (jsonError) {
-        console.log("Response is not JSON, but HTTP status is OK");
-        return { ok: true };
-      }
+      return result;
     } catch (error) {
-      console.error(`Error in API request to ${method}:`, error);
+      console.error(`Error in MTProto request to ${method}:`, error);
       throw error;
+    }
+  }
+  
+  /**
+   * Clean up resources
+   */
+  async disconnect(): Promise<void> {
+    if (this.mtproto) {
+      try {
+        // Save session before disconnecting
+        await this.saveSession();
+        
+        // Disconnect MTProto
+        await this.mtproto.disconnect();
+        console.log("MTProto client disconnected");
+      } catch (error) {
+        console.error("Error disconnecting MTProto client:", error);
+      } finally {
+        this.mtproto = null;
+      }
     }
   }
 }

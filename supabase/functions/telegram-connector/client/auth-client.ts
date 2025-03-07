@@ -1,5 +1,5 @@
 
-// Auth client for handling Telegram authentication
+// Auth client for handling Telegram authentication using MTProto
 import { BaseTelegramClient } from './base-client.ts';
 
 export class AuthClient extends BaseTelegramClient {
@@ -8,23 +8,21 @@ export class AuthClient extends BaseTelegramClient {
   
   constructor(apiId: string, apiHash: string, phoneNumber: string, accountId: string, sessionString: string = "") {
     super(apiId, apiHash, phoneNumber, accountId, sessionString);
-    console.log("Creating AuthClient");
+    console.log("Creating AuthClient with MTProto");
   }
   
   /**
-   * Start the authentication process
-   * Note: This is a simulated implementation for development purposes.
-   * For production, this would need to be replaced with actual MTProto implementation.
+   * Start the authentication process using MTProto
    */
   async startAuthentication(options: Record<string, any> = {}): Promise<{ success: boolean; codeNeeded?: boolean; phoneCodeHash?: string; error?: string; session?: string }> {
     try {
-      console.log("Starting authentication process");
+      console.log("Starting MTProto authentication process");
       
       // Check if we're already authenticated
       const isAuthorized = await this.isAuthenticated();
       
       if (isAuthorized) {
-        console.log("Already authenticated");
+        console.log("Already authenticated with MTProto");
         
         return {
           success: true,
@@ -35,11 +33,10 @@ export class AuthClient extends BaseTelegramClient {
       
       // Test connectivity to Telegram API
       try {
-        console.log("Testing connectivity to Telegram API before authentication");
-        await this.makeApiRequest('', {}, 'https://api.telegram.org');
-        console.log("Connectivity to Telegram API confirmed");
+        await this.initMTProto();
+        console.log("Connectivity to Telegram API confirmed via MTProto");
       } catch (connectError) {
-        console.error("Cannot connect to Telegram API:", connectError);
+        console.error("Cannot connect to Telegram API via MTProto:", connectError);
         return {
           success: false,
           error: connectError instanceof Error 
@@ -48,12 +45,43 @@ export class AuthClient extends BaseTelegramClient {
         };
       }
       
-      // In a real implementation, this would use MTProto to send a code
-      // For now, simulate the phone code hash with a deterministic but unique value
-      this.phoneCodeHash = `simulated_code_hash_${Date.now()}_${this.accountId}`;
+      // First check if the phone is registered
+      const checkPhoneResult = await this.callMTProto('auth.checkPhone', {
+        phone: this.phoneNumber
+      });
+      
+      if (!checkPhoneResult.phone_registered) {
+        return {
+          success: false,
+          error: "Phone number is not registered with Telegram"
+        };
+      }
+      
+      // Send authentication code
+      const sendCodeResult = await this.callMTProto('auth.sendCode', {
+        phone: this.phoneNumber,
+        api_id: this.apiId,
+        api_hash: this.apiHash,
+        settings: {
+          allow_app_hash_login: true
+        }
+      });
+      
+      if (sendCodeResult.error) {
+        console.error("Error sending authentication code:", sendCodeResult.error);
+        this.authState = 'error';
+        
+        return {
+          success: false,
+          error: sendCodeResult.error.message || "Error sending authentication code"
+        };
+      }
+      
+      // Store the phone code hash
+      this.phoneCodeHash = sendCodeResult.phone_code_hash;
       this.authState = 'awaiting_verification';
       
-      console.log("Code sent successfully, awaiting verification");
+      console.log("Code sent successfully via MTProto, awaiting verification");
       
       return {
         success: true,
@@ -61,7 +89,7 @@ export class AuthClient extends BaseTelegramClient {
         phoneCodeHash: this.phoneCodeHash
       };
     } catch (error) {
-      console.error("Error starting authentication:", error);
+      console.error("Error starting MTProto authentication:", error);
       this.authState = 'error';
       
       return {
@@ -72,13 +100,11 @@ export class AuthClient extends BaseTelegramClient {
   }
   
   /**
-   * Verify the authentication code sent to the user's phone
-   * Note: This is a simulated implementation for development purposes.
-   * For production, this would need to be replaced with actual MTProto implementation.
+   * Verify the authentication code sent to the user's phone using MTProto
    */
   async verifyAuthenticationCode(code: string, options: Record<string, any> = {}): Promise<{ success: boolean; error?: string; session?: string }> {
     try {
-      console.log(`Verifying authentication code: ${code}`);
+      console.log(`Verifying MTProto authentication code: ${code}`);
       
       if (!this.phoneCodeHash) {
         return {
@@ -95,21 +121,37 @@ export class AuthClient extends BaseTelegramClient {
         };
       }
       
-      // In a real implementation, we would use MTProto to verify the code
-      // For now, simulate successful authentication
+      // Sign in with the code
+      const signInResult = await this.callMTProto('auth.signIn', {
+        phone: this.phoneNumber,
+        phone_code_hash: this.phoneCodeHash,
+        phone_code: code
+      });
+      
+      if (signInResult.error) {
+        console.error("Error verifying code:", signInResult.error);
+        this.authState = 'error';
+        
+        return {
+          success: false,
+          error: signInResult.error.message || "Error verifying authentication code"
+        };
+      }
+      
+      // Authentication successful
       this.authState = 'authenticated';
       
-      // Generate a simulated session token
-      this.sessionString = `simulated_session_${Date.now()}_${this.accountId}`;
+      // Save the session
+      await this.saveSession();
       
-      console.log("Authentication successful, session created");
+      console.log("MTProto authentication successful, session created");
       
       return {
         success: true,
         session: this.sessionString
       };
     } catch (error) {
-      console.error("Error verifying authentication code:", error);
+      console.error("Error verifying MTProto authentication code:", error);
       this.authState = 'error';
       
       return {

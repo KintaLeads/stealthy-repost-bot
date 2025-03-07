@@ -1,5 +1,5 @@
 
-// Factory class for creating different types of Telegram clients using direct HTTP
+// Factory class for creating different types of Telegram clients using MTProto
 import { AuthClient } from "./auth-client.ts";
 import { MessageClient } from "./message-client.ts";
 import { ValidationClient } from "./validation-client.ts";
@@ -24,7 +24,7 @@ export class TelegramClientImplementation {
     this.accountId = accountId;
     this.sessionString = sessionString;
     
-    console.log("Creating TelegramClientImplementation with direct HTTP implementation");
+    console.log("Creating TelegramClientImplementation with MTProto implementation");
     
     // Initialize validation client
     this.validationClient = new ValidationClient(apiId, apiHash, phoneNumber, accountId, sessionString);
@@ -32,7 +32,7 @@ export class TelegramClientImplementation {
   
   // Method to validate credentials
   async validateCredentials(): Promise<{ success: boolean; error?: string }> {
-    console.log("Validating credentials");
+    console.log("Validating credentials with MTProto");
     return this.validationClient.validateCredentials();
   }
   
@@ -116,5 +116,27 @@ export class TelegramClientImplementation {
       return this.authClient.getAuthState();
     }
     return this.validationClient.getAuthState();
+  }
+  
+  // Clean up resources
+  async disconnect(): Promise<void> {
+    try {
+      // Disconnect auth client if exists
+      if (this.authClient) {
+        await this.authClient.disconnect();
+      }
+      
+      // Disconnect message client if exists
+      if (this.messageClient) {
+        await this.messageClient.disconnect();
+      }
+      
+      // Disconnect validation client
+      await this.validationClient.disconnect();
+      
+      console.log("All MTProto clients disconnected");
+    } catch (error) {
+      console.error("Error disconnecting MTProto clients:", error);
+    }
   }
 }
