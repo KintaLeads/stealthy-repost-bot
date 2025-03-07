@@ -1,10 +1,11 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/use-toast";
 import { ApiAccount } from "@/types/dashboard";
 import { ChannelPair } from "@/types/channels";
 import { Message } from "@/types/dashboard";
 import { getStoredSession, storeSession } from "./sessionManager";
-import { logInfo, logError } from './debugger';
+import { logInfo, logError, logWarning } from './debugger';
 
 /**
  * Fetch messages from configured channels
@@ -28,15 +29,86 @@ export const fetchChannelMessages = async (
     // Get stored session from local storage
     const sessionString = getStoredSession(account.id);
     
-    // Set up headers with session if available
-    const headers: Record<string, string> = {};
-    if (sessionString) {
-      headers['X-Telegram-Session'] = sessionString;
-      logInfo('MessageService', 'Using stored session for account:', account.nickname);
-    } else {
+    if (!sessionString) {
       logInfo('MessageService', 'No stored session found, authentication may be required');
+      toast({
+        title: "Authentication Required",
+        description: "Please connect to Telegram using the connection button",
+        variant: "destructive",
+      });
+      return [];
     }
     
+    logInfo('MessageService', 'Using stored session for account:', account.nickname);
+    
+    // Try the realtime service first (which is simpler and might work for testing)
+    try {
+      const response = await supabase.functions.invoke('telegram-realtime', {
+        body: {
+          operation: 'subscribe',
+          apiId: account.apiKey,
+          apiHash: account.apiHash,
+          phoneNumber: account.phoneNumber,
+          channelNames: sourceChannels,
+          sessionString
+        },
+        headers: {
+          'X-Telegram-Session': sessionString
+        }
+      });
+      
+      if (response.error) {
+        logError('MessageService', 'Realtime service error:', response.error);
+        // If it's an auth error, try the telegram-connector
+        if (response.error.message && response.error.message.includes('not authenticated')) {
+          // Fall through to telegram-connector
+        } else {
+          toast({
+            title: "Failed to Fetch Messages",
+            description: `Error fetching messages: ${response.error.message}`,
+            variant: "destructive",
+          });
+          return [];
+        }
+      } else if (response.data && response.data.success) {
+        // Process results from realtime service
+        logInfo('MessageService', 'Received messages from realtime service');
+        
+        const messages: Message[] = [];
+        
+        if (response.data.results && Array.isArray(response.data.results)) {
+          response.data.results.forEach(result => {
+            if (result.success && result.sampleMessages) {
+              const channelPair = channelPairs.find(pair => pair.sourceChannel === result.channel);
+              
+              result.sampleMessages.forEach(msg => {
+                // Convert message to our Message format
+                const message: Message = {
+                  id: `${result.channel}_${msg.id}`,
+                  text: msg.text || '',
+                  time: new Date(msg.date * 1000).toLocaleTimeString(),
+                  username: result.channel,
+                  processed: false,
+                  media: msg.media ? msg.media : undefined,
+                  mediaAlbum: msg.mediaAlbum || undefined
+                };
+                
+                messages.push(message);
+              });
+            }
+          });
+        }
+        
+        if (messages.length > 0) {
+          return messages;
+        }
+      }
+    } catch (realtimeError) {
+      logError('MessageService', 'Error invoking realtime service:', realtimeError);
+      // Fallback to telegram-connector
+    }
+    
+    // Fallback to telegram-connector service
     try {
       const { data, error } = await supabase.functions.invoke('telegram-connector', {
         body: {
@@ -46,22 +118,29 @@ export const fetchChannelMessages = async (
           phoneNumber: account.phoneNumber,
           sourceChannels,
           accountId: account.id,
-          sessionString // Also include it in the body as a fallback
+          sessionString
         },
-        headers
+        headers: {
+          'X-Telegram-Session': sessionString
+        }
       });
       
       if (error) {
         logError('MessageService', 'Supabase function error:', error);
         
         // Check if the error is related to authentication
-        if (error.message && error.message.includes('not authenticated')) {
+        if (error.message && (
+          error.message.includes('not authenticated') || 
+          error.message.includes('authentication required')
+        )) {
           logError('MessageService', 'Authentication required. User needs to reconnect');
           toast({
             title: "Authentication Required",
             description: "Please reconnect to Telegram using the connection button",
             variant: "destructive",
           });
+          // Clear the invalid session
+          clearStoredSession(account.id);
         } else {
           toast({
             title: "Failed to Fetch Messages",
@@ -90,6 +169,8 @@ export const fetchChannelMessages = async (
           description: "Please connect to Telegram using the connection button",
           variant: "destructive",
         });
+        // Clear the invalid session
+        clearStoredSession(account.id);
         return [];
       }
       
@@ -159,11 +240,19 @@ export const repostMessage = async (
 ): Promise<boolean> => {
   try {
     const sessionString = getStoredSession(account.id);
-    const headers: Record<string, string> = {};
     
-    if (sessionString) {
-      headers['X-Telegram-Session'] = sessionString;
+    if (!sessionString) {
+      toast({
+        title: "Authentication Required",
+        description: "Please connect to Telegram before reposting messages",
+        variant: "destructive",
+      });
+      return false;
     }
+    
+    const headers = {
+      'X-Telegram-Session': sessionString
+    };
     
     const messageId = message.id.split('_')[1]; // Extract original message ID
     
@@ -186,17 +275,32 @@ export const repostMessage = async (
         sourceChannel,
         targetChannel,
         includeMedia: true, // Tell the function to include media
-        accountId: account.id
+        accountId: account.id,
+        sessionString
       },
       headers
     });
     
     if (error) {
-      toast({
-        title: "Repost Failed",
-        description: `Could not repost message: ${error.message}`,
-        variant: "destructive",
-      });
+      // Check if authentication error
+      if (error.message && (
+        error.message.includes('not authenticated') || 
+        error.message.includes('authentication required')
+      )) {
+        toast({
+          title: "Authentication Required",
+          description: "Please reconnect to Telegram before reposting messages",
+          variant: "destructive",
+        });
+        // Clear the invalid session
+        clearStoredSession(account.id);
+      } else {
+        toast({
+          title: "Repost Failed",
+          description: `Could not repost message: ${error.message}`,
+          variant: "destructive",
+        });
+      }
       return false;
     }
     
@@ -221,7 +325,16 @@ export const repostMessage = async (
   }
 };
 
-// Helper function for warning logs
-const logWarning = (context: string, message: string, ...args: any[]) => {
-  console.warn(`[${context}] ${message}`, ...args);
+// Helper function for clearing sessions
+const clearStoredSession = (accountId: string): void => {
+  try {
+    logInfo('MessageService', 'Clearing invalid session for account:', accountId);
+    // Use the function from sessionManager
+    if (typeof window !== 'undefined') {
+      const { clearStoredSession } = require('./sessionManager');
+      clearStoredSession(accountId);
+    }
+  } catch (error) {
+    logError('MessageService', 'Error clearing stored session:', error);
+  }
 };

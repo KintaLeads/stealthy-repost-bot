@@ -24,18 +24,26 @@ export async function handleListen(
     const isAuthenticated = await client.isAuthenticated();
     if (!isAuthenticated) {
       console.error("Error: Not authenticated. Please authenticate first.");
+      
+      // Get the current session to include in the response for debugging
+      const currentSession = client.getSession();
+      const sessionInfo = currentSession ? 
+        `Session provided (length: ${currentSession.length}) but invalid or expired` : 
+        'No session provided';
+      
       return new Response(
         JSON.stringify({ 
           success: false,
           error: 'Not authenticated. Please authenticate first.',
-          needsAuthentication: true
+          needsAuthentication: true,
+          details: sessionInfo
         }),
         { 
           status: 401, 
           headers: { 
             ...corsHeaders, 
             'Content-Type': 'application/json',
-            'Access-Control-Expose-Headers': 'X-Telegram-Session' 
+            'Access-Control-Expose-Headers': 'X-Telegram-Session'
           } 
         }
       );
@@ -46,6 +54,26 @@ export async function handleListen(
     
     if (!listenResult.success) {
       console.error("Error listening to channels:", listenResult.error);
+      
+      // Check if it's an authentication error
+      if (listenResult.error && listenResult.error.includes('authentication')) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: listenResult.error,
+            needsAuthentication: true
+          }),
+          { 
+            status: 401, 
+            headers: { 
+              ...corsHeaders, 
+              'Content-Type': 'application/json',
+              'Access-Control-Expose-Headers': 'X-Telegram-Session'
+            } 
+          }
+        );
+      }
+      
       return new Response(
         JSON.stringify(listenResult),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -59,7 +87,19 @@ export async function handleListen(
       JSON.stringify({ 
         success: true,
         message: `Now listening to ${sourceChannels.length} channels`,
-        sessionString: session
+        sessionString: session,
+        // Sample data for testing
+        results: sourceChannels.map(channel => ({
+          channel,
+          success: true,
+          sampleMessages: [
+            {
+              id: Date.now(),
+              text: `Sample message from ${channel}`,
+              date: Math.floor(Date.now() / 1000)
+            }
+          ]
+        }))
       }),
       { 
         headers: { 

@@ -5,6 +5,7 @@ import { ApiAccount } from "@/types/channels";
 import { ChannelPair } from "@/types/channels";
 import { Message } from "@/types/dashboard";
 import { fetchChannelMessages } from "./messageService";
+import { getStoredSession, clearStoredSession } from "./sessionManager";
 import { logInfo, logError } from './debugger';
 
 /**
@@ -18,10 +19,37 @@ export const setupRealtimeListener = async (
   try {
     logInfo("RealtimeService", "Setting up realtime listener for account:", account.nickname);
     
+    // Check if we have a valid session first
+    const sessionString = getStoredSession(account.id);
+    if (!sessionString) {
+      logInfo("RealtimeService", "No session found for account:", account.nickname);
+      toast({
+        title: "Authentication Required",
+        description: "Please connect to Telegram using the connection button",
+        variant: "destructive",
+      });
+      throw new Error("Authentication required");
+    }
+    
     // Initial fetch of messages to populate the UI
-    const messages = await fetchChannelMessages(account, channelPairs);
-    if (messages.length > 0) {
-      onNewMessages(messages);
+    try {
+      const messages = await fetchChannelMessages(account, channelPairs);
+      if (messages.length > 0) {
+        onNewMessages(messages);
+      }
+    } catch (initError) {
+      if (String(initError).includes('authentication')) {
+        logError("RealtimeService", "Authentication error during initial fetch:", initError);
+        toast({
+          title: "Authentication Required",
+          description: "Please connect to Telegram using the connection button",
+          variant: "destructive",
+        });
+        clearStoredSession(account.id);
+        throw new Error("Authentication required");
+      } else {
+        logError("RealtimeService", "Error during initial fetch:", initError);
+      }
     }
     
     // Set up polling interval for new messages
@@ -41,6 +69,7 @@ export const setupRealtimeListener = async (
         const errorMessage = error instanceof Error ? error.message : String(error);
         if (errorMessage.includes('authentication') || errorMessage.includes('not authenticated')) {
           clearInterval(pollingInterval);
+          clearStoredSession(account.id);
           
           toast({
             title: "Authentication Error",
