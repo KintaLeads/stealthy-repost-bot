@@ -127,7 +127,7 @@ const VerificationCodeDialog: React.FC<VerificationCodeDialogProps> = ({
         
         <form onSubmit={handleSubmit}>
           <div className="grid gap-4 py-4">
-            <Alert variant="info" className="bg-blue-50 text-blue-800 border-blue-200">
+            <Alert className="bg-blue-50 text-blue-800 border-blue-200">
               <Info className="h-4 w-4" />
               <AlertDescription>
                 Enter the code sent to your phone via Telegram. If you didn't receive a code, you can try again.
