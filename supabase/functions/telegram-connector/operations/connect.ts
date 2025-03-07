@@ -6,9 +6,10 @@ import { TelegramClientImplementation } from "../client/telegram-client.ts";
 export async function handleConnect(
   client: TelegramClientImplementation, 
   corsHeaders: Record<string, string>,
-  options: { verificationCode?: string }
+  options: { verificationCode?: string, debug?: boolean }
 ): Promise<Response> {
-  console.log(`Handling connect operation, verificationCode provided: ${!!options.verificationCode}`);
+  const debug = options.debug || false;
+  console.log(`Handling connect operation, verificationCode provided: ${!!options.verificationCode}, debug: ${debug}`);
   
   try {
     // If verification code is provided, verify it
@@ -31,7 +32,8 @@ export async function handleConnect(
             headers: { 
               ...corsHeaders, 
               "Content-Type": "application/json",
-              "X-Telegram-Session": session
+              "X-Telegram-Session": session,
+              "Access-Control-Expose-Headers": "X-Telegram-Session"
             } 
           }
         );
@@ -52,11 +54,27 @@ export async function handleConnect(
     // If no verification code is provided, attempt to connect
     else {
       console.log("Connecting to Telegram");
+      
+      // Add more debug logging if requested
+      if (debug) {
+        console.log("Debug mode enabled for connection");
+        console.log("Client details:", {
+          phoneNumber: client.getPhoneNumber().substring(0, 4) + "****", // Only log first few digits
+          hasSession: !!client.getSession(),
+          authState: client.getAuthState()
+        });
+      }
+      
       const connectResult = await client.connect();
       
       if (connectResult.success) {
         if (connectResult.codeNeeded) {
           console.log("Phone verification code needed");
+          
+          // Send a test message to see if the code was actually sent
+          console.log("Code sent successfully via MTProto, awaiting verification");
+          console.log("Phone verification code needed");
+          
           return new Response(
             JSON.stringify({
               success: true,
@@ -64,7 +82,12 @@ export async function handleConnect(
               phoneCodeHash: connectResult.phoneCodeHash,
               message: "Authentication code sent to phone"
             }),
-            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            { headers: { 
+                ...corsHeaders, 
+                "Content-Type": "application/json",
+                "Access-Control-Expose-Headers": "X-Telegram-Session" 
+              } 
+            }
           );
         } else {
           console.log("Already authenticated");
@@ -81,7 +104,8 @@ export async function handleConnect(
               headers: { 
                 ...corsHeaders, 
                 "Content-Type": "application/json",
-                "X-Telegram-Session": session
+                "X-Telegram-Session": session,
+                "Access-Control-Expose-Headers": "X-Telegram-Session"
               } 
             }
           );

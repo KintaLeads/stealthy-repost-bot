@@ -51,12 +51,10 @@ export const setupListener = async (
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
     
     // Check if we need authentication
-    if (errorMessage.includes('Not authenticated') || errorMessage.includes('Verification code needed')) {
-      toast({
-        title: "Authentication Required",
-        description: "Please authenticate your Telegram account first",
-        variant: "destructive",
-      });
+    if (errorMessage.includes('Not authenticated') || 
+        errorMessage.includes('Authentication required') ||
+        errorMessage.includes('Verification code needed')) {
+      throw new Error('Verification code needed. Please verify your account first.');
     } else {
       toast({
         title: "Listener Setup Failed",

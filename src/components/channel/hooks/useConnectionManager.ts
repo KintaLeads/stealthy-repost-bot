@@ -42,9 +42,11 @@ export const useConnectionManager = (
         // Reset any previous errors
         diagnosticState.setConnectionError(null);
         
-        const { codeNeeded } = await handleInitialConnection(selectedAccount);
+        logInfo('ConnectionButton', `Attempting to connect Telegram account: ${selectedAccount.nickname} (${selectedAccount.phoneNumber})`);
         
-        if (codeNeeded) {
+        const connectionResult = await handleInitialConnection(selectedAccount);
+        
+        if (connectionResult.codeNeeded) {
           logInfo('ConnectionButton', "Verification code needed, showing dialog");
           // Show verification dialog
           verificationState.startVerification(selectedAccount);
@@ -63,16 +65,28 @@ export const useConnectionManager = (
         logError('ConnectionButton', 'Error connecting to Telegram:', error);
         
         const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
-        diagnosticState.setConnectionError(errorMessage);
         
-        toast({
-          title: "Connection Failed",
-          description: errorMessage,
-          variant: "destructive",
-        });
-        
-        // Show diagnostic tool for errors
-        diagnosticState.setShowDiagnosticTool(true);
+        // Check if the error message indicates we need verification
+        if (errorMessage.includes('verification code') || errorMessage.includes('code needed')) {
+          logInfo('ConnectionButton', "Verification code needed based on error message, showing dialog");
+          verificationState.startVerification(selectedAccount);
+          
+          toast({
+            title: "Verification Required",
+            description: "Please enter the verification code sent to your Telegram account",
+          });
+        } else {
+          diagnosticState.setConnectionError(errorMessage);
+          
+          toast({
+            title: "Connection Failed",
+            description: errorMessage,
+            variant: "destructive",
+          });
+          
+          // Show diagnostic tool for errors
+          diagnosticState.setShowDiagnosticTool(true);
+        }
       }
     }
   };
@@ -90,8 +104,17 @@ export const useConnectionManager = (
         verificationState.resetVerification();
       } catch (error) {
         // Error is already handled in setupListener
-        // Just reset the verification state
+        logError('ConnectionButton', "Error setting up listener after verification:", error);
         verificationState.resetVerification();
+        
+        const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
+        diagnosticState.setConnectionError(errorMessage);
+        
+        toast({
+          title: "Connection Failed After Verification",
+          description: errorMessage,
+          variant: "destructive",
+        });
       }
     }
   };
