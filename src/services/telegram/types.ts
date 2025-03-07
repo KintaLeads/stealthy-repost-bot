@@ -13,3 +13,10 @@ export interface RealtimeListenerResult {
 }
 
 export type MessageCallback = (messages: Message[]) => void;
+
+export interface ConnectionResult {
+  success: boolean;
+  codeNeeded: boolean;
+  phoneCodeHash?: string;
+  error?: string;
+}

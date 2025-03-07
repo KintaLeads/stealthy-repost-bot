@@ -44,7 +44,8 @@ export const handleInitialConnection = async (account: ApiAccount) => {
     return {
       codeNeeded: data.codeNeeded || false,
       phoneCodeHash: data.phoneCodeHash,
-      success: data.success
+      success: data.success,
+      error: data.error
     };
   } catch (error) {
     logError(context, 'Exception during connection attempt:', error);

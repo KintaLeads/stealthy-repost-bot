@@ -6,6 +6,7 @@ import { logInfo, logError } from '@/services/telegram';
 import { Message } from "@/types/dashboard";
 import { runConnectivityChecks, testCorsConfiguration } from "@/services/telegram/networkCheck";
 import { handleInitialConnection } from "@/services/telegram/connector";
+import { ConnectionResult } from "@/services/telegram/types";
 
 // The project ID is hardcoded for now
 const PROJECT_ID = "eswfrzdqxsaizkdswxfn";
@@ -20,7 +21,7 @@ export const setupListener = async (
     logInfo('ConnectionButton', "Setting up realtime listener for account:", account.nickname);
     
     // First check if we need to authenticate
-    const connectResult = await handleInitialConnection(account);
+    const connectResult = await handleInitialConnection(account) as ConnectionResult;
     if (!connectResult.success) {
       logError('ConnectionButton', 'Connection failed:', connectResult.error);
       throw new Error(connectResult.error || 'Failed to connect to Telegram');
