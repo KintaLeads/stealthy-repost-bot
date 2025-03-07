@@ -1,10 +1,10 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/use-toast";
 import { ApiAccount } from "@/types/dashboard";
 import { ChannelPair } from "@/types/channels";
 import { Message } from "@/types/dashboard";
 import { getStoredSession, storeSession } from "./sessionManager";
+import { logInfo, logError } from './debugger';
 
 /**
  * Fetch messages from configured channels
@@ -19,17 +19,22 @@ export const fetchChannelMessages = async (
       .map(pair => pair.sourceChannel);
     
     if (sourceChannels.length === 0) {
-      console.log('No active channels found');
+      logInfo('MessageService', 'No active channels found');
       return [];
     }
     
-    console.log('Fetching messages from channels:', sourceChannels);
+    logInfo('MessageService', 'Fetching messages from channels:', sourceChannels);
     
+    // Get stored session from local storage
     const sessionString = getStoredSession(account.id);
-    const headers: Record<string, string> = {};
     
+    // Set up headers with session if available
+    const headers: Record<string, string> = {};
     if (sessionString) {
       headers['X-Telegram-Session'] = sessionString;
+      logInfo('MessageService', 'Using stored session for account:', account.nickname);
+    } else {
+      logInfo('MessageService', 'No stored session found, authentication may be required');
     }
     
     try {
@@ -40,23 +45,35 @@ export const fetchChannelMessages = async (
           apiHash: account.apiHash,
           phoneNumber: account.phoneNumber,
           sourceChannels,
-          accountId: account.id
+          accountId: account.id,
+          sessionString // Also include it in the body as a fallback
         },
         headers
       });
       
       if (error) {
-        console.error('Supabase function error:', error);
-        toast({
-          title: "Failed to Fetch Messages",
-          description: `Error fetching messages: ${error.message}`,
-          variant: "destructive",
-        });
+        logError('MessageService', 'Supabase function error:', error);
+        
+        // Check if the error is related to authentication
+        if (error.message && error.message.includes('not authenticated')) {
+          logError('MessageService', 'Authentication required. User needs to reconnect');
+          toast({
+            title: "Authentication Required",
+            description: "Please reconnect to Telegram using the connection button",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Failed to Fetch Messages",
+            description: `Error fetching messages: ${error.message}`,
+            variant: "destructive",
+          });
+        }
         return [];
       }
       
       if (!data) {
-        console.error('No data returned from function');
+        logError('MessageService', 'No data returned from function');
         toast({
           title: "Failed to Fetch Messages",
           description: "No response from message fetching service",
@@ -65,7 +82,20 @@ export const fetchChannelMessages = async (
         return [];
       }
       
+      // Check if we need authentication
+      if (data.needsAuthentication) {
+        logError('MessageService', 'Authentication required from response');
+        toast({
+          title: "Authentication Required",
+          description: "Please connect to Telegram using the connection button",
+          variant: "destructive",
+        });
+        return [];
+      }
+      
+      // Save the session if it was returned
       if (data.sessionString) {
+        logInfo('MessageService', 'New session received, storing it');
         storeSession(account.id, data.sessionString);
       }
       
@@ -94,12 +124,12 @@ export const fetchChannelMessages = async (
           }
         });
       } else {
-        console.warn('Invalid results structure:', data);
+        logWarning('MessageService', 'Invalid results structure:', data);
       }
       
       return messages;
     } catch (error) {
-      console.error('Error invoking Supabase function:', error);
+      logError('MessageService', 'Error invoking Supabase function:', error);
       toast({
         title: "API Error",
         description: `Failed to send a request to the Edge Function: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -108,7 +138,7 @@ export const fetchChannelMessages = async (
       return [];
     }
   } catch (error) {
-    console.error('Error fetching channel messages:', error);
+    logError('MessageService', 'Error fetching channel messages:', error);
     toast({
       title: "Message Fetch Error",
       description: `Failed to fetch messages: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -189,4 +219,9 @@ export const repostMessage = async (
     });
     return false;
   }
+};
+
+// Helper function for warning logs
+const logWarning = (context: string, message: string, ...args: any[]) => {
+  console.warn(`[${context}] ${message}`, ...args);
 };

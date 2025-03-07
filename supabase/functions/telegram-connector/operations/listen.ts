@@ -30,7 +30,14 @@ export async function handleListen(
           error: 'Not authenticated. Please authenticate first.',
           needsAuthentication: true
         }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { 
+          status: 401, 
+          headers: { 
+            ...corsHeaders, 
+            'Content-Type': 'application/json',
+            'Access-Control-Expose-Headers': 'X-Telegram-Session' 
+          } 
+        }
       );
     }
     
@@ -58,7 +65,8 @@ export async function handleListen(
         headers: { 
           ...corsHeaders, 
           'Content-Type': 'application/json',
-          'X-Telegram-Session': session 
+          'X-Telegram-Session': session,
+          'Access-Control-Expose-Headers': 'X-Telegram-Session' 
         } 
       }
     );
@@ -69,7 +77,14 @@ export async function handleListen(
         success: false, 
         error: error instanceof Error ? error.message : "An unknown error occurred" 
       }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { 
+        status: 500, 
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'application/json',
+          'Access-Control-Expose-Headers': 'X-Telegram-Session'
+        } 
+      }
     );
   }
 }

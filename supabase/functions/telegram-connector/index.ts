@@ -16,6 +16,12 @@ const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
 const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY') || '';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+// Updated corsHeaders with both standard and content-type
+const updatedCorsHeaders = {
+  ...corsHeaders,
+  'Access-Control-Expose-Headers': 'X-Telegram-Session'
+};
+
 Deno.serve(async (req) => {
   // Measure function execution time
   const startTime = Date.now();
@@ -27,7 +33,7 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     console.log("Handling OPTIONS request for CORS with proper headers");
     return new Response(null, {
-      headers: corsHeaders,
+      headers: updatedCorsHeaders,
       status: 204
     });
   }
@@ -47,14 +53,14 @@ Deno.serve(async (req) => {
       
       // Handle empty body case
       if (!text.trim()) {
-        return createBadRequestResponse('Empty request body', corsHeaders);
+        return createBadRequestResponse('Empty request body', updatedCorsHeaders);
       }
       
       requestBody = JSON.parse(text);
       logRequestBody(requestBody);
     } catch (parseError) {
       console.error("⚠️ Failed to parse request body:", parseError);
-      return createBadRequestResponse('Invalid request format: Could not parse JSON body', corsHeaders);
+      return createBadRequestResponse('Invalid request format: Could not parse JSON body', updatedCorsHeaders);
     }
     
     const { 
@@ -67,12 +73,13 @@ Deno.serve(async (req) => {
       messageId, 
       sourceChannel, 
       targetChannel, 
-      verificationCode
+      verificationCode,
+      sessionString
     } = requestBody;
     
     // Handle healthcheck operation
     if (operation === 'healthcheck') {
-      return handleHealthcheck(corsHeaders);
+      return handleHealthcheck(updatedCorsHeaders);
     }
     
     // Validate required parameters based on operation type
@@ -83,14 +90,16 @@ Deno.serve(async (req) => {
         console.error("⚠️ Missing required parameters:", missingParams);
         return createBadRequestResponse(
           `Missing required Telegram API credentials: ${missingParams.join(', ')}. Please ensure apiId, apiHash, and phoneNumber are provided.`,
-          corsHeaders
+          updatedCorsHeaders
         );
       }
     }
 
-    // Get session from headers if available
-    const sessionString = req.headers.get('X-Telegram-Session') || '';
-    console.log("Session provided:", sessionString ? "Yes (length: " + sessionString.length + ")" : "No");
+    // Get session from headers if available or from request body
+    const headerSessionString = req.headers.get('X-Telegram-Session') || '';
+    const effectiveSessionString = headerSessionString || sessionString || '';
+    
+    console.log("Session provided:", effectiveSessionString ? "Yes (length: " + effectiveSessionString.length + ")" : "No");
     
     // Initialize Telegram client
     console.log("🔄 Initializing TelegramClientImplementation with accountId:", accountId);
@@ -98,12 +107,12 @@ Deno.serve(async (req) => {
     console.log("🔄 API Hash format reasonable:", apiHash?.length === 32);
     console.log("🔄 Phone number format:", phoneNumber ? "Provided" : "Not provided");
     
-    const client = new TelegramClientImplementation(apiId, apiHash, phoneNumber, accountId || 'temp', sessionString);
+    const client = new TelegramClientImplementation(apiId, apiHash, phoneNumber, accountId || 'temp', effectiveSessionString);
 
     // Check which operation is requested
     if (!operation) {
       console.error("⚠️ No operation specified");
-      return createBadRequestResponse('No operation specified. Please provide an operation parameter.', corsHeaders);
+      return createBadRequestResponse('No operation specified. Please provide an operation parameter.', updatedCorsHeaders);
     }
     
     // Route to the appropriate operation handler
@@ -111,30 +120,30 @@ Deno.serve(async (req) => {
     let response;
     switch (operation) {
       case 'validate':
-        response = await handleValidate(client, corsHeaders);
+        response = await handleValidate(client, updatedCorsHeaders);
         break;
         
       case 'connect':
-        response = await handleConnect(client, corsHeaders, { verificationCode });
+        response = await handleConnect(client, updatedCorsHeaders, { verificationCode });
         break;
         
       case 'listen':
-        response = await handleListen(client, sourceChannels, corsHeaders);
+        response = await handleListen(client, sourceChannels, updatedCorsHeaders);
         break;
         
       case 'repost':
-        response = await handleRepost(client, messageId, sourceChannel, targetChannel, corsHeaders);
+        response = await handleRepost(client, messageId, sourceChannel, targetChannel, updatedCorsHeaders);
         break;
         
       case 'healthcheck':
-        response = handleHealthcheck(corsHeaders);
+        response = handleHealthcheck(updatedCorsHeaders);
         break;
         
       default:
         console.error("⚠️ Invalid operation:", operation);
         return createBadRequestResponse(
           `Invalid operation: ${operation}. Supported operations are: validate, connect, listen, repost, healthcheck`,
-          corsHeaders
+          updatedCorsHeaders
         );
     }
     
@@ -143,6 +152,6 @@ Deno.serve(async (req) => {
     return response;
     
   } catch (error) {
-    return createErrorResponse(error, 500, corsHeaders);
+    return createErrorResponse(error, 500, updatedCorsHeaders);
   }
 });
