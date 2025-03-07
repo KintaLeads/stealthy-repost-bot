@@ -18,7 +18,7 @@ export const handleValidate = async (client: TelegramClientImplementation, corsH
           error: validationResult.error || "Failed to validate Telegram credentials",
           details: validationResult
         }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 400, headers: corsHeaders }
       );
     }
     
@@ -30,7 +30,7 @@ export const handleValidate = async (client: TelegramClientImplementation, corsH
         message: "Telegram API credentials are valid",
         details: validationResult
       }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 200, headers: corsHeaders }
     );
   } catch (error) {
     console.error("Error in MTProto validation:", error);
@@ -45,7 +45,7 @@ export const handleValidate = async (client: TelegramClientImplementation, corsH
           stack: error.stack
         } : undefined
       }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 500, headers: corsHeaders }
     );
   }
 };

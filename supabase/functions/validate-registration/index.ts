@@ -4,9 +4,12 @@ import { corsHeaders } from "../_shared/cors.ts";
 
 // Handle registration code validation
 Deno.serve(async (req) => {
-  // Handle CORS preflight requests
+  // Handle CORS preflight requests with proper status code
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { 
+      headers: corsHeaders,
+      status: 204
+    });
   }
 
   try {
@@ -26,7 +29,7 @@ Deno.serve(async (req) => {
         message: isValid ? 'Registration code validated successfully' : 'Invalid registration code'
       }),
       { 
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: corsHeaders,
         status: 200 
       }
     );
@@ -40,7 +43,7 @@ Deno.serve(async (req) => {
         message: `Error validating registration code: ${error.message}` 
       }),
       { 
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: corsHeaders,
         status: 400 
       }
     );

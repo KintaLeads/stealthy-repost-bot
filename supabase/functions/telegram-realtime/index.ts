@@ -1,11 +1,6 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1'
-
-// CORS headers for browser compatibility
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-}
+import { corsHeaders } from '../_shared/cors.ts';
 
 // Create Supabase client
 const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
@@ -13,9 +8,12 @@ const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 const supabase = createClient(supabaseUrl, supabaseKey)
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight requests
+  // Handle CORS preflight requests with proper status code
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders })
+    return new Response(null, { 
+      headers: corsHeaders,
+      status: 204
+    });
   }
 
   try {
@@ -27,7 +25,7 @@ Deno.serve(async (req) => {
         JSON.stringify({ error: `Method ${method} not allowed` }),
         {
           status: 405,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          headers: corsHeaders
         }
       )
     }
@@ -41,7 +39,7 @@ Deno.serve(async (req) => {
         JSON.stringify({ error: 'Missing required parameters' }),
         {
           status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          headers: corsHeaders
         }
       )
     }
@@ -61,7 +59,7 @@ Deno.serve(async (req) => {
         }),
         {
           status: 200,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          headers: corsHeaders
         }
       )
     } 
@@ -71,7 +69,7 @@ Deno.serve(async (req) => {
           JSON.stringify({ error: 'No channels provided for subscription' }),
           {
             status: 400,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            headers: corsHeaders
           }
         )
       }
@@ -86,7 +84,7 @@ Deno.serve(async (req) => {
         }),
         {
           status: 200,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          headers: corsHeaders
         }
       )
     }
@@ -101,7 +99,7 @@ Deno.serve(async (req) => {
         }),
         {
           status: 200,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          headers: corsHeaders
         }
       )
     }
@@ -110,7 +108,7 @@ Deno.serve(async (req) => {
         JSON.stringify({ error: `Unknown operation: ${operation}` }),
         {
           status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          headers: corsHeaders
         }
       )
     }
@@ -121,7 +119,7 @@ Deno.serve(async (req) => {
       JSON.stringify({ error: error.message || 'Unknown error occurred' }),
       {
         status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        headers: corsHeaders
       }
     )
   }
