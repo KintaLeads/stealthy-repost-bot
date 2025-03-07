@@ -5,6 +5,7 @@ import { setupRealtimeListener } from "@/services/telegram";
 import { logInfo, logError } from '@/services/telegram';
 import { Message } from "@/types/dashboard";
 import { runConnectivityChecks, testCorsConfiguration } from "@/services/telegram/networkCheck";
+import { handleInitialConnection } from "@/services/telegram/connector";
 
 // The project ID is hardcoded for now
 const PROJECT_ID = "eswfrzdqxsaizkdswxfn";
@@ -17,6 +18,18 @@ export const setupListener = async (
 ) => {
   try {
     logInfo('ConnectionButton', "Setting up realtime listener for account:", account.nickname);
+    
+    // First check if we need to authenticate
+    const connectResult = await handleInitialConnection(account);
+    if (!connectResult.success) {
+      logError('ConnectionButton', 'Connection failed:', connectResult.error);
+      throw new Error(connectResult.error || 'Failed to connect to Telegram');
+    }
+    
+    if (connectResult.codeNeeded) {
+      logInfo('ConnectionButton', "Verification code needed");
+      throw new Error('Verification code needed. Please verify your account first.');
+    }
     
     // Setup the realtime listener
     const listener = await setupRealtimeListener(
@@ -36,11 +49,20 @@ export const setupListener = async (
     
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
     
-    toast({
-      title: "Listener Setup Failed",
-      description: errorMessage,
-      variant: "destructive",
-    });
+    // Check if we need authentication
+    if (errorMessage.includes('Not authenticated') || errorMessage.includes('Verification code needed')) {
+      toast({
+        title: "Authentication Required",
+        description: "Please authenticate your Telegram account first",
+        variant: "destructive",
+      });
+    } else {
+      toast({
+        title: "Listener Setup Failed",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    }
 
     throw error; // Re-throw to be handled by the calling function
   }

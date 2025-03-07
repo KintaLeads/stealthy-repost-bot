@@ -65,6 +65,12 @@ export class TelegramClientImplementation {
     return this.messageClient;
   }
   
+  // Method to check if authenticated
+  async isAuthenticated(): Promise<boolean> {
+    const authClient = await this.getAuthClient();
+    return authClient.isAuthenticated();
+  }
+  
   // Method to connect to Telegram
   async connect(): Promise<{ success: boolean; codeNeeded?: boolean; phoneCodeHash?: string; error?: string; session?: string }> {
     const authClient = await this.getAuthClient();

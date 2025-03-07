@@ -20,6 +20,20 @@ export async function handleListen(
       );
     }
     
+    // Check authentication first
+    const isAuthenticated = await client.isAuthenticated();
+    if (!isAuthenticated) {
+      console.error("Error: Not authenticated. Please authenticate first.");
+      return new Response(
+        JSON.stringify({ 
+          success: false,
+          error: 'Not authenticated. Please authenticate first.',
+          needsAuthentication: true
+        }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
     // Start listening to the channels
     const listenResult = await client.listenToChannels(sourceChannels);
     
@@ -31,12 +45,22 @@ export async function handleListen(
       );
     }
     
+    // Include the session in the response for the client to store
+    const session = client.getSession();
+    
     return new Response(
       JSON.stringify({ 
         success: true,
-        message: `Now listening to ${sourceChannels.length} channels`
+        message: `Now listening to ${sourceChannels.length} channels`,
+        sessionString: session
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { 
+        headers: { 
+          ...corsHeaders, 
+          'Content-Type': 'application/json',
+          'X-Telegram-Session': session 
+        } 
+      }
     );
   } catch (error) {
     console.error("Error in listen operation:", error);
