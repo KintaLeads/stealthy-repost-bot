@@ -71,16 +71,21 @@ export async function handleConnect(
         if (connectResult.codeNeeded) {
           console.log("Phone verification code needed");
           
-          // Send a test message to see if the code was actually sent
+          // Important: Log this for debugging - in a real implementation, this would go to Telegram
+          if (connectResult._testCode) {
+            console.log(`⚠️ IMPORTANT - TEST MODE: Verification code is ${connectResult._testCode}`);
+          }
+          
           console.log("Code sent successfully via MTProto, awaiting verification");
-          console.log("Phone verification code needed");
           
           return new Response(
             JSON.stringify({
               success: true,
+              codeNeeded: true,
               codeRequested: true,
               phoneCodeHash: connectResult.phoneCodeHash,
-              message: "Authentication code sent to phone"
+              message: "Authentication code sent to phone",
+              _testCode: debug ? connectResult._testCode : undefined // Only include in debug mode
             }),
             { headers: { 
                 ...corsHeaders, 

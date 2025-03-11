@@ -26,6 +26,7 @@ export class MTProto {
   private serverSalt: Uint8Array | null = null;
   private messageQueue: any[] = [];
   private messageIdToPromise: Map<string, { resolve: Function, reject: Function }> = new Map();
+  private lastPhoneCodeHash: string | null = null;
   
   constructor(options: MTProtoOptions) {
     this.apiId = options.apiId;
@@ -52,6 +53,7 @@ export class MTProto {
       this.dcId = sessionData.dcId || 2;
       this.authKey = sessionData.authKey ? new Uint8Array(Object.values(sessionData.authKey)) : null;
       this.serverSalt = sessionData.serverSalt ? new Uint8Array(Object.values(sessionData.serverSalt)) : null;
+      this.lastPhoneCodeHash = sessionData.lastPhoneCodeHash || null;
     } catch (error) {
       console.error("Error restoring session:", error);
       throw new Error("Invalid session format");
@@ -65,7 +67,8 @@ export class MTProto {
     const sessionData = {
       dcId: this.dcId,
       authKey: this.authKey ? Array.from(this.authKey) : null,
-      serverSalt: this.serverSalt ? Array.from(this.serverSalt) : null
+      serverSalt: this.serverSalt ? Array.from(this.serverSalt) : null,
+      lastPhoneCodeHash: this.lastPhoneCodeHash
     };
     
     return btoa(JSON.stringify(sessionData));
@@ -132,7 +135,7 @@ export class MTProto {
       await this.connect();
     }
     
-    console.log(`Calling method: ${method}`);
+    console.log(`Calling method: ${method} with params:`, JSON.stringify(params));
     
     // Handle different method types
     if (method === 'auth.checkPhone') {
@@ -156,11 +159,17 @@ export class MTProto {
    * Handle auth.checkPhone request
    */
   private async handleCheckPhone(phone: string): Promise<any> {
+    console.log(`Checking phone ${phone}...`);
+    
     // Validate phone number format
     if (!phone || !/^\+[1-9]\d{7,14}$/.test(phone)) {
+      console.error("Invalid phone number format:", phone);
       return { error: { code: 400, message: "Invalid phone number format" } };
     }
     
+    // In a real implementation, we would make an API call to Telegram
+    // For our mock, we'll just return a success response
+    console.log(`Phone ${phone} is registered`);
     return { phone_registered: true, can_receive_calls: true };
   }
   
@@ -168,37 +177,84 @@ export class MTProto {
    * Handle auth.sendCode request
    */
   private async handleSendCode(phone: string): Promise<any> {
+    console.log(`Sending code to ${phone}...`);
+    
     // Validate phone number format
     if (!phone || !/^\+[1-9]\d{7,14}$/.test(phone)) {
+      console.error("Invalid phone number format:", phone);
       return { error: { code: 400, message: "Invalid phone number format" } };
     }
     
-    // Generate a random phone_code_hash
-    const phoneCodeHash = Array.from(crypto.getRandomValues(new Uint8Array(16)))
-      .map(b => b.toString(16).padStart(2, '0'))
-      .join('');
-    
-    return {
-      type: { _: "auth.sentCode", type: "app" },
-      phone_code_hash: phoneCodeHash,
-      timeout: 120
-    };
+    try {
+      // In a real implementation, this would make an API call to Telegram
+      // For our mock, we'll generate a code and print it
+      
+      // Generate a random 5-digit code
+      const randomCode = Math.floor(10000 + Math.random() * 90000).toString();
+      console.log(`MOCK TELEGRAM: Verification code for ${phone} is: ${randomCode}`);
+      
+      // Generate a random phone_code_hash
+      const phoneCodeHash = Array.from(crypto.getRandomValues(new Uint8Array(16)))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
+      
+      // Store the phone code hash for later verification
+      this.lastPhoneCodeHash = phoneCodeHash;
+      
+      console.log(`Generated phone_code_hash: ${phoneCodeHash} for ${phone}`);
+      
+      // Simulate sending the actual code to the phone via Telegram
+      // In a real implementation, Telegram would send a message to the user's device
+      console.log(`[TELEGRAM MESSAGE] Your login code: ${randomCode}`);
+      
+      // Return a successful response
+      return {
+        type: { _: "auth.sentCode", type: "app" },
+        phone_code_hash: phoneCodeHash,
+        timeout: 120,
+        _testCode: randomCode // This is only for testing - real API wouldn't return the code
+      };
+    } catch (error) {
+      console.error("Error sending code:", error);
+      return { 
+        error: { 
+          code: 500, 
+          message: `Failed to send code: ${error instanceof Error ? error.message : String(error)}` 
+        } 
+      };
+    }
   }
   
   /**
    * Handle auth.signIn request
    */
   private async handleSignIn(phone: string, phoneCodeHash: string, phoneCode: string): Promise<any> {
+    console.log(`Signing in ${phone} with code ${phoneCode} and hash ${phoneCodeHash}...`);
+    
     // Validate inputs
     if (!phone || !phoneCodeHash || !phoneCode) {
+      console.error("Missing required parameters for sign in");
       return { error: { code: 400, message: "Missing required parameters" } };
     }
     
-    if (phoneCode !== "12345") { // In real implementation, this would verify the code
-      return { error: { code: 400, message: "Invalid code" } };
+    // In a real implementation, we would validate the code against Telegram's API
+    // For our mock, we'll check if the hash matches what we stored
+    if (phoneCodeHash !== this.lastPhoneCodeHash) {
+      console.error("Invalid phone code hash");
+      return { error: { code: 400, message: "Invalid phone code hash" } };
     }
     
+    // For testing, any 5-digit code will work
+    if (!/^\d{5}$/.test(phoneCode)) {
+      console.error("Invalid code format");
+      return { error: { code: 400, message: "Invalid code format. Must be 5 digits." } };
+    }
+    
+    // Reset the phone code hash after a successful sign-in
+    this.lastPhoneCodeHash = null;
+    
     // Return fake user data
+    console.log("Sign in successful");
     return {
       user: {
         id: 123456789,
@@ -214,12 +270,16 @@ export class MTProto {
    * Handle users.getMe request
    */
   private async handleGetMe(): Promise<any> {
+    console.log("Getting user information...");
+    
     // Check if we have auth key
     if (!this.authKey) {
+      console.error("Not authenticated");
       return { error: { code: 401, message: "Not authenticated" } };
     }
     
     // Return fake user data
+    console.log("Returning user info");
     return {
       user: {
         id: 123456789,
@@ -234,12 +294,16 @@ export class MTProto {
    * Handle channels.getChannels request
    */
   private async handleGetChannels(ids: any[]): Promise<any> {
+    console.log(`Getting channels for IDs: ${JSON.stringify(ids)}...`);
+    
     // Check if we have auth key
     if (!this.authKey) {
+      console.error("Not authenticated");
       return { error: { code: 401, message: "Not authenticated" } };
     }
     
     // Return fake channels data
+    console.log("Returning channels data");
     return {
       chats: ids.map((id, index) => ({
         id: typeof id === 'string' ? id : 1000 + index,
@@ -253,8 +317,11 @@ export class MTProto {
    * Handle messages.getHistory request
    */
   private async handleGetHistory(peer: any, limit: number): Promise<any> {
+    console.log(`Getting message history for peer: ${JSON.stringify(peer)}, limit: ${limit}...`);
+    
     // Check if we have auth key
     if (!this.authKey) {
+      console.error("Not authenticated");
       return { error: { code: 401, message: "Not authenticated" } };
     }
     
@@ -269,6 +336,7 @@ export class MTProto {
       });
     }
     
+    console.log(`Returning ${messages.length} messages`);
     return {
       messages: messages,
       count: limit
@@ -299,14 +367,18 @@ export class MTProto {
    */
   async validateCredentials(): Promise<{ success: boolean; error?: string }> {
     try {
+      console.log("Validating API credentials...");
+      
       // Validate API ID format
       const apiIdNum = parseInt(String(this.apiId), 10);
       if (isNaN(apiIdNum) || apiIdNum <= 0) {
+        console.error("Invalid API ID format");
         return { success: false, error: "Invalid API ID format" };
       }
       
       // Validate API Hash format (should be 32 hex chars)
       if (!this.apiHash || !/^[a-f0-9]{32}$/i.test(this.apiHash)) {
+        console.error("Invalid API Hash format");
         return { success: false, error: "Invalid API Hash format" };
       }
       
@@ -314,6 +386,7 @@ export class MTProto {
       await this.connect();
       
       // If we reach here, credentials are valid
+      console.log("API credentials are valid");
       return { success: true };
     } catch (error) {
       console.error("Error validating credentials:", error);

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -6,7 +7,7 @@ import { ApiAccount } from "@/types/channels";
 import { verifyTelegramCode } from "@/services/telegram";
 import { toast } from "@/components/ui/use-toast";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, Info, ExternalLink } from "lucide-react";
+import { AlertCircle, Info, ExternalLink, RefreshCw, CheckCircle2 } from "lucide-react";
 import { handleInitialConnection } from "@/services/telegram/connector";
 
 interface VerificationCodeDialogProps {
@@ -28,6 +29,7 @@ const VerificationCodeDialog: React.FC<VerificationCodeDialogProps> = ({
   const [secondsRemaining, setSecondsRemaining] = useState(60);
   const [isSendingCode, setIsSendingCode] = useState(false);
   const [sendCodeAttempts, setSendCodeAttempts] = useState(0);
+  const [testCode, setTestCode] = useState<string | null>(null);
   
   // Auto-countdown timer for code expiration feedback
   useEffect(() => {
@@ -52,6 +54,7 @@ const VerificationCodeDialog: React.FC<VerificationCodeDialogProps> = ({
       setSecondsRemaining(60);
       setCode("");
       setError(null);
+      setTestCode(null);
       
       // Don't automatically send code if we've already tried
       if (sendCodeAttempts === 0) {
@@ -113,6 +116,7 @@ const VerificationCodeDialog: React.FC<VerificationCodeDialogProps> = ({
       setIsSendingCode(true);
       setSendCodeAttempts(prev => prev + 1);
       setError(null);
+      setTestCode(null);
       
       toast({
         title: "Sending new code",
@@ -123,10 +127,22 @@ const VerificationCodeDialog: React.FC<VerificationCodeDialogProps> = ({
       const result = await handleInitialConnection(account);
       
       if (result.success && result.codeNeeded) {
-        toast({
-          title: "Code Sent",
-          description: "A new verification code has been sent to your Telegram app",
-        });
+        // Check if we got a test code (only in development mode)
+        if (result._testCode) {
+          console.log("Test code received:", result._testCode);
+          setTestCode(result._testCode);
+          
+          toast({
+            title: "Test Code Received",
+            description: "A test verification code has been provided for development",
+          });
+        } else {
+          toast({
+            title: "Code Sent",
+            description: "A new verification code has been sent to your Telegram app",
+          });
+        }
+        
         // Reset the timer
         setSecondsRemaining(60);
       } else {
@@ -147,6 +163,12 @@ const VerificationCodeDialog: React.FC<VerificationCodeDialogProps> = ({
       });
     } finally {
       setIsSendingCode(false);
+    }
+  };
+
+  const handleUseTestCode = () => {
+    if (testCode) {
+      setCode(testCode);
     }
   };
 
@@ -195,6 +217,25 @@ const VerificationCodeDialog: React.FC<VerificationCodeDialogProps> = ({
               </AlertDescription>
             </Alert>
             
+            {testCode && (
+              <Alert className="bg-green-50 text-green-800 border-green-200">
+                <CheckCircle2 className="h-4 w-4" />
+                <AlertDescription>
+                  <p className="font-medium">Development Mode</p>
+                  <p className="text-sm mt-1">Test code available: {testCode}</p>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={handleUseTestCode}
+                    className="mt-2 bg-white"
+                  >
+                    Use Test Code
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            )}
+            
             <Input
               id="code"
               placeholder="Verification code"
@@ -221,7 +262,17 @@ const VerificationCodeDialog: React.FC<VerificationCodeDialogProps> = ({
               disabled={isSubmitting || isSendingCode}
               className="w-full sm:w-auto"
             >
-              {isSendingCode ? "Sending..." : "Resend Code"}
+              {isSendingCode ? (
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Resend Code
+                </>
+              )}
             </Button>
             
             <Button 
