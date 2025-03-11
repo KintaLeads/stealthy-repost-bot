@@ -2,7 +2,8 @@
  * MTProto implementation for Telegram API
  * Using GramJS for Deno
  */
-import { MTProto as GramJSMTProto, StringSession } from "https://esm.sh/telegram@2.19.10";
+import { Api, TelegramClient } from "https://esm.sh/telegram@2.19.10";
+import { StringSession } from "https://esm.sh/telegram/sessions";
 
 interface MTProtoOptions {
   apiId: number;
@@ -17,8 +18,8 @@ export class MTProto {
   private apiHash: string;
   private session: string;
   private connected: boolean = false;
-  private client: any = null;
-  private stringSession: any = null;
+  private client: TelegramClient | null = null;
+  private stringSession: StringSession | null = null;
   private lastPhoneCodeHash: string | null = null;
   
   constructor(options: MTProtoOptions) {
@@ -51,7 +52,7 @@ export class MTProto {
     try {
       console.log("Initializing Telegram client with apiId:", this.apiId);
       
-      this.client = new GramJSMTProto({
+      this.client = new TelegramClient({
         apiId: this.apiId,
         apiHash: this.apiHash,
         session: this.stringSession,
@@ -76,8 +77,7 @@ export class MTProto {
     }
     
     try {
-      const sessionString = this.client.session.save();
-      return sessionString;
+      return this.stringSession.save();
     } catch (error) {
       console.error("Error exporting session:", error);
       throw error;

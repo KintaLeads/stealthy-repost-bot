@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { ApiAccount } from "@/types/channels";
 import { Message } from "@/types/dashboard";
@@ -10,7 +9,7 @@ import VerificationDialog from './VerificationDialog';
 import { useConnectionManager } from './hooks/useConnectionManager';
 import { ConnectionButtonProps } from './types';
 
-const ConnectionButton: React.FC<ConnectionButtonProps> = ({
+export const ConnectionButton = ({
   selectedAccount,
   isConnected,
   isConnecting,
@@ -18,8 +17,8 @@ const ConnectionButton: React.FC<ConnectionButtonProps> = ({
   isSaving,
   onConnected,
   onDisconnected,
-  onNewMessages
-}) => {
+  onNewMessages,
+}: ConnectionButtonProps) => {
   const {
     showVerificationDialog,
     setShowVerificationDialog,
@@ -28,7 +27,9 @@ const ConnectionButton: React.FC<ConnectionButtonProps> = ({
     tempConnectionState,
     handleToggleConnection,
     handleVerificationComplete,
-    runDiagnostics
+    runDiagnostics,
+    verificationState,
+    handleVerificationSuccess
   } = useConnectionManager(
     selectedAccount,
     isConnected,
@@ -59,10 +60,10 @@ const ConnectionButton: React.FC<ConnectionButtonProps> = ({
       <DiagnosticToolSection showDiagnosticTool={showDiagnosticTool} />
       
       <VerificationDialog
-        showVerificationDialog={showVerificationDialog}
-        setShowVerificationDialog={setShowVerificationDialog}
-        tempConnectionState={tempConnectionState}
-        onVerificationComplete={handleVerificationComplete}
+        isOpen={verificationState.showVerificationDialog}
+        onClose={verificationState.resetVerification}
+        state={verificationState.tempConnectionState}
+        onVerificationSuccess={handleVerificationSuccess}
       />
     </div>
   );

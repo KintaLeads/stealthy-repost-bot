@@ -1,41 +1,29 @@
 
 import React from 'react';
-import { ApiAccount } from "@/types/channels";
+import { ApiAccount } from '@/types/channels';
 import VerificationCodeDialog from './VerificationCodeDialog';
+import { TempConnectionState } from './types';
 
 interface VerificationDialogProps {
-  showVerificationDialog: boolean;
-  setShowVerificationDialog: (show: boolean) => void;
-  tempConnectionState: { account: ApiAccount | null };
-  onVerificationComplete: () => void;
+  isOpen: boolean;
+  onClose: () => void;
+  state: TempConnectionState;  // Changed from just account to state
+  onVerificationSuccess: () => void;
 }
 
 const VerificationDialog: React.FC<VerificationDialogProps> = ({
-  showVerificationDialog,
-  setShowVerificationDialog,
-  tempConnectionState,
-  onVerificationComplete
+  isOpen,
+  onClose,
+  state,
+  onVerificationSuccess
 }) => {
-  if (!showVerificationDialog || !tempConnectionState.account) {
-    return null;
-  }
-
-  const handleClose = () => {
-    setShowVerificationDialog(false);
-  };
-
   return (
     <VerificationCodeDialog
-      isOpen={showVerificationDialog}
-      onClose={handleClose}
-      account={tempConnectionState.account}
-      connectionResult={tempConnectionState.connectionResult || {
-        codeNeeded: true,
-        phoneCodeHash: '',
-        success: true,
-        error: null
-      }}
-      onVerificationSuccess={onVerificationComplete}
+      isOpen={isOpen}
+      onClose={onClose}
+      account={state.account as ApiAccount}
+      connectionResult={state.connectionResult}
+      onVerificationSuccess={onVerificationSuccess}
     />
   );
 };
