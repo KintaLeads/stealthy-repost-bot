@@ -7,7 +7,7 @@ import { ApiAccount } from "@/types/channels";
 import { verifyTelegramCode } from "@/services/telegram";
 import { toast } from "@/components/ui/use-toast";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, Info } from "lucide-react";
+import { AlertCircle, Info, ExternalLink } from "lucide-react";
 import { handleInitialConnection } from "@/services/telegram/connector";
 
 interface VerificationCodeDialogProps {
@@ -53,6 +53,10 @@ const VerificationCodeDialog: React.FC<VerificationCodeDialogProps> = ({
       setSecondsRemaining(60);
       setCode("");
       setError(null);
+      // Automatically try to send code again when dialog opens
+      if (sendCodeAttempts === 0) {
+        handleResendCode();
+      }
     }
   }, [isOpen]);
 
@@ -111,7 +115,7 @@ const VerificationCodeDialog: React.FC<VerificationCodeDialogProps> = ({
       
       toast({
         title: "Sending new code",
-        description: "Requesting a new verification code to be sent to your phone",
+        description: "Requesting a new verification code to be sent to your Telegram app",
       });
       
       // Request a new code by calling the initial connection again
@@ -169,14 +173,26 @@ const VerificationCodeDialog: React.FC<VerificationCodeDialogProps> = ({
               </AlertDescription>
             </Alert>
             
-            {sendCodeAttempts > 0 && (
-              <Alert className="bg-yellow-50 text-yellow-800 border-yellow-200">
-                <Info className="h-4 w-4" />
-                <AlertDescription>
-                  Note: The code should appear as a notification in your Telegram app. It may also appear in your Telegram messages as a login code.
-                </AlertDescription>
-              </Alert>
-            )}
+            <Alert className="bg-yellow-50 text-yellow-800 border-yellow-200">
+              <Info className="h-4 w-4" />
+              <AlertDescription>
+                <p className="font-medium">Where to find your code:</p>
+                <ul className="list-disc pl-5 mt-1 text-sm">
+                  <li>Check Telegram notifications on your phone</li>
+                  <li>Look for a message from "Telegram" in your app</li>
+                  <li>The code is typically 5 digits</li>
+                  <li>Make sure you're logged into Telegram on your phone</li>
+                </ul>
+                <a 
+                  href="https://telegram.org/dl" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center text-sm mt-2 text-yellow-900 hover:underline"
+                >
+                  Install Telegram app <ExternalLink className="h-3 w-3 ml-1" />
+                </a>
+              </AlertDescription>
+            </Alert>
             
             <Input
               id="code"
