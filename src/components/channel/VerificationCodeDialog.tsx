@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -47,18 +46,20 @@ const VerificationCodeDialog: React.FC<VerificationCodeDialogProps> = ({
     return () => clearInterval(timer);
   }, [isOpen]);
   
-  // Reset timer when dialog opens
+  // Reset timer when dialog opens and try to send code
   useEffect(() => {
     if (isOpen) {
       setSecondsRemaining(60);
       setCode("");
       setError(null);
-      // Automatically try to send code again when dialog opens
+      
+      // Don't automatically send code if we've already tried
       if (sendCodeAttempts === 0) {
+        console.log("Initial dialog open - sending verification code");
         handleResendCode();
       }
     }
-  }, [isOpen]);
+  }, [isOpen, sendCodeAttempts]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
