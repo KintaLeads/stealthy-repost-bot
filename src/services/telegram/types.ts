@@ -1,4 +1,3 @@
-
 import { Message } from "@/types/dashboard";
 import { ApiAccount, ChannelPair } from "@/types/channels";
 
@@ -19,4 +18,5 @@ export interface ConnectionResult {
   codeNeeded: boolean;
   phoneCodeHash?: string;
   error?: string;
+  _testCode?: string;
 }

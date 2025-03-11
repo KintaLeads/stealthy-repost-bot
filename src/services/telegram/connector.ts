@@ -2,12 +2,13 @@
 import { supabase } from '@/integrations/supabase/client';
 import { ApiAccount } from '@/types/channels';
 import { logInfo, logError, trackApiCall } from './debugger';
+import { ConnectionResult } from './types';
 
 /**
  * Handles the initial connection attempt to Telegram API
  * This determines if verification is needed
  */
-export const handleInitialConnection = async (account: ApiAccount) => {
+export const handleInitialConnection = async (account: ApiAccount): Promise<ConnectionResult> => {
   const context = 'TelegramConnector';
   logInfo(context, `Initializing connection for account: ${account.nickname}`);
   
@@ -45,7 +46,8 @@ export const handleInitialConnection = async (account: ApiAccount) => {
       codeNeeded: data.codeNeeded || false,
       phoneCodeHash: data.phoneCodeHash,
       success: data.success,
-      error: data.error
+      error: data.error,
+      _testCode: data._testCode // Include the test code if present
     };
   } catch (error) {
     logError(context, 'Exception during connection attempt:', error);
