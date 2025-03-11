@@ -29,7 +29,13 @@ const VerificationDialog: React.FC<VerificationDialogProps> = ({
       isOpen={showVerificationDialog}
       onClose={handleClose}
       account={tempConnectionState.account}
-      onVerified={onVerificationComplete}
+      connectionResult={tempConnectionState.connectionResult || {
+        codeNeeded: true,
+        phoneCodeHash: '',
+        success: true,
+        error: null
+      }}
+      onVerificationSuccess={onVerificationComplete}
     />
   );
 };

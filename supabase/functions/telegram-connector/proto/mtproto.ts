@@ -1,10 +1,8 @@
-
 /**
  * MTProto implementation for Telegram API
  * Using GramJS for Deno
  */
-import { MTProto as GramJSMTProto } from "https://esm.sh/telegram@2.19.10";
-import { StringSession } from "https://esm.sh/telegram/sessions@2.19.10";
+import { MTProto as GramJSMTProto, StringSession } from "https://esm.sh/telegram@2.19.10";
 
 interface MTProtoOptions {
   apiId: number;
