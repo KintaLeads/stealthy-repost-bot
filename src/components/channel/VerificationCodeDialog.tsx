@@ -8,6 +8,7 @@ import { verifyTelegramCode } from "@/services/telegram";
 import { toast } from "@/components/ui/use-toast";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, Info } from "lucide-react";
+import { handleInitialConnection } from "@/services/telegram/connector";
 
 interface VerificationCodeDialogProps {
   isOpen: boolean;
@@ -26,6 +27,8 @@ const VerificationCodeDialog: React.FC<VerificationCodeDialogProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [secondsRemaining, setSecondsRemaining] = useState(60);
+  const [isSendingCode, setIsSendingCode] = useState(false);
+  const [sendCodeAttempts, setSendCodeAttempts] = useState(0);
   
   // Auto-countdown timer for code expiration feedback
   useEffect(() => {
@@ -100,19 +103,46 @@ const VerificationCodeDialog: React.FC<VerificationCodeDialogProps> = ({
     }
   };
 
-  const handleResendCode = () => {
-    // Implement this if the edge function supports it
-    toast({
-      title: "Sending new code",
-      description: "A new verification code will be sent to your phone",
-    });
-    
-    // Reset the timer
-    setSecondsRemaining(60);
-    
-    // This would call the connector again to request a new code
-    // For now we'll just close and reopen the connection flow
-    onClose();
+  const handleResendCode = async () => {
+    try {
+      setIsSendingCode(true);
+      setSendCodeAttempts(prev => prev + 1);
+      setError(null);
+      
+      toast({
+        title: "Sending new code",
+        description: "Requesting a new verification code to be sent to your phone",
+      });
+      
+      // Request a new code by calling the initial connection again
+      const result = await handleInitialConnection(account);
+      
+      if (result.success && result.codeNeeded) {
+        toast({
+          title: "Code Sent",
+          description: "A new verification code has been sent to your Telegram app",
+        });
+        // Reset the timer
+        setSecondsRemaining(60);
+      } else {
+        setError("Failed to send a new code. Please try again later.");
+        toast({
+          title: "Failed to Send Code",
+          description: "Could not send a new verification code. Please try again later.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error resending code:", error);
+      setError(error instanceof Error ? error.message : "Failed to send a new code");
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to send a new code",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSendingCode(false);
+    }
   };
 
   return (
@@ -139,6 +169,15 @@ const VerificationCodeDialog: React.FC<VerificationCodeDialogProps> = ({
               </AlertDescription>
             </Alert>
             
+            {sendCodeAttempts > 0 && (
+              <Alert className="bg-yellow-50 text-yellow-800 border-yellow-200">
+                <Info className="h-4 w-4" />
+                <AlertDescription>
+                  Note: The code should appear as a notification in your Telegram app. It may also appear in your Telegram messages as a login code.
+                </AlertDescription>
+              </Alert>
+            )}
+            
             <Input
               id="code"
               placeholder="Verification code"
@@ -162,10 +201,10 @@ const VerificationCodeDialog: React.FC<VerificationCodeDialogProps> = ({
               type="button" 
               variant="outline"
               onClick={handleResendCode}
-              disabled={isSubmitting}
+              disabled={isSubmitting || isSendingCode}
               className="w-full sm:w-auto"
             >
-              Resend Code
+              {isSendingCode ? "Sending..." : "Resend Code"}
             </Button>
             
             <Button 
