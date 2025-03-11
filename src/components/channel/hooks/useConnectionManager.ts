@@ -119,10 +119,23 @@ export const useConnectionManager = (
     }
   };
 
+  // Add the handleVerificationSuccess function
+  const handleVerificationSuccess = () => {
+    handleVerificationComplete();
+  };
+
   return {
-    ...verificationState,
+    // Spread the verification state
+    verificationState,
+    // Spread the diagnostic state
     ...diagnosticState,
+    // Return other functions
     handleToggleConnection,
-    handleVerificationComplete
+    handleVerificationComplete,
+    handleVerificationSuccess,
+    // For backward compatibility, also return these properties directly
+    showVerificationDialog: verificationState.showVerificationDialog,
+    setShowVerificationDialog: verificationState.setShowVerificationDialog,
+    tempConnectionState: verificationState.tempConnectionState
   };
 };

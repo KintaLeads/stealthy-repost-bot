@@ -4,7 +4,7 @@ export interface ConnectionResult {
   phoneCodeHash?: string;
   success: boolean;
   error?: string | null;
-  _testCode?: string; // Add this property to fix the TypeScript error
+  _testCode?: string; // Property to handle test code in development
 }
 
 export interface TelegramSession {

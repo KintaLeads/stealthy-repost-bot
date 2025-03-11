@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { ApiAccount } from "@/types/channels";
 import { Message } from "@/types/dashboard";
@@ -20,15 +21,13 @@ export const ConnectionButton = ({
   onNewMessages,
 }: ConnectionButtonProps) => {
   const {
-    showVerificationDialog,
-    setShowVerificationDialog,
+    verificationState,
     showDiagnosticTool,
     connectionError,
     tempConnectionState,
     handleToggleConnection,
     handleVerificationComplete,
     runDiagnostics,
-    verificationState,
     handleVerificationSuccess
   } = useConnectionManager(
     selectedAccount,
