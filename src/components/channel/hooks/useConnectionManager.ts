@@ -48,8 +48,8 @@ export const useConnectionManager = (
         
         if (connectionResult.codeNeeded) {
           logInfo('ConnectionButton', "Verification code needed, showing dialog");
-          // Show verification dialog
-          verificationState.startVerification(selectedAccount);
+          // Show verification dialog with connection result
+          verificationState.startVerification(selectedAccount, connectionResult);
           
           // Add a toast notification for better visibility
           toast({

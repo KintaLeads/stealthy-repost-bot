@@ -6,3 +6,9 @@ export interface ConnectionResult {
   error?: string | null;
   _testCode?: string; // Add this property to fix the TypeScript error
 }
+
+export interface TelegramSession {
+  accountId: string;
+  sessionString: string;
+  createdAt: Date;
+}
