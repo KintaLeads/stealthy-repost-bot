@@ -1,11 +1,10 @@
 
 /**
  * MTProto implementation for Telegram API
- * Based on GramJS adapted for Deno
+ * Using GramJS for Deno
  */
-
-// Import required dependencies for Deno
-import { Crypto } from "https://deno.land/std@0.177.0/crypto/mod.ts";
+import { MTProto as GramJSMTProto } from "https://esm.sh/telegram@2.19.10";
+import { StringSession } from "https://esm.sh/telegram/sessions@2.19.10";
 
 interface MTProtoOptions {
   apiId: number;
@@ -20,12 +19,8 @@ export class MTProto {
   private apiHash: string;
   private session: string;
   private connected: boolean = false;
-  private connection: any = null; // WebSocket connection
-  private dcId: number = 2; // Default DC
-  private authKey: Uint8Array | null = null;
-  private serverSalt: Uint8Array | null = null;
-  private messageQueue: any[] = [];
-  private messageIdToPromise: Map<string, { resolve: Function, reject: Function }> = new Map();
+  private client: any = null;
+  private stringSession: any = null;
   private lastPhoneCodeHash: string | null = null;
   
   constructor(options: MTProtoOptions) {
@@ -33,30 +28,44 @@ export class MTProto {
     this.apiHash = options.apiHash;
     this.session = options.storageOptions.session || "";
     
-    // If session is provided, try to restore auth key and server salt
+    // Initialize string session if we have a session
     if (this.session) {
       try {
-        this.restoreSession(this.session);
+        this.stringSession = new StringSession(this.session);
+        console.log("Session restored successfully");
       } catch (err) {
         console.warn("Failed to restore session:", err);
         this.session = "";
+        this.stringSession = new StringSession("");
       }
+    } else {
+      this.stringSession = new StringSession("");
     }
+    
+    // Initialize the client
+    this.initClient();
   }
   
   /**
-   * Restore session from session string
+   * Initialize the Telegram client
    */
-  private restoreSession(sessionStr: string): void {
+  private initClient() {
     try {
-      const sessionData = JSON.parse(atob(sessionStr));
-      this.dcId = sessionData.dcId || 2;
-      this.authKey = sessionData.authKey ? new Uint8Array(Object.values(sessionData.authKey)) : null;
-      this.serverSalt = sessionData.serverSalt ? new Uint8Array(Object.values(sessionData.serverSalt)) : null;
-      this.lastPhoneCodeHash = sessionData.lastPhoneCodeHash || null;
+      console.log("Initializing Telegram client with apiId:", this.apiId);
+      
+      this.client = new GramJSMTProto({
+        apiId: this.apiId,
+        apiHash: this.apiHash,
+        session: this.stringSession,
+        connectionRetries: 3,
+        useWSS: true,
+        requestRetries: 3,
+      });
+      
+      console.log("Telegram client initialized successfully");
     } catch (error) {
-      console.error("Error restoring session:", error);
-      throw new Error("Invalid session format");
+      console.error("Error initializing Telegram client:", error);
+      throw error;
     }
   }
   
@@ -64,14 +73,17 @@ export class MTProto {
    * Export current session as a string
    */
   async exportSession(): Promise<string> {
-    const sessionData = {
-      dcId: this.dcId,
-      authKey: this.authKey ? Array.from(this.authKey) : null,
-      serverSalt: this.serverSalt ? Array.from(this.serverSalt) : null,
-      lastPhoneCodeHash: this.lastPhoneCodeHash
-    };
+    if (!this.client) {
+      throw new Error("Client not initialized");
+    }
     
-    return btoa(JSON.stringify(sessionData));
+    try {
+      const sessionString = this.client.session.save();
+      return sessionString;
+    } catch (error) {
+      console.error("Error exporting session:", error);
+      throw error;
+    }
   }
   
   /**
@@ -81,48 +93,20 @@ export class MTProto {
     if (this.connected) return;
     
     try {
-      console.log(`Connecting to DC${this.dcId}...`);
+      console.log("Connecting to Telegram servers...");
       
-      // Generate auth key if needed
-      if (!this.authKey) {
-        await this.createAuthKey();
+      if (!this.client) {
+        this.initClient();
       }
       
-      // Mark as connected
+      await this.client.connect();
       this.connected = true;
       
-      console.log("Connected to Telegram servers");
+      console.log("Connected to Telegram servers successfully");
     } catch (error) {
       console.error("Connection error:", error);
       this.connected = false;
       throw new Error(`Failed to connect to Telegram: ${error instanceof Error ? error.message : String(error)}`);
-    }
-  }
-  
-  /**
-   * Create authorization key through Diffie-Hellman key exchange
-   */
-  private async createAuthKey(): Promise<void> {
-    try {
-      console.log("Creating auth key...");
-      
-      // Simulating auth key creation (in real implementation, this would be the complete DH key exchange)
-      // 1. Send req_pq_multi
-      // 2. Receive and process server response
-      // 3. Generate a DH key
-      // 4. Complete key exchange
-      
-      // For now, we're generating a random key
-      this.authKey = new Uint8Array(256);
-      crypto.getRandomValues(this.authKey);
-      
-      this.serverSalt = new Uint8Array(8);
-      crypto.getRandomValues(this.serverSalt);
-      
-      console.log("Auth key created successfully");
-    } catch (error) {
-      console.error("Error creating auth key:", error);
-      throw new Error(`Failed to create auth key: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
   
@@ -137,22 +121,33 @@ export class MTProto {
     
     console.log(`Calling method: ${method} with params:`, JSON.stringify(params));
     
-    // Handle different method types
-    if (method === 'auth.checkPhone') {
-      return this.handleCheckPhone(params.phone || "");
-    } else if (method === 'auth.sendCode') {
-      return this.handleSendCode(params.phone || "");
-    } else if (method === 'auth.signIn') {
-      return this.handleSignIn(params.phone || "", params.phone_code_hash || "", params.phone_code || "");
-    } else if (method === 'users.getMe') {
-      return this.handleGetMe();
-    } else if (method === 'channels.getChannels') {
-      return this.handleGetChannels(params.id || []);
-    } else if (method === 'messages.getHistory') {
-      return this.handleGetHistory(params.peer || {}, params.limit || 10);
+    // Handle different methods
+    try {
+      switch (method) {
+        case 'auth.checkPhone':
+          return await this.handleCheckPhone(params.phone || "");
+        case 'auth.sendCode':
+          return await this.handleSendCode(params.phone || "");
+        case 'auth.signIn':
+          return await this.handleSignIn(params.phone || "", params.phone_code_hash || "", params.phone_code || "");
+        case 'users.getMe':
+          return await this.handleGetMe();
+        case 'channels.getChannels':
+          return await this.handleGetChannels(params.id || []);
+        case 'messages.getHistory':
+          return await this.handleGetHistory(params.peer || {}, params.limit || 10);
+        default:
+          throw new Error(`Method ${method} not implemented`);
+      }
+    } catch (error) {
+      console.error(`Error calling method ${method}:`, error);
+      return { 
+        error: { 
+          code: error instanceof Error && 'code' in error ? (error as any).code : 500,
+          message: error instanceof Error ? error.message : String(error)
+        }
+      };
     }
-    
-    throw new Error(`Method ${method} not implemented`);
   }
   
   /**
@@ -167,10 +162,19 @@ export class MTProto {
       return { error: { code: 400, message: "Invalid phone number format" } };
     }
     
-    // In a real implementation, we would make an API call to Telegram
-    // For our mock, we'll just return a success response
-    console.log(`Phone ${phone} is registered`);
-    return { phone_registered: true, can_receive_calls: true };
+    try {
+      // Make actual API call to Telegram using the GramJS client
+      const result = await this.client.invoke({
+        _: "auth.checkPhone",
+        phone_number: phone.replace('+', '')
+      });
+      
+      console.log("Phone check result:", result);
+      return result;
+    } catch (error) {
+      console.error("Error checking phone:", error);
+      throw error;
+    }
   }
   
   /**
@@ -186,42 +190,33 @@ export class MTProto {
     }
     
     try {
-      // In a real implementation, this would make an API call to Telegram
-      // For our mock, we'll generate a code and print it
+      // Make actual API call to Telegram using the GramJS client
+      const result = await this.client.invoke({
+        _: "auth.sendCode",
+        phone_number: phone.replace('+', ''),
+        api_id: this.apiId,
+        api_hash: this.apiHash,
+        settings: {
+          _: "codeSettings",
+          allow_flashcall: false,
+          current_number: true,
+          allow_app_hash: true,
+        }
+      });
       
-      // Generate a random 5-digit code
-      const randomCode = Math.floor(10000 + Math.random() * 90000).toString();
-      console.log(`MOCK TELEGRAM: Verification code for ${phone} is: ${randomCode}`);
-      
-      // Generate a random phone_code_hash
-      const phoneCodeHash = Array.from(crypto.getRandomValues(new Uint8Array(16)))
-        .map(b => b.toString(16).padStart(2, '0'))
-        .join('');
+      console.log("Send code result:", result);
       
       // Store the phone code hash for later verification
-      this.lastPhoneCodeHash = phoneCodeHash;
+      this.lastPhoneCodeHash = result.phone_code_hash;
       
-      console.log(`Generated phone_code_hash: ${phoneCodeHash} for ${phone}`);
-      
-      // Simulate sending the actual code to the phone via Telegram
-      // In a real implementation, Telegram would send a message to the user's device
-      console.log(`[TELEGRAM MESSAGE] Your login code: ${randomCode}`);
-      
-      // Return a successful response
       return {
-        type: { _: "auth.sentCode", type: "app" },
-        phone_code_hash: phoneCodeHash,
-        timeout: 120,
-        _testCode: randomCode // This is only for testing - real API wouldn't return the code
+        type: result.type,
+        phone_code_hash: result.phone_code_hash,
+        timeout: result.timeout || 120
       };
     } catch (error) {
       console.error("Error sending code:", error);
-      return { 
-        error: { 
-          code: 500, 
-          message: `Failed to send code: ${error instanceof Error ? error.message : String(error)}` 
-        } 
-      };
+      throw error;
     }
   }
   
@@ -237,33 +232,25 @@ export class MTProto {
       return { error: { code: 400, message: "Missing required parameters" } };
     }
     
-    // In a real implementation, we would validate the code against Telegram's API
-    // For our mock, we'll check if the hash matches what we stored
-    if (phoneCodeHash !== this.lastPhoneCodeHash) {
-      console.error("Invalid phone code hash");
-      return { error: { code: 400, message: "Invalid phone code hash" } };
+    try {
+      // Make actual API call to Telegram using the GramJS client
+      const result = await this.client.invoke({
+        _: "auth.signIn",
+        phone_number: phone.replace('+', ''),
+        phone_code_hash: phoneCodeHash,
+        phone_code: phoneCode
+      });
+      
+      console.log("Sign in result:", result);
+      
+      // Reset the phone code hash after a successful sign-in
+      this.lastPhoneCodeHash = null;
+      
+      return result;
+    } catch (error) {
+      console.error("Error signing in:", error);
+      throw error;
     }
-    
-    // For testing, any 5-digit code will work
-    if (!/^\d{5}$/.test(phoneCode)) {
-      console.error("Invalid code format");
-      return { error: { code: 400, message: "Invalid code format. Must be 5 digits." } };
-    }
-    
-    // Reset the phone code hash after a successful sign-in
-    this.lastPhoneCodeHash = null;
-    
-    // Return fake user data
-    console.log("Sign in successful");
-    return {
-      user: {
-        id: 123456789,
-        first_name: "Test",
-        last_name: "User",
-        username: "testuser",
-        phone: phone
-      }
-    };
   }
   
   /**
@@ -272,22 +259,21 @@ export class MTProto {
   private async handleGetMe(): Promise<any> {
     console.log("Getting user information...");
     
-    // Check if we have auth key
-    if (!this.authKey) {
-      console.error("Not authenticated");
-      return { error: { code: 401, message: "Not authenticated" } };
+    try {
+      // Make actual API call to Telegram using the GramJS client
+      const result = await this.client.invoke({
+        _: "users.getFullUser",
+        id: {
+          _: "inputUserSelf"
+        }
+      });
+      
+      console.log("Get me result:", result);
+      return result;
+    } catch (error) {
+      console.error("Error getting user info:", error);
+      throw error;
     }
-    
-    // Return fake user data
-    console.log("Returning user info");
-    return {
-      user: {
-        id: 123456789,
-        first_name: "Test",
-        last_name: "User",
-        username: "testuser"
-      }
-    };
   }
   
   /**
@@ -296,21 +282,26 @@ export class MTProto {
   private async handleGetChannels(ids: any[]): Promise<any> {
     console.log(`Getting channels for IDs: ${JSON.stringify(ids)}...`);
     
-    // Check if we have auth key
-    if (!this.authKey) {
-      console.error("Not authenticated");
-      return { error: { code: 401, message: "Not authenticated" } };
+    try {
+      // Convert ids to InputChannel format
+      const inputChannels = ids.map(id => ({
+        _: "inputChannel",
+        channel_id: typeof id === 'string' ? parseInt(id, 10) : id,
+        access_hash: 0  // We would need to store this from when the channel was retrieved
+      }));
+      
+      // Make actual API call to Telegram using the GramJS client
+      const result = await this.client.invoke({
+        _: "channels.getChannels",
+        id: inputChannels
+      });
+      
+      console.log("Get channels result:", result);
+      return result;
+    } catch (error) {
+      console.error("Error getting channels:", error);
+      throw error;
     }
-    
-    // Return fake channels data
-    console.log("Returning channels data");
-    return {
-      chats: ids.map((id, index) => ({
-        id: typeof id === 'string' ? id : 1000 + index,
-        title: `Channel ${index + 1}`,
-        participants_count: 100 + index * 10
-      }))
-    };
   }
   
   /**
@@ -319,28 +310,33 @@ export class MTProto {
   private async handleGetHistory(peer: any, limit: number): Promise<any> {
     console.log(`Getting message history for peer: ${JSON.stringify(peer)}, limit: ${limit}...`);
     
-    // Check if we have auth key
-    if (!this.authKey) {
-      console.error("Not authenticated");
-      return { error: { code: 401, message: "Not authenticated" } };
-    }
-    
-    // Generate fake messages
-    const messages = [];
-    for (let i = 0; i < limit; i++) {
-      messages.push({
-        id: i + 1,
-        from_id: 123456789,
-        date: Math.floor(Date.now() / 1000) - i * 3600,
-        message: `Test message ${i + 1}`
+    try {
+      // Convert peer to InputPeer format
+      const inputPeer = {
+        _: "inputPeerChannel",
+        channel_id: peer.channelId,
+        access_hash: peer.accessHash || 0
+      };
+      
+      // Make actual API call to Telegram using the GramJS client
+      const result = await this.client.invoke({
+        _: "messages.getHistory",
+        peer: inputPeer,
+        offset_id: 0,
+        offset_date: 0,
+        add_offset: 0,
+        limit: limit,
+        max_id: 0,
+        min_id: 0,
+        hash: 0
       });
+      
+      console.log(`Returning ${result.messages.length} messages`);
+      return result;
+    } catch (error) {
+      console.error("Error getting message history:", error);
+      throw error;
     }
-    
-    console.log(`Returning ${messages.length} messages`);
-    return {
-      messages: messages,
-      count: limit
-    };
   }
   
   /**
@@ -350,11 +346,8 @@ export class MTProto {
     if (!this.connected) return;
     
     try {
-      // Close WebSocket connection if any
-      if (this.connection) {
-        // Close connection
-      }
-      
+      // Disconnect the client
+      await this.client.disconnect();
       this.connected = false;
       console.log("Disconnected from Telegram servers");
     } catch (error) {

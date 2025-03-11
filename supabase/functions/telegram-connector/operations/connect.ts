@@ -71,9 +71,9 @@ export async function handleConnect(
         if (connectResult.codeNeeded) {
           console.log("Phone verification code needed");
           
-          // Important: Log this for debugging - in a real implementation, this would go to Telegram
-          if (connectResult._testCode) {
-            console.log(`⚠️ IMPORTANT - TEST MODE: Verification code is ${connectResult._testCode}`);
+          // In development mode, we might have a test code
+          if (connectResult._testCode && debug) {
+            console.log(`⚠️ DEVELOPMENT MODE: Verification code is ${connectResult._testCode}`);
           }
           
           console.log("Code sent successfully via MTProto, awaiting verification");

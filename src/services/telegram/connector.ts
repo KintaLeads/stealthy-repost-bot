@@ -18,7 +18,8 @@ export const handleInitialConnection = async (account: ApiAccount): Promise<Conn
       apiId: account.apiKey,
       apiHash: account.apiHash,
       phoneNumber: account.phoneNumber,
-      accountId: account.id || 'unknown'
+      accountId: account.id || 'unknown',
+      debug: process.env.NODE_ENV === 'development' // Send debug flag for development
     };
     
     logInfo(context, 'Calling Supabase function \'telegram-connector\' for connection...');

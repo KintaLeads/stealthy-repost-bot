@@ -14,7 +14,7 @@ export class AuthClient extends BaseTelegramClient {
   /**
    * Start the authentication process using MTProto
    */
-  async startAuthentication(options: Record<string, any> = {}): Promise<{ success: boolean; codeNeeded?: boolean; phoneCodeHash?: string; error?: string; session?: string }> {
+  async startAuthentication(options: Record<string, any> = {}): Promise<{ success: boolean; codeNeeded?: boolean; phoneCodeHash?: string; error?: string; session?: string; _testCode?: string }> {
     try {
       console.log("Starting MTProto authentication process");
       
@@ -49,6 +49,14 @@ export class AuthClient extends BaseTelegramClient {
       const checkPhoneResult = await this.callMTProto('auth.checkPhone', {
         phone: this.phoneNumber
       });
+      
+      if (checkPhoneResult.error) {
+        console.error("Error checking phone:", checkPhoneResult.error);
+        return {
+          success: false,
+          error: checkPhoneResult.error.message || "Error checking phone"
+        };
+      }
       
       if (!checkPhoneResult.phone_registered) {
         return {
