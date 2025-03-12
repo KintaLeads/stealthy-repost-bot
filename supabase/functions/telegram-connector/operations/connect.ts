@@ -51,7 +51,11 @@ export async function handleConnect(
         return new Response(
           JSON.stringify({
             success: false,
-            error: verificationResult.error || "Failed to verify code"
+            error: verificationResult.error || "Failed to verify code",
+            details: {
+              verificationAttempted: true,
+              verificationResult
+            }
           }),
           { 
             status: 400,
@@ -151,7 +155,12 @@ export async function handleConnect(
             JSON.stringify({
               success: false,
               error: connectResult.error || "Failed to connect to Telegram",
-              details: connectResult.details || null
+              details: connectResult.details || {
+                errorSource: "client.connect",
+                apiIdProvided: !!client.getApiId(),
+                apiHashProvided: !!client.getApiHash(),
+                phoneProvided: !!client.getPhoneNumber()
+              }
             }),
             { 
               status: 400,
@@ -165,7 +174,11 @@ export async function handleConnect(
           JSON.stringify({
             success: false,
             error: connectError instanceof Error ? connectError.message : String(connectError),
-            stack: connectError instanceof Error ? connectError.stack : null
+            details: {
+              errorSource: "clientConnectException",
+              name: connectError instanceof Error ? connectError.name : "Unknown",
+              stack: connectError instanceof Error ? connectError.stack : null
+            }
           }),
           { 
             status: 500,
@@ -183,8 +196,12 @@ export async function handleConnect(
       JSON.stringify({
         success: false,
         error: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : null,
-        context: "telegram-connector/operations/connect.ts"
+        details: {
+          errorSource: "connectOperationException",
+          name: error instanceof Error ? error.name : "Unknown",
+          stack: error instanceof Error ? error.stack : null,
+          context: "telegram-connector/operations/connect.ts"
+        }
       }),
       { 
         status: 500,

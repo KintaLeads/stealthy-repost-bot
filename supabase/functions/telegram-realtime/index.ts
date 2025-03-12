@@ -28,7 +28,11 @@ Deno.serve(async (req) => {
     // Only allow POST requests
     if (method !== 'POST') {
       return new Response(
-        JSON.stringify({ error: `Method ${method} not allowed` }),
+        JSON.stringify({ 
+          success: false,
+          error: `Method ${method} not allowed`,
+          details: { allowedMethod: 'POST' }
+        }),
         {
           status: 405,
           headers: updatedCorsHeaders
@@ -40,13 +44,36 @@ Deno.serve(async (req) => {
     const sessionString = req.headers.get('X-Telegram-Session') || '';
     
     // Get the request data
-    const { operation, apiId, apiHash, phoneNumber, channelNames, sessionString: bodySessionString } = await req.json()
+    const requestData = await req.json().catch(error => {
+      console.error('Error parsing JSON request:', error);
+      return null;
+    });
+    
+    if (!requestData) {
+      return new Response(
+        JSON.stringify({ 
+          success: false,
+          error: 'Invalid JSON in request body',
+          details: { tip: 'Ensure the request body is valid JSON' }
+        }),
+        {
+          status: 400,
+          headers: updatedCorsHeaders
+        }
+      );
+    }
+    
+    const { operation, apiId, apiHash, phoneNumber, channelNames, sessionString: bodySessionString } = requestData;
     const effectiveSessionString = sessionString || bodySessionString || '';
 
     // Basic validation
-    if (!operation || !apiId || !apiHash || !phoneNumber) {
+    if (!operation) {
       return new Response(
-        JSON.stringify({ error: 'Missing required parameters' }),
+        JSON.stringify({ 
+          success: false,
+          error: 'Missing required parameter: operation',
+          details: { requiredParameters: ['operation'] }
+        }),
         {
           status: 400,
           headers: updatedCorsHeaders
@@ -64,7 +91,8 @@ Deno.serve(async (req) => {
           JSON.stringify({ 
             success: false, 
             error: 'Not authenticated. Please authenticate first.',
-            needsAuthentication: true
+            needsAuthentication: true,
+            details: { tip: 'Connect to Telegram first to get an authentication session' }
           }),
           {
             status: 401,
@@ -78,6 +106,26 @@ Deno.serve(async (req) => {
     if (operation === 'connect') {
       // Log the connection attempt for debugging
       console.log(`Realtime connection attempt for phone: ${phoneNumber.substring(0, 4)}****`);
+      
+      // Validate required params for connection
+      if (!apiId || !apiHash || !phoneNumber) {
+        const missingParams = [];
+        if (!apiId) missingParams.push('apiId');
+        if (!apiHash) missingParams.push('apiHash');
+        if (!phoneNumber) missingParams.push('phoneNumber');
+        
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: 'Missing required parameters for connection',
+            details: { missingParameters: missingParams }
+          }),
+          {
+            status: 400,
+            headers: updatedCorsHeaders
+          }
+        );
+      }
       
       // Simulate successful authentication and return a session
       const mockSession = `session_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
@@ -101,7 +149,11 @@ Deno.serve(async (req) => {
     else if (operation === 'subscribe') {
       if (!Array.isArray(channelNames) || channelNames.length === 0) {
         return new Response(
-          JSON.stringify({ error: 'No channels provided for subscription' }),
+          JSON.stringify({ 
+            success: false,
+            error: 'No channels provided for subscription',
+            details: { tip: 'Provide an array of channel names to subscribe to' }
+          }),
           {
             status: 400,
             headers: updatedCorsHeaders
@@ -154,7 +206,11 @@ Deno.serve(async (req) => {
     }
     else {
       return new Response(
-        JSON.stringify({ error: `Unknown operation: ${operation}` }),
+        JSON.stringify({ 
+          success: false,
+          error: `Unknown operation: ${operation}`,
+          details: { supportedOperations: ['connect', 'subscribe', 'disconnect'] }
+        }),
         {
           status: 400,
           headers: updatedCorsHeaders
@@ -164,10 +220,16 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error('Error in telegram-realtime function:', error)
     
+    // Enhanced error response with detailed information
     return new Response(
       JSON.stringify({ 
+        success: false,
         error: error instanceof Error ? error.message : 'Unknown error occurred',
-        success: false
+        details: error instanceof Error ? {
+          name: error.name,
+          message: error.message,
+          stack: error.stack
+        } : { raw: String(error) }
       }),
       {
         status: 500,
