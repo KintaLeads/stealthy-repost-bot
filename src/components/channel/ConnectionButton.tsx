@@ -1,12 +1,10 @@
-
-import React, { useState } from 'react';
+import React from 'react';
 import { Button } from "@/components/ui/button";
 import { RefreshCw, Activity, Link2Off } from "lucide-react";
-import { setupRealtimeListener, checkRealtimeStatus } from "@/services/telegram/realtimeService";
-import { ApiAccount } from "@/types/channels";
-import { ChannelPair } from "@/types/channels";
+import { setupRealtimeListener } from "@/services/telegram/realtimeService";
+import { ApiAccount, ChannelPair } from "@/types/channels";
 import { Message } from "@/types/dashboard";
-import { toast } from "@/components/ui/use-toast";
+import { toast } from "sonner";
 
 interface ConnectionButtonProps {
   selectedAccount: ApiAccount;

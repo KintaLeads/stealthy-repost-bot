@@ -1,113 +1,101 @@
-import { supabase } from '@/integrations/supabase/client';
-import { ApiAccount } from '@/types/channels';
-import { ChannelPair } from '@/types/channels';
-import { checkRealtimeStatus, disconnectRealtime, setupRealtimeListener } from '@/services/telegram/realtimeService';
-import { logInfo, logError } from '@/services/telegram';
-import { Message } from "@/types/dashboard";
-import { runConnectivityChecks, testCorsConfiguration } from "@/services/telegram/networkCheck";
+
+import { ApiAccount, ChannelPair } from '@/types/channels';
 import { handleInitialConnection } from '@/services/telegram/connector';
-import { ConnectionResult } from "@/services/telegram/types";
+import { setupRealtimeListener, checkRealtimeStatus, disconnectRealtime } from '@/services/telegram/realtimeService';
+import { toast } from 'sonner';
 
-// The project ID is hardcoded for now
-const PROJECT_ID = "eswfrzdqxsaizkdswxfn";
-
-export const setupListener = async (
-  account: ApiAccount,
-  channelPairs: ChannelPair[],
-  onNewMessages: (messages: Message[]) => void,
-  onConnected: (listener: any) => void
-) => {
+export const checkConnectionStatus = async (selectedAccount: ApiAccount): Promise<boolean> => {
+  if (!selectedAccount?.id) {
+    console.log('No account selected for status check');
+    return false;
+  }
+  
   try {
-    logInfo('ConnectionOperations', "Setting up realtime listener for account:", account.nickname);
-    
-    // First check if we need to authenticate - THIS WILL CALL THE CONNECTOR
-    logInfo('ConnectionOperations', "Calling connector to verify authentication");
-    const connectResult = await handleInitialConnection(account, {
-      debug: true,
-      logLevel: 'verbose'
-    }) as ConnectionResult;
-    
-    if (!connectResult.success) {
-      logError('ConnectionOperations', 'Connection failed:', connectResult.error);
-      throw new Error(connectResult.error || 'Failed to connect to Telegram');
-    }
-    
-    if (connectResult.codeNeeded) {
-      logInfo('ConnectionOperations', "Verification code needed");
-      throw new Error('Verification code needed. Please verify your account first.');
-    }
-    
-    // Check if we're already connected using the status endpoint
-    const isAlreadyConnected = await checkRealtimeStatus(account);
-    if (isAlreadyConnected) {
-      logInfo('ConnectionOperations', "Already connected, disconnecting first");
-      await disconnectRealtime(account);
-    }
-    
-    // Setup the realtime listener - this will make actual API calls
-    logInfo('ConnectionOperations', "Setting up realtime listener with channel pairs:", channelPairs.length);
-    const listener = await setupRealtimeListener(
-      account,
-      channelPairs,
-      onNewMessages
-    );
-    
-    onConnected(listener);
-    
-    toast({
-      title: "Connected",
-      description: "Now listening to Telegram channels",
-    });
-    
-    return listener;
+    const isConnected = await checkRealtimeStatus(selectedAccount.id);
+    console.log('Connection status check result:', isConnected);
+    return isConnected;
   } catch (error) {
-    logError('ConnectionOperations', 'Error setting up realtime listener:', error);
-    
-    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
-    
-    // Check if we need authentication
-    if (errorMessage.includes('Not authenticated') || 
-        errorMessage.includes('Authentication required') ||
-        errorMessage.includes('Verification code needed')) {
-      throw new Error('Verification code needed. Please verify your account first.');
-    } else {
-      toast({
-        title: "Listener Setup Failed",
-        description: errorMessage,
-        variant: "destructive",
-      });
-    }
-
-    throw error; // Re-throw to be handled by the calling function
+    console.error('Error checking connection status:', error);
+    return false;
   }
 };
 
-export const runConnectionDiagnostics = async () => {
+export const initiateConnection = async (
+  selectedAccount: ApiAccount,
+  channelPairs: ChannelPair[],
+  onNewMessages?: (messages: any[]) => void
+) => {
+  console.log('Initiating connection for account:', selectedAccount?.nickname);
+  
+  if (!selectedAccount) {
+    toast('Please select an account first');
+    return false;
+  }
+
   try {
-    // Run both connectivity and CORS checks
-    const connectivityResults = await runConnectivityChecks(PROJECT_ID);
-    const corsResults = await testCorsConfiguration(PROJECT_ID);
-    
-    logInfo('ConnectionOperations', "Diagnostics completed", {
-      connectivity: connectivityResults,
-      cors: corsResults
-    });
-    
-    toast({
-      title: "Diagnostics Completed",
-      description: "Check the diagnostic tool for results",
-    });
+    // First establish initial connection
+    const initialConnection = await handleInitialConnection(selectedAccount);
+    console.log('Initial connection result:', initialConnection);
 
-    return { connectivityResults, corsResults };
+    if (!initialConnection.success) {
+      toast({
+        title: "Connection Failed",
+        description: initialConnection.error || 'Failed to establish initial connection'
+      });
+      return false;
+    }
+
+    // Then setup realtime listener
+    const realtimeResult = await setupRealtimeListener(
+      selectedAccount,
+      channelPairs,
+      onNewMessages
+    );
+
+    console.log('Realtime setup result:', realtimeResult);
+
+    if (!realtimeResult) {
+      toast({
+        title: "Setup Failed",
+        description: "Failed to setup realtime connection"
+      });
+      return false;
+    }
+
+    toast({
+      title: "Connected Successfully",
+      description: `Connected to ${channelPairs.length} channel pairs`
+    });
+    
+    return true;
   } catch (error) {
-    logError('ConnectionOperations', "Error running diagnostics", error);
-    
+    console.error('Error in initiateConnection:', error);
     toast({
-      title: "Diagnostics Failed",
-      description: error instanceof Error ? error.message : "An unknown error occurred",
-      variant: "destructive",
+      title: "Connection Error",
+      description: error instanceof Error ? error.message : 'Unknown error occurred'
     });
+    return false;
+  }
+};
 
-    throw error;
+export const disconnectConnection = async (selectedAccount: ApiAccount) => {
+  if (!selectedAccount?.id) {
+    return false;
+  }
+
+  try {
+    const result = await disconnectRealtime(selectedAccount.id);
+    
+    if (result) {
+      toast({
+        title: "Disconnected",
+        description: "Successfully disconnected from Telegram"
+      });
+    }
+    
+    return result;
+  } catch (error) {
+    console.error('Error disconnecting:', error);
+    return false;
   }
 };
