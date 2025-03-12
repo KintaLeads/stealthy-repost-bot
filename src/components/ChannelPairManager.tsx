@@ -84,6 +84,12 @@ const ChannelPairManager: React.FC<ChannelPairManagerProps> = ({
         );
         
         setListenerState(listener);
+        
+        // Show success message explaining that the connection was updated
+        toast({
+          title: "Configuration Updated",
+          description: "Channel configuration saved and connection updated automatically.",
+        });
       }
     } catch (error) {
       console.error('Error saving channel pairs:', error);
