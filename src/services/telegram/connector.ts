@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { logInfo, logError, trackApiCall } from './debugger';
 import { getStoredSession } from './session/sessionManager';
 import { ConnectionResult } from './types';
+import { toast } from '@/components/ui/use-toast';
 
 /**
  * Handles the initial connection to Telegram
@@ -41,10 +42,26 @@ export const handleInitialConnection = async (
     
     // Call the edge function
     logInfo(context, '⚡ Calling telegram-connector edge function');
+    console.log('Making direct call to telegram-connector edge function');
     
     // Make sure we're using the project ID from the config
     const projectId = 'eswfrzdqxsaizkdswxfn';
     logInfo(context, `Using Supabase project ID: ${projectId}`);
+    
+    console.log('Request data:', {
+      operation: 'connect',
+      apiId: account.apiKey,
+      phoneNumber: account.phoneNumber,
+      accountId: account.id,
+      sessionPresent: !!sessionString,
+      debug: true
+    });
+    
+    // Add a toast to show we're connecting
+    toast({
+      title: "Connecting to Telegram",
+      description: "Please wait while we establish a connection...",
+    });
     
     const { data, error } = await supabase.functions.invoke('telegram-connector', {
       body: connectionData,
@@ -62,11 +79,28 @@ export const handleInitialConnection = async (
     
     if (error) {
       logError(context, '❌ Edge function error:', error);
+      console.error('Full error object:', error);
+      
+      // Show toast with error
+      toast({
+        title: "Connection Failed",
+        description: error.message || 'Edge Function error',
+        variant: "destructive",
+      });
+      
       throw new Error(error.message || 'Edge Function error: ' + error.name);
     }
     
     if (!data) {
       logError(context, '❌ No data returned from Edge Function');
+      
+      // Show toast with error
+      toast({
+        title: "Connection Failed",
+        description: "No response from Edge Function",
+        variant: "destructive",
+      });
+      
       throw new Error('No response from Edge Function');
     }
     
@@ -79,6 +113,14 @@ export const handleInitialConnection = async (
     
     if (!data.success) {
       logError(context, '❌ Connection failed:', data.error);
+      
+      // Show toast with error
+      toast({
+        title: "Connection Failed",
+        description: data.error || 'Failed to connect to Telegram',
+        variant: "destructive",
+      });
+      
       return {
         success: false,
         error: data.error || 'Failed to connect to Telegram',
@@ -89,6 +131,13 @@ export const handleInitialConnection = async (
     // Check if verification is needed
     if (data.codeNeeded) {
       logInfo(context, '📱 Verification code needed');
+      
+      // Show toast indicating verification needed
+      toast({
+        title: "Verification Required",
+        description: "Please enter the verification code sent to your Telegram app",
+      });
+      
       return {
         success: true,
         codeNeeded: true,
@@ -99,6 +148,13 @@ export const handleInitialConnection = async (
     
     // Connection successful
     logInfo(context, '✅ Connection successful, session received');
+    
+    // Show success toast
+    toast({
+      title: "Connected Successfully",
+      description: "Your Telegram account is now connected",
+    });
+    
     return {
       success: true,
       codeNeeded: false,
@@ -108,6 +164,15 @@ export const handleInitialConnection = async (
     
   } catch (error) {
     logError(context, '💥 Connection error:', error);
+    console.error('Full error details:', error);
+    
+    // Show toast with error
+    toast({
+      title: "Connection Error",
+      description: error instanceof Error ? error.message : 'An unknown error occurred',
+      variant: "destructive",
+    });
+    
     return {
       success: false,
       error: error instanceof Error ? error.message : 'An unknown error occurred',

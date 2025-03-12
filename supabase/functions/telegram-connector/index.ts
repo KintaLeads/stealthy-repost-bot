@@ -23,6 +23,11 @@ const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
 const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY') || '';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+// Log startup information
+console.log("🚀 Telegram connector function starting");
+console.log("Supabase URL length:", supabaseUrl?.length || 0);
+console.log("Supabase Key length:", supabaseKey?.length || 0);
+
 Deno.serve(async (req) => {
   // Measure function execution time
   const startTime = Date.now();
@@ -30,8 +35,10 @@ Deno.serve(async (req) => {
   // Log that the function was called with detailed info
   logRequestInfo(req);
   
-  // Handle CORS preflight requests
+  // Enhanced CORS handling with better debug information
   if (req.method === 'OPTIONS') {
+    console.log("📡 Handling CORS OPTIONS request");
+    console.log("CORS Headers being returned:", updatedCorsHeaders);
     return handleCorsRequest();
   }
 
@@ -45,6 +52,7 @@ Deno.serve(async (req) => {
     // Parse the request body
     const { success: parseSuccess, body: requestBody, response: parseErrorResponse } = await parseRequestBody(req);
     if (!parseSuccess) {
+      console.error("❌ Failed to parse request body");
       return parseErrorResponse!;
     }
     
@@ -66,6 +74,7 @@ Deno.serve(async (req) => {
     // Detailed logging to track what we're working with
     console.log("📦 REQUEST EXTRACTION DEBUG 📦");
     console.log(`Operation: "${operation || 'not provided'}"`);
+    console.log(`Request URL: ${req.url}`);
     
     // Debug check for all critical parameters
     debugCheckValue("apiId", apiId);
@@ -76,6 +85,7 @@ Deno.serve(async (req) => {
     
     // Handle healthcheck operation directly
     if (operation === 'healthcheck') {
+      console.log("🏥 Handling healthcheck request");
       return handleHealthcheck(updatedCorsHeaders);
     }
     
@@ -84,6 +94,7 @@ Deno.serve(async (req) => {
       // Validate the API parameters
       const { isValid, response: validationErrorResponse } = validateApiParameters(apiId, apiHash, phoneNumber);
       if (!isValid) {
+        console.error("❌ API parameter validation failed");
         return validationErrorResponse!;
       }
       
@@ -130,30 +141,40 @@ Deno.serve(async (req) => {
     console.log(`- API Hash: "${trimmedApiHash.substring(0, 3)}..." (length: ${trimmedApiHash.length})`);
     console.log(`- Phone: "${trimmedPhoneNumber}" (length: ${trimmedPhoneNumber.length})`);
     
-    // Route the request to the appropriate handler
-    const response = await routeOperation(
-      operation,
-      {
-        apiId: trimmedApiId,
-        apiHash: trimmedApiHash,
-        phoneNumber: trimmedPhoneNumber,
-        accountId: accountId || 'temp',
-        sessionString: effectiveSessionString
-      },
-      {
-        verificationCode,
-        messageId,
-        sourceChannel,
-        targetChannel,
-        sourceChannels,
-        debug
-      }
-    );
-    
-    // Log execution time and return response
-    logExecutionComplete(startTime);
-    return response;
+    // Route the request to the appropriate handler with more robust logging
+    console.log(`🔄 Routing to operation handler: ${operation}`);
+    try {
+      const response = await routeOperation(
+        operation,
+        {
+          apiId: trimmedApiId,
+          apiHash: trimmedApiHash,
+          phoneNumber: trimmedPhoneNumber,
+          accountId: accountId || 'temp',
+          sessionString: effectiveSessionString
+        },
+        {
+          verificationCode,
+          messageId,
+          sourceChannel,
+          targetChannel,
+          sourceChannels,
+          debug
+        }
+      );
+      
+      // Log success and execution time
+      console.log(`✅ Operation '${operation}' completed successfully`);
+      logExecutionComplete(startTime);
+      return response;
+    } catch (routeError) {
+      console.error(`❌ Error in operation '${operation}':`, routeError);
+      console.error("Stack trace:", routeError instanceof Error ? routeError.stack : "No stack available");
+      return createErrorResponse(routeError, 500, updatedCorsHeaders);
+    }
   } catch (error) {
+    console.error("💥 Unhandled error in telegram-connector:", error);
+    console.error("Stack trace:", error instanceof Error ? error.stack : "No stack available");
     return createErrorResponse(error, 500, updatedCorsHeaders);
   }
 });

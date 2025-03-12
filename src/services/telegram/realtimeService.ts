@@ -5,6 +5,7 @@ import { Message } from '@/types/dashboard';
 import { supabase } from '@/integrations/supabase/client';
 import { getStoredSession } from './session/sessionManager';
 import { logInfo, logError, logWarning, trackApiCall } from './debugger';
+import { toast } from '@/components/ui/use-toast';
 
 // Store active listeners
 const activeListeners = new Map();
@@ -58,6 +59,7 @@ export const checkRealtimeStatus = async (
     return data?.connected === true;
   } catch (error) {
     logError(context, 'Exception checking realtime status:', error);
+    console.error('Full error details:', error);
     return false;
   }
 };
@@ -84,6 +86,7 @@ export const disconnectRealtime = async (
     
     // Call edge function to disconnect
     logInfo(context, 'Calling edge function to disconnect');
+    console.log('Calling telegram-realtime with disconnect operation');
     
     const { data, error } = await supabase.functions.invoke('telegram-realtime', {
       body: {
@@ -100,6 +103,7 @@ export const disconnectRealtime = async (
     
     if (error) {
       logError(context, 'Error disconnecting realtime:', error);
+      console.error('Full error object:', error);
       return false;
     }
     
@@ -108,6 +112,7 @@ export const disconnectRealtime = async (
     return data?.success === true;
   } catch (error) {
     logError(context, 'Exception disconnecting realtime:', error);
+    console.error('Full error stack:', error instanceof Error ? error.stack : error);
     return false;
   }
 };
@@ -146,6 +151,16 @@ export const setupRealtimeListener = async (
     
     // Call the edge function
     logInfo(context, 'Calling telegram-realtime edge function');
+    console.log('Invoking telegram-realtime with operation: listen');
+    console.log('Request data:', {
+      operation: 'listen',
+      apiId: account.apiKey,
+      apiHash: '[REDACTED]',
+      phoneNumber: account.phoneNumber,
+      accountId: account.id,
+      channelNames: sourceChannels,
+      sessionPresent: !!sessionString
+    });
     
     const { data, error } = await supabase.functions.invoke('telegram-realtime', {
       body: {
@@ -158,7 +173,8 @@ export const setupRealtimeListener = async (
         sessionString: sessionString
       },
       headers: {
-        'X-Telegram-Session': sessionString
+        'X-Telegram-Session': sessionString,
+        'Content-Type': 'application/json'
       }
     });
     
@@ -170,14 +186,31 @@ export const setupRealtimeListener = async (
     
     if (error) {
       logError(context, 'Edge function error:', error);
+      console.error('Complete error details:', error);
+      toast({
+        title: "Connection Error",
+        description: error.message || "Failed to connect to Telegram",
+        variant: "destructive",
+      });
       throw new Error(error.message || 'Failed to set up realtime listener');
     }
     
     if (!data || !data.success) {
       const errorMessage = data?.error || 'Unknown error setting up listener';
       logError(context, 'Setup failed:', errorMessage);
+      toast({
+        title: "Setup Failed",
+        description: errorMessage,
+        variant: "destructive",
+      });
       throw new Error(errorMessage);
     }
+    
+    // Success toast
+    toast({
+      title: "Connection Successful",
+      description: `Listening to ${sourceChannels.length} channels`,
+    });
     
     // Store in our active listeners map
     const listenerId = data.listenerId || `listener_${account.id}_${Date.now()}`;
@@ -191,10 +224,6 @@ export const setupRealtimeListener = async (
     
     logInfo(context, `Listener ${listenerId} created successfully`);
     
-    // TODO: Set up a subscription for messages
-    // This would be implemented with Supabase realtime subscriptions
-    // when backend support is available
-    
     // Return the listener object
     return {
       id: listenerId,
@@ -202,6 +231,7 @@ export const setupRealtimeListener = async (
     };
   } catch (error) {
     logError(context, 'Exception setting up realtime listener:', error);
+    console.error('Full error object:', error);
     throw error;
   }
 };

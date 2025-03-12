@@ -71,4 +71,3 @@ export function logConnectionStatus(success: boolean, details: Record<string, an
     console.log("🔴 Connection failed:", details);
   }
 }
-

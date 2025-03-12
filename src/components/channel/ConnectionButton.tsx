@@ -52,7 +52,6 @@ const ConnectionButton: React.FC<ConnectionButtonProps> = ({
       
       console.log(`Connecting to ${validSourceChannels.length} source channels:`, validSourceChannels);
       
-      // Save channel pairs before connecting (to ensure they're in the database)
       try {
         // Set up the realtime listener
         const listener = await setupRealtimeListener(
@@ -63,12 +62,20 @@ const ConnectionButton: React.FC<ConnectionButtonProps> = ({
         
         // Update connection state
         setIsLoading(false);
-        onConnected(listener);
         
-        toast({
-          title: "Connected",
-          description: `Connected to ${validSourceChannels.length} source channel${validSourceChannels.length !== 1 ? 's' : ''}`,
-        });
+        // Only call onConnected if we got a valid listener back
+        if (listener && (listener.id || listener.stop)) {
+          console.log("Got valid listener, calling onConnected:", listener);
+          onConnected(listener);
+          
+          toast({
+            title: "Connected",
+            description: `Connected to ${validSourceChannels.length} source channel${validSourceChannels.length !== 1 ? 's' : ''}`,
+          });
+        } else {
+          console.error("Invalid listener returned:", listener);
+          throw new Error("Failed to get a valid listener from setupRealtimeListener");
+        }
       } catch (error) {
         console.error('Error setting up realtime listener:', error);
         throw error;

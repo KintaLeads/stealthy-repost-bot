@@ -5,7 +5,7 @@ import { TelegramClientInterface } from "../client/types.ts";
 import { createOperationErrorResponse, validateClientSetup } from "./auth/errorHandler.ts";
 import { handleInitialConnection } from "./auth/initialConnection.ts";
 import { handleCodeVerification } from "./auth/codeVerification.ts";
-import { logOperationStart, logConnectionStatus } from "../utils/logger.ts";
+import { logOperationStart } from "../utils/logger.ts";
 
 export async function handleConnect(
   client: TelegramClientInterface,
@@ -46,7 +46,8 @@ export async function handleConnect(
       // Log connection status based on response data
       try {
         const responseData = await response.clone().json();
-        logConnectionStatus(responseData.success, {
+        console.log("📡 Code verification connection status:", { 
+          success: responseData.success,
           codeVerification: true,
           ...responseData
         });
@@ -63,7 +64,8 @@ export async function handleConnect(
       // Log connection status based on response data
       try {
         const responseData = await response.clone().json();
-        logConnectionStatus(responseData.success, {
+        console.log("📡 Initial connection status:", { 
+          success: responseData.success,
           initialConnection: true,
           codeNeeded: responseData.codeNeeded,
           ...responseData
