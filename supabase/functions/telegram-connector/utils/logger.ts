@@ -52,3 +52,29 @@ export function logExecutionComplete(startTime: number): void {
   const executionTime = Date.now() - startTime;
   console.log(`✅ Function execution completed in ${executionTime}ms`);
 }
+
+/**
+ * Enhanced connection status logging
+ */
+export function logConnectionStatus(success: boolean, details: any): void {
+  if (success) {
+    console.log("🟢 TELEGRAM API CONNECTION SUCCESSFUL 🟢", {
+      timestamp: new Date().toISOString(),
+      details
+    });
+  } else {
+    console.log("🔴 TELEGRAM API CONNECTION FAILED 🔴", {
+      timestamp: new Date().toISOString(),
+      details
+    });
+  }
+}
+
+/**
+ * Log operation start with clear visual separator
+ */
+export function logOperationStart(operation: string): void {
+  console.log("\n==================================================");
+  console.log(`🚀 STARTING OPERATION: ${operation.toUpperCase()} 🚀`);
+  console.log("==================================================\n");
+}

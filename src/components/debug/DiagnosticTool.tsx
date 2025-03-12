@@ -30,6 +30,14 @@ const DiagnosticTool: React.FC = () => {
         ...checkResults,
         cors: corsResults
       });
+      
+      // Log full diagnostics results for debugging
+      console.log("Full diagnostics results:", {
+        supabase: checkResults.supabase,
+        telegram: checkResults.telegram,
+        edgeFunction: checkResults.edgeFunction,
+        cors: corsResults
+      });
     } catch (error) {
       console.error("Error running diagnostics:", error);
     } finally {

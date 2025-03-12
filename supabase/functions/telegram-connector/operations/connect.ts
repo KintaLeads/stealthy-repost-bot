@@ -1,91 +1,77 @@
 
-// Connect to telegram and handle verification
+// Handle connect operation
 import { corsHeaders } from "../../_shared/cors.ts";
-import { createTelegramClient, TelegramClientInterface } from "../client/index.ts";
-import { handleCodeVerification, buildVerificationSuccessResponse, buildVerificationErrorResponse } from "./auth/codeVerification.ts";
-import { handleInitialConnection, buildCodeRequestedResponse, buildAuthenticatedResponse, buildConnectionErrorResponse } from "./auth/initialConnection.ts";
+import { TelegramClientInterface } from "../client/types.ts";
 import { createOperationErrorResponse, validateClientSetup } from "./auth/errorHandler.ts";
+import { handleInitialConnection } from "./auth/initialConnection.ts";
+import { handleCodeVerification } from "./auth/codeVerification.ts";
+import { logOperationStart, logConnectionStatus } from "../utils/logger.ts";
 
 export async function handleConnect(
-  client: TelegramClientInterface, 
-  corsHeaders: Record<string, string>,
-  options: { verificationCode?: string, phone_code_hash?: string, debug?: boolean }
+  client: TelegramClientInterface,
+  headers: Record<string, string>,
+  options: { 
+    verificationCode?: string; 
+    debug?: boolean;
+  } = {}
 ): Promise<Response> {
-  const debug = options.debug || false;
-  console.log(`Handling connect operation, verificationCode provided: ${!!options.verificationCode}, debug: ${debug}`);
+  logOperationStart("connect");
+  console.log("Connect operation options:", {
+    hasVerificationCode: !!options.verificationCode,
+    debug: !!options.debug
+  });
   
   try {
     // Validate client setup
-    if (!validateClientSetup(client, debug)) {
-      return buildConnectionErrorResponse("Invalid client configuration");
+    if (!validateClientSetup(client, options.debug || false)) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Invalid client setup"
+        }),
+        { 
+          headers: { ...headers, "Content-Type": "application/json" },
+          status: 400
+        }
+      );
     }
     
-    // If verification code is provided, verify it
-    if (options.verificationCode && options.phone_code_hash) {
+    // Check if we're verifying a code or establishing initial connection
+    if (options.verificationCode) {
+      console.log("Handling code verification...");
+      const response = await handleCodeVerification(client, options.verificationCode, headers);
+      
+      // Log connection status based on response data
       try {
-        const verificationResult = await handleCodeVerification(
-          client,
-          options.verificationCode,
-          options.phone_code_hash
-        );
-        
-        if (verificationResult.success) {
-          const session = client.getSession();
-          return buildVerificationSuccessResponse(
-            session,
-            client.getAuthState(),
-            verificationResult.user
-          );
-        } else {
-          return buildVerificationErrorResponse(verificationResult.error || "Verification failed");
-        }
-      } catch (verifyError) {
-        console.error("Error during verification:", verifyError);
-        return createOperationErrorResponse(verifyError, "verificationProcess");
+        const responseData = await response.clone().json();
+        logConnectionStatus(responseData.success, {
+          codeVerification: true,
+          ...responseData
+        });
+      } catch (e) {
+        console.error("Error parsing response for logging:", e);
       }
-    } 
-    // If no verification code is provided, attempt to connect
-    else {
+      
+      return response;
+    } else {
+      console.log("Handling initial connection...");
+      const response = await handleInitialConnection(client, headers);
+      
+      // Log connection status based on response data
       try {
-        const connectResult = await handleInitialConnection(client);
-        
-        if (connectResult.success) {
-          if (connectResult.codeNeeded) {
-            // In development mode, we might have a test code
-            if (connectResult._testCode && debug) {
-              console.log(`⚠️ DEVELOPMENT MODE: Verification code is ${connectResult._testCode}`);
-            }
-            
-            console.log("Code sent successfully via MTProto, awaiting verification");
-            
-            return buildCodeRequestedResponse(
-              connectResult.phoneCodeHash as string,
-              connectResult._testCode,
-              debug
-            );
-          } else {
-            console.log("Already authenticated");
-            const session = client.getSession();
-            
-            return buildAuthenticatedResponse(
-              session,
-              client.getAuthState(),
-              connectResult.user
-            );
-          }
-        } else {
-          // Enhanced error information for connection failures
-          console.error("Connection failed:", connectResult.error);
-          return buildConnectionErrorResponse(
-            connectResult.error || "Failed to connect to Telegram",
-            connectResult.details
-          );
-        }
-      } catch (connectError) {
-        return createOperationErrorResponse(connectError, "connectionProcess");
+        const responseData = await response.clone().json();
+        logConnectionStatus(responseData.success, {
+          initialConnection: true,
+          codeNeeded: responseData.codeNeeded,
+          ...responseData
+        });
+      } catch (e) {
+        console.error("Error parsing response for logging:", e);
       }
+      
+      return response;
     }
   } catch (error) {
-    return createOperationErrorResponse(error, "connectOperation");
+    return createOperationErrorResponse(error, "connect operation");
   }
 }

@@ -1,3 +1,4 @@
+
 import { ApiAccount } from '@/types/channels';
 import { supabase } from '@/integrations/supabase/client';
 import { logInfo, logError, trackApiCall } from './debugger';
@@ -34,6 +35,10 @@ export const handleInitialConnection = async (
     };
     
     logInfo(context, 'Calling Supabase function \'telegram-connector\' with apiId:', account.apiKey);
+    console.log('Full connection data:', {
+      ...connectionData,
+      apiHash: connectionData.apiHash ? '******' : undefined
+    });
     
     const { data, error } = await supabase.functions.invoke('telegram-connector', {
       body: connectionData,
