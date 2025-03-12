@@ -1,8 +1,7 @@
-
 // Authentication implementation for Telegram client
 import { BaseTelegramImplementation } from "./base-implementation.ts";
 import { AuthClient } from "../auth-client.ts";
-import { AuthState } from "../types/auth-types.ts";
+import { AuthState } from "../types.ts";
 
 export class AuthImplementation extends BaseTelegramImplementation {
   private authClient: AuthClient | null = null;

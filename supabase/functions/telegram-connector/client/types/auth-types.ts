@@ -3,8 +3,9 @@
  * Authentication state types
  */
 
-// Auth state definition
-export type AuthState = "unauthorized" | "awaiting_code" | "authorized";
+// Re-export AuthState for backward compatibility
+import { AuthState } from "../types.ts";
+export { AuthState };
 
 // Authentication result interface
 export interface AuthenticationResult {
