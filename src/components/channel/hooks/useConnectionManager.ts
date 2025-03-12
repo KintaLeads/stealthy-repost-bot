@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { toast } from "@/components/ui/use-toast";
 import { ApiAccount } from "@/types/channels";
@@ -25,7 +24,19 @@ export const useConnectionManager = (
   const verificationState = useVerificationState();
   
   // Custom hook for diagnostic tool state
-  const { showDiagnosticTool, toggleDiagnosticTool, setShowDiagnosticTool } = useDiagnosticState();
+  const { showDiagnosticTool, toggleDiagnosticTool } = useDiagnosticState();
+  
+  // Check for existing session on mount and account change
+  useEffect(() => {
+    if (selectedAccount?.id && !isConnected) {
+      const hasSession = hasStoredSession(selectedAccount.id);
+      
+      if (hasSession) {
+        logInfo('ConnectionManager', `Found existing session for account ${selectedAccount.id}, attempting to reconnect`);
+        handleToggleConnection();
+      }
+    }
+  }, [selectedAccount?.id]);
   
   // Check connection status on mount and when selected account changes
   useEffect(() => {
@@ -107,6 +118,11 @@ export const useConnectionManager = (
             verificationState.startVerification(selectedAccount, connectResult);
             
             return;
+          }
+          
+          // Store the session if we got one
+          if (connectResult.session) {
+            storeSession(selectedAccount.id, connectResult.session);
           }
           
           // We're already verified, connect directly

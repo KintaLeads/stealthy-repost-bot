@@ -8,6 +8,8 @@ const SESSION_PREFIX = 'telegram_session_';
  * if provided
  */
 export const getStoredSession = (accountId: string, sessionString?: string): string => {
+  logInfo('SessionManager', `Getting session for account ${accountId}${sessionString ? ' and storing new session' : ''}`);
+  
   if (sessionString) {
     // If a session string is provided, store it
     const key = `${SESSION_PREFIX}${accountId}`;
@@ -18,6 +20,8 @@ export const getStoredSession = (accountId: string, sessionString?: string): str
   // Get the stored session string
   const key = `${SESSION_PREFIX}${accountId}`;
   const storedSession = localStorage.getItem(key);
+  
+  logInfo('SessionManager', `Session ${storedSession ? 'found' : 'not found'} for account ${accountId}`);
   
   return storedSession || '';
 };
@@ -43,4 +47,14 @@ export const clearStoredSession = (accountId: string): void => {
   const key = `${SESSION_PREFIX}${accountId}`;
   localStorage.removeItem(key);
   logInfo('SessionManager', `Session cleared for account ${accountId}`);
+};
+
+/**
+ * Check if a session exists for an account
+ */
+export const hasStoredSession = (accountId: string): boolean => {
+  const key = `${SESSION_PREFIX}${accountId}`;
+  const storedSession = localStorage.getItem(key);
+  logInfo('SessionManager', `Checking session for account ${accountId}: ${!!storedSession}`);
+  return !!storedSession;
 };
