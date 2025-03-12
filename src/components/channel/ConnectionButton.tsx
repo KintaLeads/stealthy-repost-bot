@@ -1,7 +1,5 @@
 
 import React from 'react';
-import { ApiAccount } from "@/types/channels";
-import { Message } from "@/types/dashboard";
 import DiagnosticActions from './DiagnosticActions';
 import ConnectionErrorDisplay from './ConnectionErrorDisplay';
 import DiagnosticToolSection from './DiagnosticToolSection';

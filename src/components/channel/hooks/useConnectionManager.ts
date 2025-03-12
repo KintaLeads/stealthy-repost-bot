@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { toast } from "@/components/ui/use-toast";
 import { ApiAccount } from "@/types/channels";
 import { logInfo, logError, hasStoredSession, storeSession } from '@/services/telegram';
@@ -18,6 +18,7 @@ export const useConnectionManager = (
   onDisconnected: () => void,
   onNewMessages: (messages: Message[]) => void
 ) => {
+  // All useState hooks must be called unconditionally at the top
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [connectionListener, setConnectionListener] = useState<any>(null);
   
@@ -27,53 +28,42 @@ export const useConnectionManager = (
   // Custom hook for diagnostic tool state
   const { showDiagnosticTool, toggleDiagnosticTool } = useDiagnosticState();
   
-  // Check for existing session on mount and account change
-  useEffect(() => {
-    if (selectedAccount?.id && !isConnected) {
-      const hasSession = hasStoredSession(selectedAccount.id);
-      
-      if (hasSession) {
-        logInfo('ConnectionManager', `Found existing session for account ${selectedAccount.id}, attempting to reconnect`);
-        handleToggleConnection();
-      }
-    }
-  }, [selectedAccount?.id]);
+  // Define all callback functions before useEffect hooks
+  const handleListenerConnected = useCallback((listener: any) => {
+    setConnectionListener(listener);
+    onConnected(listener);
+  }, [onConnected]);
   
-  // Check connection status on mount and when selected account changes
-  useEffect(() => {
-    const checkCurrentStatus = async () => {
-      if (isConnected && selectedAccount) {
-        try {
-          const status = await checkRealtimeStatus(selectedAccount);
-          if (!status && connectionListener) {
-            // We thought we were connected but we're not
-            logInfo('ConnectionManager', 'Connection lost, cleaning up');
-            if (connectionListener.stopListener) {
-              connectionListener.stopListener();
-            }
-            setConnectionListener(null);
-            onDisconnected();
-          }
-        } catch (error) {
-          logError('ConnectionManager', 'Error checking connection status:', error);
-        }
-      }
-    };
+  const handleVerificationComplete = useCallback(() => {
+    verificationState.resetVerification();
+  }, [verificationState]);
+  
+  const handleVerificationSuccess = useCallback(async () => {
+    logInfo('ConnectionManager', 'Verification successful, connecting');
     
-    checkCurrentStatus();
-    // We only want to run this when isConnected changes
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isConnected, selectedAccount]);
-  
-  // Clear connection error when selected account changes
-  useEffect(() => {
-    if (selectedAccount) {
-      setConnectionError(null);
+    try {
+      // Close verification dialog
+      verificationState.resetVerification();
+      
+      // Connect with the now-verified account
+      if (selectedAccount) {
+        const listener = await setupListener(
+          selectedAccount,
+          channelPairs,
+          onNewMessages,
+          handleListenerConnected
+        );
+        
+        setConnectionListener(listener);
+        onConnected(listener);
+      }
+    } catch (error) {
+      logError('ConnectionManager', 'Error connecting after verification:', error);
+      setConnectionError(error instanceof Error ? error.message : String(error));
     }
-  }, [selectedAccount]);
+  }, [selectedAccount, channelPairs, onNewMessages, onConnected, verificationState, handleListenerConnected]);
   
-  // Handler for toggling connection
-  const handleToggleConnection = async () => {
+  const handleToggleConnection = useCallback(async () => {
     if (!selectedAccount) {
       toast({
         title: "Account Required",
@@ -169,44 +159,51 @@ export const useConnectionManager = (
       logError('ConnectionManager', 'Connection toggle error:', error);
       setConnectionError(error instanceof Error ? error.message : String(error));
     }
-  };
+  }, [selectedAccount, isConnected, connectionListener, channelPairs, onNewMessages, onConnected, onDisconnected, verificationState, handleListenerConnected]);
   
-  // Handler for when the listener is connected
-  const handleListenerConnected = (listener: any) => {
-    setConnectionListener(listener);
-    onConnected(listener);
-  };
-  
-  // Handler for when verification is complete
-  const handleVerificationComplete = () => {
-    verificationState.resetVerification();
-  };
-  
-  // Handler for verification success
-  const handleVerificationSuccess = async () => {
-    logInfo('ConnectionManager', 'Verification successful, connecting');
-    
-    try {
-      // Close verification dialog
-      verificationState.resetVerification();
+  // Check for existing session on mount and account change
+  useEffect(() => {
+    if (selectedAccount?.id && !isConnected) {
+      const hasSession = hasStoredSession(selectedAccount.id);
       
-      // Connect with the now-verified account
-      if (selectedAccount) {
-        const listener = await setupListener(
-          selectedAccount,
-          channelPairs,
-          onNewMessages,
-          handleListenerConnected
-        );
-        
-        setConnectionListener(listener);
-        onConnected(listener);
+      if (hasSession) {
+        logInfo('ConnectionManager', `Found existing session for account ${selectedAccount.id}, attempting to reconnect`);
+        handleToggleConnection();
       }
-    } catch (error) {
-      logError('ConnectionManager', 'Error connecting after verification:', error);
-      setConnectionError(error instanceof Error ? error.message : String(error));
     }
-  };
+  }, [selectedAccount?.id, isConnected, handleToggleConnection]);
+  
+  // Check connection status on mount and when selected account changes
+  useEffect(() => {
+    const checkCurrentStatus = async () => {
+      if (isConnected && selectedAccount) {
+        try {
+          const status = await checkRealtimeStatus(selectedAccount);
+          if (!status && connectionListener) {
+            // We thought we were connected but we're not
+            logInfo('ConnectionManager', 'Connection lost, cleaning up');
+            if (connectionListener.stopListener) {
+              connectionListener.stopListener();
+            }
+            setConnectionListener(null);
+            onDisconnected();
+          }
+        } catch (error) {
+          logError('ConnectionManager', 'Error checking connection status:', error);
+        }
+      }
+    };
+    
+    checkCurrentStatus();
+    // We only want to run this when isConnected changes
+  }, [isConnected, selectedAccount, connectionListener, onDisconnected]);
+  
+  // Clear connection error when selected account changes
+  useEffect(() => {
+    if (selectedAccount) {
+      setConnectionError(null);
+    }
+  }, [selectedAccount]);
   
   return {
     verificationState,
