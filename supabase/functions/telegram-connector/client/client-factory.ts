@@ -1,6 +1,6 @@
 
 import { TelegramClientInterface, TelegramClientOptions } from "./types.ts";
-import { TelegramClientImplementation } from "./telegram-client-impl.ts";
+import { TelegramCombinedImplementation } from "./implementation/telegram-combined-impl.ts";
 
 /**
  * Factory for creating Telegram client instances
@@ -25,7 +25,7 @@ export class TelegramClientFactory {
       throw new Error("API Hash cannot be empty or undefined");
     }
     
-    return new TelegramClientImplementation(
+    return new TelegramCombinedImplementation(
       apiId, 
       apiHash, 
       phoneNumber, 
