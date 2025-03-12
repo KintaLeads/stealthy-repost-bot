@@ -1,11 +1,11 @@
-
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { RefreshCw, Key, Shield, Phone, Bug } from "lucide-react";
+import { RefreshCw, Key, Shield, Phone, Bug, Link } from "lucide-react";
 import { ApiAccount } from '@/types/dashboard';
 import ApiCredentialDebugger from '../debug/ApiCredentialDebugger';
+import ConnectionToggleButton from '../channel/ConnectionToggleButton';
 
 interface AccountFormProps {
   account: ApiAccount;
@@ -14,6 +14,9 @@ interface AccountFormProps {
   onSave: () => void;
   onCancel?: () => void;
   isSaving: boolean;
+  isConnected?: boolean;
+  isConnecting?: boolean;
+  onToggleConnection?: () => void;
 }
 
 const AccountForm: React.FC<AccountFormProps> = ({
@@ -22,7 +25,10 @@ const AccountForm: React.FC<AccountFormProps> = ({
   onChange,
   onSave,
   onCancel,
-  isSaving
+  isSaving,
+  isConnected = false,
+  isConnecting = false,
+  onToggleConnection
 }) => {
   const [showDebugger, setShowDebugger] = useState(false);
   const isEditing = !isNew;
@@ -60,7 +66,6 @@ const AccountForm: React.FC<AccountFormProps> = ({
       return "Phone number is required";
     }
     
-    // Basic phone number validation - should start with + and contain numbers
     if (!/^\+[0-9]{7,15}$/.test(value)) {
       return "Invalid phone number format (e.g. +1234567890)";
     }
@@ -186,6 +191,17 @@ const AccountForm: React.FC<AccountFormProps> = ({
             isEditing ? 'Update Account' : 'Create Account'
           )}
         </Button>
+        
+        {isEditing && onToggleConnection && (
+          <div className="mt-2">
+            <ConnectionToggleButton
+              isConnected={isConnected}
+              isConnecting={isConnecting}
+              isDisabled={!isFormValid() || isSaving}
+              onToggle={onToggleConnection}
+            />
+          </div>
+        )}
         
         {isNew && onCancel && (
           <Button

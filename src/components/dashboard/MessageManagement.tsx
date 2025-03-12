@@ -79,7 +79,7 @@ const MessageManagement: React.FC<MessageManagementProps> = ({
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between mb-2">
-        <h3 className="text-lg font-medium">Message Monitoring</h3>
+        <h3 className="text-lg font-medium">Channel Configuration</h3>
         {isConnected ? (
           <Badge variant="outline" className="flex items-center gap-1.5 text-xs font-normal text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 dark:text-emerald-400 py-1 px-3 rounded-full">
             <WifiIcon size={14} />

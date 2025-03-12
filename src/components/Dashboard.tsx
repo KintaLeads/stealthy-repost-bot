@@ -31,10 +31,24 @@ const Dashboard: React.FC<DashboardProps> = ({
     uptime: 'Just started'
   });
   const [selectedAccount, setSelectedAccount] = useState<ApiAccount | null>(null);
+  const [isConnecting, setIsConnecting] = useState(false);
   
   const handleAccountSelect = (account: ApiAccount) => {
     setSelectedAccount(account);
     console.log("Selected account:", account);
+  };
+  
+  const handleToggleConnection = () => {
+    if (!isConnected) {
+      setIsConnecting(true);
+      // Set connecting state to true temporarily, it will be reset by the parent component
+      setTimeout(() => {
+        onToggleConnection();
+        setIsConnecting(false);
+      }, 300);
+    } else {
+      onToggleConnection();
+    }
   };
   
   return (
@@ -46,6 +60,9 @@ const Dashboard: React.FC<DashboardProps> = ({
           <AccountManagement 
             onAccountSelect={handleAccountSelect}
             selectedAccountId={selectedAccount?.id || null}
+            isConnected={isConnected}
+            isConnecting={isConnecting}
+            onToggleConnection={handleToggleConnection}
           />
           
           <MessageManagement 
