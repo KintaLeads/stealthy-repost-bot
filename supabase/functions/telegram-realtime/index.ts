@@ -1,4 +1,3 @@
-
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1'
 import { corsHeaders } from '../_shared/cors.ts';
 import { createTelegramClient } from "../telegram-connector/client/index.ts";
@@ -27,14 +26,17 @@ const isValidSession = (sessionString: string) => {
   return sessionString && sessionString.length > 10;
 };
 
+// Initial startup log
+console.log("🚀 Telegram realtime function starting", new Date().toISOString());
+
 Deno.serve(async (req) => {
-  console.log("📡 Telegram Realtime Function Called:", new Date().toISOString());
-  console.log("Request URL:", req.url);
-  console.log("Request method:", req.method);
+  // Log every incoming request immediately
+  console.log(`📥 Incoming request to telegram-realtime: ${req.method} ${req.url}`, new Date().toISOString());
+  console.log("📋 Request headers:", Object.fromEntries(req.headers.entries()));
   
-  // Handle CORS preflight requests with proper status code
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    console.log("Handling OPTIONS request (CORS preflight)");
+    console.log("📡 Handling CORS OPTIONS request");
     return new Response(null, { 
       headers: updatedCorsHeaders,
       status: 204
@@ -42,6 +44,34 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Parse request body with detailed logging
+    let requestBody;
+    try {
+      const text = await req.text();
+      console.log("📝 Raw request body:", text);
+      requestBody = JSON.parse(text);
+      console.log("🔍 Parsed request body:", {
+        ...requestBody,
+        apiHash: requestBody.apiHash ? '[REDACTED]' : undefined
+      });
+    } catch (parseError) {
+      console.error("❌ Failed to parse request body:", parseError);
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'Invalid JSON in request body',
+          details: String(parseError)
+        }),
+        { 
+          status: 400,
+          headers: updatedCorsHeaders
+        }
+      );
+    }
+
+    // Log operation being attempted
+    console.log(`🎯 Attempting operation: ${requestBody?.operation || 'unknown'}`);
+
     const { method } = req
     
     // Only allow POST requests
@@ -65,12 +95,12 @@ Deno.serve(async (req) => {
     console.log("Session header present:", !!sessionString);
     
     // Get the request data
-    const requestBody = await req.text();
-    console.log("Raw request body:", requestBody);
+    const requestBodyText = await req.text();
+    console.log("Raw request body:", requestBodyText);
     
     let requestData;
     try {
-      requestData = JSON.parse(requestBody);
+      requestData = JSON.parse(requestBodyText);
       console.log("Parsed request data:", JSON.stringify(requestData, null, 2));
     } catch (error) {
       console.error('Error parsing JSON request:', error);
@@ -81,7 +111,7 @@ Deno.serve(async (req) => {
           details: { 
             errorType: 'ParseError',
             message: error.message,
-            rawBody: requestBody.substring(0, 200) + (requestBody.length > 200 ? '...' : '')
+            rawBody: requestBodyText.substring(0, 200) + (requestBodyText.length > 200 ? '...' : '')
           }
         }),
         {
