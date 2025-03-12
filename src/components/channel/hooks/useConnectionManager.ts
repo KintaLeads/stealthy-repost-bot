@@ -1,117 +1,161 @@
 
-import { useState, useEffect } from 'react';
-import { ApiAccount, ChannelPair } from '@/types/channels';
-import { Message } from '@/types/dashboard';
-import { setupRealtimeListener, disconnectRealtime } from '@/services/telegram/realtimeService';
-import { verifyTelegramCode } from '@/services/telegram/verifier';
-import { validateTelegramCredentials } from '@/services/telegram/credentialValidator';
-import { checkConnectionStatus, initiateConnection, disconnectConnection } from './connection/connectionOperations';
+import { useState, useCallback } from "react";
+import { ApiAccount, ChannelPair } from "@/types/channels";
+import { setupRealtimeListener, disconnectRealtime, checkRealtimeStatus } from "@/services/telegram/realtimeService";
+import { connectToTelegram } from "@/services/telegram/connector";
+import { verifyTelegramCode } from "@/services/telegram/verifier";
+import { Message } from "@/types/dashboard";
 import { toast } from "sonner";
 
-export const useConnectionManager = (
-  selectedAccount: ApiAccount | null,
-  channelPairs: ChannelPair[]
-) => {
-  const [isConnected, setIsConnected] = useState(false);
+export const useConnectionManager = () => {
   const [isConnecting, setIsConnecting] = useState(false);
-  const [showVerification, setShowVerification] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [codeNeeded, setCodeNeeded] = useState(false);
+  const [phoneCodeHash, setPhoneCodeHash] = useState<string | null>(null);
+  const [activeListener, setActiveListener] = useState<any>(null);
+  const [verificationCode, setVerificationCode] = useState<string>("");
 
-  // Check connection status on mount and when account changes
-  useEffect(() => {
-    const checkStatus = async () => {
-      if (selectedAccount?.id) {
-        const status = await checkConnectionStatus(selectedAccount);
-        setIsConnected(status);
-      } else {
-        setIsConnected(false);
-      }
-    };
-
-    checkStatus();
-  }, [selectedAccount]);
-
-  const handleConnect = async () => {
-    if (!selectedAccount) return;
-    
-    setIsConnecting(true);
-    setError(null);
-
+  // Connection check on initialization
+  const checkConnection = useCallback(async (accountId: string) => {
     try {
-      // Validate credentials first
-      const validationResult = await validateTelegramCredentials(selectedAccount);
+      console.log("Checking if already connected for account:", accountId);
+      const status = await checkRealtimeStatus(accountId);
+      setIsConnected(status);
+      return status;
+    } catch (error) {
+      console.error("Error checking connection status:", error);
+      setIsConnected(false);
+      return false;
+    }
+  }, []);
 
-      if (!validationResult.success) {
-        setError('Invalid Telegram credentials');
-        toast("Validation Failed", {
-          description: validationResult.error || 'Invalid Telegram credentials'
-        });
-        return;
+  // Connect to Telegram
+  const connect = useCallback(async (selectedAccount: ApiAccount, channelPairs: ChannelPair[], onNewMessages?: (messages: Message[]) => void) => {
+    try {
+      setIsConnecting(true);
+      setConnectionError(null);
+      
+      console.log("Connecting with account:", {
+        ...selectedAccount,
+        apiHash: '[REDACTED]'
+      });
+      
+      // First, connect to Telegram API
+      const connectionResult = await connectToTelegram(selectedAccount, {
+        debug: true
+      });
+      
+      if (!connectionResult.success) {
+        setConnectionError(connectionResult.error || "Unknown error connecting to Telegram");
+        setIsConnecting(false);
+        return false;
       }
-
-      const connectionResult = await initiateConnection(
+      
+      // If code verification is needed
+      if (connectionResult.codeNeeded) {
+        setCodeNeeded(true);
+        setPhoneCodeHash(connectionResult.phoneCodeHash || null);
+        setIsConnecting(false);
+        
+        // Store phoneCodeHash in localStorage for later use
+        if (connectionResult.phoneCodeHash) {
+          localStorage.setItem(`telegram_code_hash_${selectedAccount.id}`, connectionResult.phoneCodeHash);
+        }
+        
+        return 'verification_needed';
+      }
+      
+      // If we're already authenticated, set up the realtime listener
+      const listener = await setupRealtimeListener(
         selectedAccount,
         channelPairs,
-        (messages: Message[]) => {
-          console.log('New messages received:', messages);
-          // Handle new messages here
-        }
+        onNewMessages
       );
-
-      setIsConnected(connectionResult);
-    } catch (error) {
-      console.error('Connection error:', error);
-      setError(error instanceof Error ? error.message : 'Failed to connect');
-    } finally {
-      setIsConnecting(false);
-    }
-  };
-
-  const handleDisconnect = async () => {
-    if (!selectedAccount) return;
-    
-    setIsConnecting(true);
-    setError(null);
-
-    try {
-      // Pass the full account object
-      const disconnected = await disconnectConnection(selectedAccount);
-      setIsConnected(!disconnected);
-    } catch (error) {
-      console.error('Disconnect error:', error);
-      setError(error instanceof Error ? error.message : 'Failed to disconnect');
-    } finally {
-      setIsConnecting(false);
-    }
-  };
-
-  const handleVerificationCode = async (code: string) => {
-    if (!selectedAccount) return;
-    
-    try {
-      const result = await verifyTelegramCode(selectedAccount, code);
       
-      if (result) {
-        setShowVerification(false);
-        handleConnect(); // Retry connection after verification
-      } else {
-        setError('Invalid verification code');
-      }
+      setActiveListener(listener);
+      setIsConnected(true);
+      setIsConnecting(false);
+      
+      return true;
     } catch (error) {
-      console.error('Verification error:', error);
-      setError(error instanceof Error ? error.message : 'Verification failed');
+      console.error("Error connecting:", error);
+      setConnectionError(error instanceof Error ? error.message : String(error));
+      setIsConnecting(false);
+      return false;
     }
-  };
+  }, []);
+
+  // Verify code
+  const verifyCode = useCallback(async (account: ApiAccount, code: string) => {
+    try {
+      setIsConnecting(true);
+      
+      // Get the stored phoneCodeHash
+      const storedPhoneCodeHash = phoneCodeHash || localStorage.getItem(`telegram_code_hash_${account.id}`);
+      
+      if (!storedPhoneCodeHash) {
+        throw new Error("Missing verification code hash. Please try connecting again.");
+      }
+      
+      const result = await verifyTelegramCode(account, code, {
+        phoneCodeHash: storedPhoneCodeHash
+      });
+      
+      // Clear verification state
+      setCodeNeeded(false);
+      setPhoneCodeHash(null);
+      setIsConnecting(false);
+      
+      return result;
+    } catch (error) {
+      console.error("Error verifying code:", error);
+      setConnectionError(error instanceof Error ? error.message : String(error));
+      setIsConnecting(false);
+      return false;
+    }
+  }, [phoneCodeHash]);
+
+  // Disconnect from Telegram
+  const disconnect = useCallback(async (account: ApiAccount) => {
+    try {
+      setIsConnecting(true);
+      
+      if (activeListener) {
+        // If we have an active listener with a stop method, call it
+        if (activeListener.stop) {
+          await activeListener.stop();
+        }
+        setActiveListener(null);
+      }
+      
+      // Also call the disconnectRealtime function for a complete disconnection
+      const result = await disconnectRealtime(account.id);
+      
+      setIsConnected(false);
+      setIsConnecting(false);
+      
+      return result;
+    } catch (error) {
+      console.error("Error disconnecting:", error);
+      setConnectionError(error instanceof Error ? error.message : String(error));
+      setIsConnecting(false);
+      return false;
+    }
+  }, [activeListener]);
 
   return {
-    isConnected,
     isConnecting,
-    showVerification,
-    error,
-    handleConnect,
-    handleDisconnect,
-    handleVerificationCode
+    isConnected,
+    connectionError,
+    codeNeeded,
+    phoneCodeHash,
+    activeListener,
+    verificationCode,
+    setVerificationCode,
+    connect,
+    disconnect,
+    verifyCode,
+    checkConnection
   };
 };
-
-export default useConnectionManager;
