@@ -84,6 +84,36 @@ export type Database = {
           },
         ]
       }
+      channel_pairs: {
+        Row: {
+          account_id: string
+          created_at: string
+          id: string
+          is_active: boolean
+          source_channel: string
+          target_channel: string
+          target_username: string | null
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          source_channel: string
+          target_channel: string
+          target_username?: string | null
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          source_channel?: string
+          target_channel?: string
+          target_username?: string | null
+        }
+        Relationships: []
+      }
       channels: {
         Row: {
           channel_id: string

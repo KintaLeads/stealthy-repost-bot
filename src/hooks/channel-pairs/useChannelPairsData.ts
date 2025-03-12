@@ -23,7 +23,7 @@ export const useChannelPairsData = (selectedAccount: ApiAccount | null): UseChan
       const { data: storedPairs, error } = await supabase
         .from('channel_pairs')
         .select('*')
-        .eq('accountId', selectedAccount.id);
+        .eq('account_id', selectedAccount.id);
       
       if (error) {
         throw error;
@@ -81,7 +81,7 @@ export const useChannelPairsData = (selectedAccount: ApiAccount | null): UseChan
       const { error: deleteError } = await supabase
         .from('channel_pairs')
         .delete()
-        .eq('accountId', selectedAccount.id);
+        .eq('account_id', selectedAccount.id);
       
       if (deleteError) {
         throw deleteError;
