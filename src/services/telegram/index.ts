@@ -2,7 +2,7 @@
 // Re-export all functionality from specific modules
 export * from './messageService';
 export * from './realtimeService';
-export * from './sessionManager';
+export * from './session/sessionManager';
 export * from './debugger';
 
 // Handle network-related exports with explicit naming to avoid conflicts

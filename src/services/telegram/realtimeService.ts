@@ -7,6 +7,9 @@ import { logInfo, logError } from './debugger';
 import { getStoredSession, validateSession } from './session/sessionManager';
 import { connectToTelegram } from './connection/connectionManager';
 
+/**
+ * Sets up a realtime listener for Telegram messages
+ */
 export const setupRealtimeListener = async (
   account: ApiAccount,
   channelPairs: ChannelPair[],
@@ -60,12 +63,7 @@ export const setupRealtimeListener = async (
     return {
       stopListener: async () => {
         try {
-          await supabase.functions.invoke('telegram-realtime', {
-            body: {
-              operation: 'disconnect',
-              accountId: account.id
-            }
-          });
+          await disconnectRealtime(account);
           logInfo("RealtimeService", "Listener stopped");
         } catch (error) {
           logError("RealtimeService", "Error stopping listener:", error);
@@ -83,5 +81,79 @@ export const setupRealtimeListener = async (
     });
     
     throw error;
+  }
+};
+
+/**
+ * Checks the status of the realtime listener
+ */
+export const checkRealtimeStatus = async (account: ApiAccount): Promise<boolean> => {
+  try {
+    logInfo("RealtimeService", "Checking realtime status for", account.nickname);
+
+    // We need a session to check status
+    const session = getStoredSession(account.id);
+    if (!session) {
+      logInfo("RealtimeService", "No session available for status check");
+      return false;
+    }
+
+    // Check status with the function
+    const { data, error } = await supabase.functions.invoke('telegram-realtime', {
+      body: {
+        operation: 'status',
+        accountId: account.id,
+        sessionString: session
+      }
+    });
+
+    if (error) {
+      logError("RealtimeService", "Status check error:", error);
+      return false;
+    }
+
+    const isConnected = data?.connected === true;
+    logInfo("RealtimeService", `Status check result: ${isConnected ? 'connected' : 'disconnected'}`);
+    
+    return isConnected;
+  } catch (error) {
+    logError("RealtimeService", "Status check error:", error);
+    return false;
+  }
+};
+
+/**
+ * Disconnects the realtime listener
+ */
+export const disconnectRealtime = async (account: ApiAccount): Promise<boolean> => {
+  try {
+    logInfo("RealtimeService", "Disconnecting realtime listener for", account.nickname);
+    
+    // We need a session to disconnect
+    const session = getStoredSession(account.id);
+    if (!session) {
+      logInfo("RealtimeService", "No session available for disconnect");
+      return false;
+    }
+
+    // Call the disconnect operation
+    const { data, error } = await supabase.functions.invoke('telegram-realtime', {
+      body: {
+        operation: 'disconnect',
+        accountId: account.id,
+        sessionString: session
+      }
+    });
+
+    if (error) {
+      logError("RealtimeService", "Disconnect error:", error);
+      return false;
+    }
+
+    logInfo("RealtimeService", "Disconnect successful");
+    return data?.success === true;
+  } catch (error) {
+    logError("RealtimeService", "Disconnect error:", error);
+    return false;
   }
 };
