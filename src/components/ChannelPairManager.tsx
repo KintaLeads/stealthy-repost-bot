@@ -85,10 +85,8 @@ const ChannelPairManager: React.FC<ChannelPairManagerProps> = ({
       if (success && isConnected && selectedAccount) {
         // Disconnect existing listener
         if (listenerState) {
-          if (typeof listenerState.stopListener === 'function') {
-            listenerState.stopListener();
-          } else if (typeof listenerState.stop === 'function') {
-            listenerState.stop();
+          if (listenerState.stop) {
+            await listenerState.stop();
           }
         }
         
@@ -105,11 +103,6 @@ const ChannelPairManager: React.FC<ChannelPairManagerProps> = ({
           id: listener.id,
           stop: listener.stop
         };
-        
-        // Only add stopListener if it exists
-        if (typeof listener.stopListener === 'function') {
-          listenerObj.stopListener = listener.stopListener;
-        }
         
         setListenerState(listenerObj);
         
