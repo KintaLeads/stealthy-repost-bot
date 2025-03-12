@@ -70,19 +70,47 @@ export async function handleConnect(
             authState: client.getAuthState()
           });
           
-          // NEW: Log the client's internal state for additional debugging
+          // Log the client's internal state for additional debugging
           console.log("Client internal state check:");
           console.log(`Phone number set: ${!!client.getPhoneNumber()}`);
           console.log(`Auth state: ${client.getAuthState()}`);
           console.log(`Session available: ${!!client.getSession()}`);
+          
+          // NEW: Explicitly verify the apiId and apiHash credentials
+          console.log("CREDENTIALS VERIFICATION:");
+          const apiId = client.getApiId?.() || "NOT_AVAILABLE";
+          const apiHashPrefix = client.getApiHash?.() ? 
+            client.getApiHash().substring(0, 3) + "..." : 
+            "NOT_AVAILABLE";
+          
+          console.log(`API ID: "${apiId}" (${typeof apiId})`);
+          console.log(`API Hash: "${apiHashPrefix}" (length: ${client.getApiHash?.()?.length || 0})`);
+          
+          if (!apiId || apiId === "NOT_AVAILABLE") {
+            console.error("⚠️ API ID IS MISSING OR UNAVAILABLE IN CLIENT!");
+          }
+          
+          if (!apiHashPrefix || apiHashPrefix === "NOT_AVAILABLE") {
+            console.error("⚠️ API HASH IS MISSING OR UNAVAILABLE IN CLIENT!");
+          }
         } catch (err) {
           console.error("Error accessing client properties:", err);
         }
       }
       
       // NEW: Add a small delay to ensure proper initialization
-      console.log("Pausing for 500ms to ensure proper initialization...");
-      await new Promise(resolve => setTimeout(resolve, 500));
+      console.log("Pausing for 1000ms to ensure proper initialization...");
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // NEW: Force client re-initialization before connect
+      try {
+        console.log("Forcing client re-initialization...");
+        await client.reinitialize?.();
+        console.log("Client re-initialization completed");
+      } catch (reinitError) {
+        console.error("Error during client re-initialization:", reinitError);
+        // Continue anyway as this is just an additional safety measure
+      }
       
       console.log("Starting connection process...");
       const connectResult = await client.connect();

@@ -1,3 +1,4 @@
+
 // Factory class for creating different types of Telegram clients using MTProto
 import { AuthClient } from "./auth-client.ts";
 import { MessageClient } from "./message-client.ts";
@@ -39,6 +40,51 @@ export class TelegramClientImplementation {
     
     // Initialize validation client
     this.validationClient = new ValidationClient(this.apiId, this.apiHash, this.phoneNumber, this.accountId, this.sessionString);
+  }
+  
+  // NEW: Get API ID
+  getApiId(): string {
+    return this.apiId;
+  }
+  
+  // NEW: Get API Hash 
+  getApiHash(): string {
+    return this.apiHash;
+  }
+  
+  // NEW: Force reinitialization
+  async reinitialize(): Promise<void> {
+    console.log("Reinitializing client with:", {
+      apiId: this.apiId,
+      apiHashPrefix: this.apiHash.substring(0, 3) + "...",
+      phonePrefix: this.phoneNumber.substring(0, 4) + "****",
+      accountId: this.accountId,
+      hasSession: !!this.sessionString
+    });
+    
+    // Reset clients
+    if (this.authClient) {
+      await this.authClient.disconnect();
+      this.authClient = null;
+    }
+    
+    if (this.messageClient) {
+      await this.messageClient.disconnect();
+      this.messageClient = null;
+    }
+    
+    await this.validationClient.disconnect();
+    
+    // Recreate validation client
+    this.validationClient = new ValidationClient(
+      this.apiId, 
+      this.apiHash, 
+      this.phoneNumber, 
+      this.accountId, 
+      this.sessionString
+    );
+    
+    console.log("Client reinitialized successfully");
   }
   
   // Method to validate credentials
@@ -89,7 +135,7 @@ export class TelegramClientImplementation {
   }
   
   // Method to connect to Telegram
-  async connect(): Promise<{ success: boolean; codeNeeded?: boolean; phoneCodeHash?: string; error?: string; session?: string }> {
+  async connect(): Promise<{ success: boolean; codeNeeded?: boolean; phoneCodeHash?: string; error?: string; session?: string; _testCode?: string }> {
     const authClient = await this.getAuthClient();
     return authClient.startAuthentication();
   }
