@@ -38,7 +38,7 @@ const VerificationCodeDialog: React.FC<VerificationCodeDialogProps> = ({
       setIsVerifying(false);
       
       // In development mode, show test code if available
-      if (debugMode && connectionResult._testCode) {
+      if (debugMode && connectionResult?._testCode) {
         setCodeHelper(`Test code: ${connectionResult._testCode}`);
       } else {
         setCodeHelper("Enter the verification code sent to your Telegram app");
