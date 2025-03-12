@@ -14,7 +14,7 @@ export const useConnectionManager = (
   selectedAccount: ApiAccount | null,
   isConnected: boolean,
   channelPairs: any[],
-  onConnected: () => void,
+  onConnected: (listener: any) => void,
   onDisconnected: () => void,
   onNewMessages: (messages: Message[]) => void
 ) => {
@@ -22,7 +22,7 @@ export const useConnectionManager = (
   const [connectionListener, setConnectionListener] = useState<any>(null);
   
   // Custom hook for verification state
-  const verificationState = useVerificationState(selectedAccount);
+  const verificationState = useVerificationState();
   
   // Custom hook for diagnostic tool state
   const { showDiagnosticTool, toggleDiagnosticTool, setShowDiagnosticTool } = useDiagnosticState();
@@ -104,13 +104,8 @@ export const useConnectionManager = (
             logInfo('ConnectionManager', 'Verification needed, showing verification dialog');
             
             // Store temporary state for the verification dialog
-            verificationState.setTempConnectionState({
-              account: selectedAccount,
-              connectionResult: connectResult
-            });
+            verificationState.startVerification(selectedAccount, connectResult);
             
-            // Show verification dialog
-            verificationState.showVerificationDialog();
             return;
           }
           
@@ -123,7 +118,7 @@ export const useConnectionManager = (
           );
           
           setConnectionListener(listener);
-          onConnected();
+          onConnected(listener);
           
         } catch (error) {
           logError('ConnectionManager', 'Connection error:', error);
@@ -140,13 +135,7 @@ export const useConnectionManager = (
               
               if (connectResult.codeNeeded && connectResult.phoneCodeHash) {
                 // Store temporary state for the verification dialog
-                verificationState.setTempConnectionState({
-                  account: selectedAccount,
-                  connectionResult: connectResult
-                });
-                
-                // Show verification dialog
-                verificationState.showVerificationDialog();
+                verificationState.startVerification(selectedAccount, connectResult);
               } else {
                 throw new Error('Failed to get verification code. Please try again.');
               }
@@ -168,7 +157,7 @@ export const useConnectionManager = (
   // Handler for when the listener is connected
   const handleListenerConnected = (listener: any) => {
     setConnectionListener(listener);
-    onConnected();
+    onConnected(listener);
   };
   
   // Handler for when verification is complete
@@ -194,7 +183,7 @@ export const useConnectionManager = (
         );
         
         setConnectionListener(listener);
-        onConnected();
+        onConnected(listener);
       }
     } catch (error) {
       logError('ConnectionManager', 'Error connecting after verification:', error);

@@ -6,6 +6,10 @@ export const useDiagnosticState = () => {
   const [showDiagnosticTool, setShowDiagnosticTool] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
 
+  const toggleDiagnosticTool = () => {
+    setShowDiagnosticTool(prev => !prev);
+  };
+
   const runDiagnostics = async () => {
     try {
       setShowDiagnosticTool(true);
@@ -19,6 +23,7 @@ export const useDiagnosticState = () => {
   return {
     showDiagnosticTool,
     setShowDiagnosticTool,
+    toggleDiagnosticTool,
     connectionError,
     setConnectionError,
     runDiagnostics

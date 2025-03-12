@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/use-toast";
 import { ApiAccount } from "@/types/channels";
@@ -111,7 +110,6 @@ export const setupRealtimeListener = async (
     // Store session if it was returned
     if (data.sessionString) {
       logInfo("RealtimeService", "Updating stored session");
-      clearStoredSession(account.id);
       getStoredSession(account.id, data.sessionString);
     }
     

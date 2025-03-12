@@ -22,6 +22,7 @@ export const useVerificationState = () => {
     showVerificationDialog,
     setShowVerificationDialog,
     tempConnectionState,
+    setTempConnectionState,
     startVerification,
     resetVerification
   };

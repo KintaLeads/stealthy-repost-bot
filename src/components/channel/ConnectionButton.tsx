@@ -23,6 +23,7 @@ export const ConnectionButton = ({
   const {
     verificationState,
     showDiagnosticTool,
+    toggleDiagnosticTool,
     connectionError,
     handleToggleConnection,
     handleVerificationComplete,
