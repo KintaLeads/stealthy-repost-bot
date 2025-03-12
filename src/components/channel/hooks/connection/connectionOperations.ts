@@ -1,3 +1,4 @@
+
 import { ApiAccount } from "@/types/channels";
 import { runConnectivityChecks, testCorsConfiguration } from "@/services/telegram/networkCheck";
 import { toast } from "sonner";
@@ -9,11 +10,14 @@ export const runConnectionDiagnostics = async (selectedAccount: ApiAccount) => {
   try {
     toast.info("Running connection diagnostics...");
     
-    // Run basic connectivity checks
-    const connectivityResult = await runConnectivityChecks();
+    // Get the project ID from the URL if available, otherwise use a default
+    const projectId = window.location.hostname.split('.')[0] || 'your-project-id';
     
-    // Test CORS configuration
-    const corsResult = await testCorsConfiguration();
+    // Run basic connectivity checks - pass the project ID
+    const connectivityResult = await runConnectivityChecks(projectId);
+    
+    // Test CORS configuration - pass the project ID
+    const corsResult = await testCorsConfiguration(projectId);
     
     return {
       connectivity: connectivityResult,
