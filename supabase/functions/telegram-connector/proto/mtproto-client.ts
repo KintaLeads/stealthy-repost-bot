@@ -3,12 +3,15 @@
  * MTProto client implementation for Telegram API
  * Using GramJS for Deno
  */
-import { Api, TelegramClient } from "https://esm.sh/telegram@2.19.10";
+import { TelegramClient } from "https://esm.sh/telegram@2.19.10";
 import { StringSession } from "https://esm.sh/telegram/sessions";
 import { MTProtoInterface, MTProtoOptions } from "./interfaces.ts";
 import * as Auth from "./auth-methods.ts";
 import * as Messages from "./message-methods.ts";
 import { validateApiId, validateApiHash } from "./utils.ts";
+import { initializeTelegramClient, exportClientSession } from "./client-initializer.ts";
+import { connectToTelegram, disconnectFromTelegram } from "./connection-handler.ts";
+import { validateCredentials } from "./credential-validator.ts";
 
 export class MTProtoClient implements MTProtoInterface {
   private apiId: number;
@@ -33,20 +36,6 @@ export class MTProtoClient implements MTProtoInterface {
     
     console.log(`MTProto initialized with API ID: ${this.apiId} and API Hash: ${this.apiHash.substring(0, 3)}... (length: ${this.apiHash.length})`);
     
-    // Initialize string session if we have a session
-    if (this.session) {
-      try {
-        this.stringSession = new StringSession(this.session);
-        console.log("Session restored successfully");
-      } catch (err) {
-        console.warn("Failed to restore session:", err);
-        this.session = "";
-        this.stringSession = new StringSession("");
-      }
-    } else {
-      this.stringSession = new StringSession("");
-    }
-    
     // Initialize the client
     this.initClient();
   }
@@ -57,9 +46,6 @@ export class MTProtoClient implements MTProtoInterface {
   private initClient() {
     try {
       console.log(`==== TELEGRAM CLIENT INITIALIZATION ====`);
-      console.log(`Using apiId: ${this.apiId} (${typeof this.apiId})`);
-      console.log(`Using apiHash: ${this.apiHash.substring(0, 3)}... (${typeof this.apiHash}, length: ${this.apiHash.length})`);
-      console.log(`Using session: ${this.session ? 'Yes' : 'No'}`);
       
       // Final validation before creating the client
       if (!this.apiId || isNaN(this.apiId) || this.apiId <= 0) {
@@ -70,16 +56,15 @@ export class MTProtoClient implements MTProtoInterface {
         throw new Error(`Invalid API Hash before client creation: ${this.apiHash}`);
       }
       
-      // Create TelegramClient instance with session if available
-      console.log("Creating TelegramClient instance...");
-      this.client = new TelegramClient({
-        apiId: this.apiId,
-        apiHash: this.apiHash,
-        session: this.stringSession,
-        connectionRetries: 3,
-        useWSS: true,
-        requestRetries: 3,
-      });
+      // Initialize client using the client initializer
+      const { client, stringSession } = initializeTelegramClient(
+        this.apiId,
+        this.apiHash,
+        this.session
+      );
+      
+      this.client = client;
+      this.stringSession = stringSession;
       
       console.log("Telegram client initialized successfully");
     } catch (error) {
@@ -93,16 +78,11 @@ export class MTProtoClient implements MTProtoInterface {
    * Export current session as a string
    */
   async exportSession(): Promise<string> {
-    if (!this.client) {
+    if (!this.client || !this.stringSession) {
       throw new Error("Client not initialized");
     }
     
-    try {
-      return this.stringSession.save();
-    } catch (error) {
-      console.error("Error exporting session:", error);
-      throw error;
-    }
+    return exportClientSession(this.stringSession);
   }
   
   /**
@@ -112,16 +92,12 @@ export class MTProtoClient implements MTProtoInterface {
     if (this.connected) return;
     
     try {
-      console.log("Connecting to Telegram servers...");
-      
       if (!this.client) {
         this.initClient();
       }
       
-      await this.client.connect();
+      await connectToTelegram(this.client!);
       this.connected = true;
-      
-      console.log("Connected to Telegram servers successfully");
     } catch (error) {
       console.error("Connection error:", error);
       this.connected = false;
@@ -190,16 +166,10 @@ export class MTProtoClient implements MTProtoInterface {
    * Disconnect from Telegram servers
    */
   async disconnect(): Promise<void> {
-    if (!this.connected) return;
+    if (!this.connected || !this.client) return;
     
-    try {
-      // Disconnect the client
-      await this.client.disconnect();
-      this.connected = false;
-      console.log("Disconnected from Telegram servers");
-    } catch (error) {
-      console.error("Error disconnecting:", error);
-    }
+    await disconnectFromTelegram(this.client);
+    this.connected = false;
   }
   
   /**
@@ -207,27 +177,11 @@ export class MTProtoClient implements MTProtoInterface {
    */
   async validateCredentials(): Promise<{ success: boolean; error?: string }> {
     try {
-      console.log("Validating API credentials...");
-      
-      // Validate API ID format
-      const apiIdNum = parseInt(String(this.apiId), 10);
-      if (isNaN(apiIdNum) || apiIdNum <= 0) {
-        console.error("Invalid API ID format");
-        return { success: false, error: "Invalid API ID format" };
+      if (!this.client) {
+        this.initClient();
       }
       
-      // Validate API Hash format (should be 32 hex chars)
-      if (!this.apiHash || !/^[a-f0-9]{32}$/i.test(this.apiHash)) {
-        console.error("Invalid API Hash format");
-        return { success: false, error: "Invalid API Hash format" };
-      }
-      
-      // Try connecting to verify credentials
-      await this.connect();
-      
-      // If we reach here, credentials are valid
-      console.log("API credentials are valid");
-      return { success: true };
+      return await validateCredentials(this.client!);
     } catch (error) {
       console.error("Error validating credentials:", error);
       return { 
