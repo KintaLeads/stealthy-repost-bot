@@ -112,38 +112,62 @@ export const handleInitialConnection = async (account: ApiAccount): Promise<Conn
     
     logInfo(context, 'Calling Supabase function \'telegram-connector\' for connection...');
     
-    // Make request to the Edge Function
-    const { data, error } = await supabase.functions.invoke('telegram-connector', {
-      body: requestData
-    });
-    
-    // Track API call for debugging
-    trackApiCall('telegram-connector/connect', requestData, data, error);
-    
-    if (error) {
-      logError(context, 'Error connecting to Telegram:', error);
-      throw new Error(error.message || 'Failed to connect to Telegram');
-    }
-    
-    if (!data || !data.success) {
-      logError(context, 'Connection request failed:', data?.error || 'Unknown error');
+    try {
+      // Make request to the Edge Function with more detailed error handling
+      const { data, error } = await supabase.functions.invoke('telegram-connector', {
+        body: requestData
+      });
+      
+      // Track API call for debugging
+      trackApiCall('telegram-connector/connect', requestData, data, error);
+      
+      if (error) {
+        // Enhanced error handling with more details
+        logError(context, 'Error connecting to Telegram:', error);
+        return {
+          success: false,
+          codeNeeded: false,
+          error: `Edge Function error: ${error.message || 'Unknown error'} (${error.name || 'No error name'})`,
+          details: error
+        };
+      }
+      
+      if (!data || !data.success) {
+        // Capture detailed error information from the function
+        const errorMsg = data?.error || 'Failed to connect to Telegram API';
+        const errorDetails = data?.details || null;
+        
+        logError(context, 'Connection request failed:', errorMsg, errorDetails);
+        
+        return {
+          success: false,
+          codeNeeded: false,
+          error: errorMsg,
+          details: errorDetails
+        };
+      }
+      
+      logInfo(context, 'Connection response:', data);
+      
+      return {
+        codeNeeded: data.codeNeeded || false,
+        phoneCodeHash: data.phoneCodeHash,
+        success: data.success,
+        error: data.error,
+        _testCode: data._testCode // Include the test code if present
+      };
+    } catch (requestError) {
+      // Handle network or unexpected errors
+      logError(context, 'Exception during API request:', requestError);
       
       return {
         success: false,
         codeNeeded: false,
-        error: data?.error || 'Failed to connect to Telegram API'
+        error: requestError instanceof Error 
+          ? `Request error: ${requestError.message}`
+          : 'Failed to make request to Edge Function'
       };
     }
-    
-    logInfo(context, 'Connection response:', data);
-    
-    return {
-      codeNeeded: data.codeNeeded || false,
-      phoneCodeHash: data.phoneCodeHash,
-      success: data.success,
-      error: data.error,
-      _testCode: data._testCode // Include the test code if present
-    };
   } catch (error) {
     logError(context, 'Exception during connection attempt:', error);
     
