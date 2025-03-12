@@ -25,8 +25,17 @@ export function validateApiId(apiId: any): number {
       console.error(`Failed to parse API ID string "${apiId}" to number`);
       throw new Error(`Invalid API ID: "${apiId}". Could not convert to number.`);
     }
-  } else {
+  } else if (typeof apiId === 'number') {
     numericApiId = apiId;
+  } else {
+    // Try to convert other types
+    console.log(`API ID is not a string or number, attempting conversion`);
+    const converted = Number(apiId);
+    if (isNaN(converted)) {
+      console.error(`Failed to convert API ID to number: ${apiId}`);
+      throw new Error(`Invalid API ID: Could not convert to number.`);
+    }
+    numericApiId = converted;
   }
   
   // Additional validation for API ID

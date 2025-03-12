@@ -1,4 +1,3 @@
-
 /**
  * Utility functions for MTProto client operations
  */
@@ -85,4 +84,3 @@ export async function callMTProtoMethod(
   console.error(`All ${retries + 1} attempts to call ${method} failed`);
   return { error: lastError };
 }
-
