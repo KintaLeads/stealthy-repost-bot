@@ -36,8 +36,18 @@ const VerificationCodeDialog: React.FC<VerificationCodeDialogProps> = ({
       setError(null);
       setIsVerifying(false);
       setCodeHelper("Enter the verification code sent to your Telegram app");
+      
+      // Store phone code hash in localStorage if provided
+      if (connectionResult?.phoneCodeHash) {
+        localStorage.setItem(`telegram_code_hash_${account.id}`, connectionResult.phoneCodeHash);
+      }
+      
+      // Show test code if available in development mode
+      if (connectionResult?._testCode) {
+        setCodeHelper(`Test code: ${connectionResult._testCode} (only visible in development mode)`);
+      }
     }
-  }, [isOpen, connectionResult]);
+  }, [isOpen, connectionResult, account.id]);
   
   const handleVerify = async () => {
     if (!code.trim()) {
@@ -49,7 +59,10 @@ const VerificationCodeDialog: React.FC<VerificationCodeDialogProps> = ({
       setIsVerifying(true);
       setError(null);
       
-      const success = await verifyTelegramCode(account, code.trim());
+      const success = await verifyTelegramCode(account, code.trim(), {
+        phoneCodeHash: connectionResult?.phoneCodeHash,
+        debug: true
+      });
       
       if (success) {
         onVerificationSuccess();

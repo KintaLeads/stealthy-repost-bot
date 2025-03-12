@@ -15,6 +15,8 @@ const ConnectionErrorDisplay: React.FC<ConnectionErrorDisplayProps> = ({ error, 
   const isEdgeFunctionError = error.includes('Edge Function') || error.includes('FunctionsHttpError');
   const isNetworkError = error.includes('network') || error.includes('Failed to fetch');
   const isCredentialsError = isApiIdError || isApiHashError || error.includes('credentials');
+  const isRateLimitError = error.includes('rate limit') || error.includes('Too many requests');
+  const isVerificationError = error.includes('verification') || error.includes('code needed');
   
   return (
     <div className="bg-destructive/10 border border-destructive/30 text-destructive rounded-md p-3 text-sm mb-4">
@@ -34,6 +36,28 @@ const ConnectionErrorDisplay: React.FC<ConnectionErrorDisplayProps> = ({ error, 
             {isApiHashError && <li>API Hash must be a 32-character string</li>}
             <li>Make sure there are no extra spaces before or after credentials</li>
             <li>Verify that you're using the API ID and hash from <a href="https://my.telegram.org/apps" target="_blank" rel="noopener noreferrer" className="underline">https://my.telegram.org/apps</a></li>
+          </ul>
+        </div>
+      )}
+      
+      {isRateLimitError && (
+        <div className="mt-2 text-xs">
+          <p>You've hit Telegram's rate limits:</p>
+          <ul className="list-disc pl-5 mt-1">
+            <li>Wait a few minutes before trying again</li>
+            <li>Avoid making too many connection attempts in a short period</li>
+            <li>Try using a different Telegram account if this persists</li>
+          </ul>
+        </div>
+      )}
+      
+      {isVerificationError && (
+        <div className="mt-2 text-xs">
+          <p>Verification required:</p>
+          <ul className="list-disc pl-5 mt-1">
+            <li>You need to verify this Telegram account</li>
+            <li>Check your Telegram app for the verification code</li>
+            <li>Enter the code when prompted</li>
           </ul>
         </div>
       )}
@@ -62,7 +86,7 @@ const ConnectionErrorDisplay: React.FC<ConnectionErrorDisplayProps> = ({ error, 
         </div>
       )}
 
-      {!isCredentialsError && !isEdgeFunctionError && !isNetworkError && (
+      {!isCredentialsError && !isEdgeFunctionError && !isNetworkError && !isRateLimitError && !isVerificationError && (
         <div className="mt-2 text-xs">
           <p>Troubleshooting steps:</p>
           <ul className="list-disc pl-5 mt-1">

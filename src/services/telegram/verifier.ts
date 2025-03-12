@@ -2,7 +2,8 @@
 import { ApiAccount } from '@/types/channels';
 import { supabase } from '@/integrations/supabase/client';
 import { logInfo, logError, trackApiCall } from './debugger';
-import { getStoredSession, clearStoredSession } from './sessionManager';
+import { getStoredSession, clearStoredSession, storeSession } from './sessionManager';
+import { ConnectionResult } from './types';
 
 /**
  * Verifies a Telegram verification code
@@ -22,14 +23,23 @@ export const verifyTelegramCode = async (
   try {
     // First, check if we have an existing session to include
     const sessionString = getStoredSession(account.id);
+    const phoneCodeHash = options.phoneCodeHash || localStorage.getItem(`telegram_code_hash_${account.id}`);
+    
     logInfo(context, `Current session exists: ${!!sessionString}`);
+    logInfo(context, `Phone code hash exists: ${!!phoneCodeHash}`);
+    
+    if (!phoneCodeHash) {
+      logError(context, 'Missing phone code hash for verification');
+      throw new Error('Missing phone code hash. Please request a new verification code.');
+    }
     
     const requestData = {
-      operation: 'connect', // Changed from 'verify' to 'connect' to match edge function expectations
+      operation: 'connect',
       apiId: account.apiKey,
       apiHash: account.apiHash,
       phoneNumber: account.phoneNumber,
       verificationCode: code,
+      phone_code_hash: phoneCodeHash,
       accountId: account.id || 'unknown',
       sessionString: sessionString || '',
       debug: options.debug || false,
@@ -65,29 +75,17 @@ export const verifyTelegramCode = async (
     // If we have a session in the response, store it
     if (data.session) {
       // Update the stored session for this account
-      const sessionString = data.session;
-      
-      // This will be implemented in the session manager
-      setStoredSession(account.id, sessionString);
-      
+      storeSession(account.id, data.session);
       logInfo(context, 'Updated session for account:', account.id);
     }
+    
+    // Clear the phone code hash as it's no longer needed
+    localStorage.removeItem(`telegram_code_hash_${account.id}`);
     
     logInfo(context, 'Verification successful');
     return true;
   } catch (error) {
     logError(context, 'Exception during verification:', error);
     throw error;
-  }
-};
-
-// Helper to store the session
-const setStoredSession = (accountId: string, sessionString: string) => {
-  try {
-    localStorage.setItem(`telegram_session_${accountId}`, sessionString);
-    return true;
-  } catch (error) {
-    console.error('Error storing session:', error);
-    return false;
   }
 };

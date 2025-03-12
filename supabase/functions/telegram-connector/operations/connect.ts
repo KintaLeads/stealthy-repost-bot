@@ -2,11 +2,12 @@
 // Connect to telegram and handle verification
 import { corsHeaders } from "../../_shared/cors.ts";
 import { TelegramClientImplementation } from "../client/telegram-client.ts";
+import { ConnectionResult } from "../types.ts";
 
 export async function handleConnect(
   client: TelegramClientImplementation, 
   corsHeaders: Record<string, string>,
-  options: { verificationCode?: string, debug?: boolean }
+  options: { verificationCode?: string, phone_code_hash?: string, debug?: boolean }
 ): Promise<Response> {
   const debug = options.debug || false;
   console.log(`Handling connect operation, verificationCode provided: ${!!options.verificationCode}, debug: ${debug}`);
@@ -22,9 +23,12 @@ export async function handleConnect(
     }
     
     // If verification code is provided, verify it
-    if (options.verificationCode) {
-      console.log("Verifying code");
-      const verificationResult = await client.verifyCode(options.verificationCode);
+    if (options.verificationCode && options.phone_code_hash) {
+      console.log("Verifying code with phone_code_hash");
+      const verificationResult = await client.verifyCode(
+        options.verificationCode, 
+        options.phone_code_hash
+      );
       
       if (verificationResult.success) {
         console.log("Code verification successful");
