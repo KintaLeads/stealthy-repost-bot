@@ -113,6 +113,39 @@ export const handleInitialConnection = async (account: ApiAccount): Promise<Conn
     logInfo(context, 'Calling Supabase function \'telegram-connector\' for connection...');
     
     try {
+      // Try using the telegram-realtime function as a fallback
+      // This is a temporary measure to help diagnose issues with the connector
+      logInfo(context, 'Attempting to use telegram-realtime function as a fallback...');
+      
+      const realtimeResponse = await supabase.functions.invoke('telegram-realtime', {
+        body: requestData
+      });
+      
+      trackApiCall('telegram-realtime/connect', requestData, realtimeResponse.data, realtimeResponse.error);
+      
+      if (realtimeResponse.error) {
+        logError(context, 'Error from realtime function:', realtimeResponse.error);
+        return {
+          success: false,
+          codeNeeded: false,
+          error: `Realtime function error: ${realtimeResponse.error.message || 'Unknown error'}`,
+          details: realtimeResponse.error
+        };
+      }
+      
+      if (realtimeResponse.data && realtimeResponse.data.success) {
+        logInfo(context, 'Successfully connected using realtime function');
+        return {
+          success: true,
+          codeNeeded: false,
+          error: undefined,
+          details: { usedFallback: true, function: 'telegram-realtime' }
+        };
+      }
+      
+      // If realtime function doesn't work, try the original connector
+      logInfo(context, 'Fallback didn\'t work, trying original connector...');
+      
       // Make request to the Edge Function with more detailed error handling
       const { data, error } = await supabase.functions.invoke('telegram-connector', {
         body: requestData
@@ -137,8 +170,8 @@ export const handleInitialConnection = async (account: ApiAccount): Promise<Conn
         const errorMsg = data?.error || 'Failed to connect to Telegram API';
         const errorDetails = data?.details || null;
         
-        // Fix: logError expects only 3 arguments
-        logError(context, 'Connection request failed:', `${errorMsg} ${errorDetails ? JSON.stringify(errorDetails) : ''}`);
+        // Fix: correct argument count for logError
+        logError(context, `Connection request failed: ${errorMsg} ${errorDetails ? JSON.stringify(errorDetails) : ''}`);
         
         return {
           success: false,
@@ -166,7 +199,8 @@ export const handleInitialConnection = async (account: ApiAccount): Promise<Conn
         codeNeeded: false,
         error: requestError instanceof Error 
           ? `Request error: ${requestError.message}`
-          : 'Failed to make request to Edge Function'
+          : 'Failed to make request to Edge Function',
+        details: requestError
       };
     }
   } catch (error) {
@@ -175,7 +209,8 @@ export const handleInitialConnection = async (account: ApiAccount): Promise<Conn
     return {
       success: false,
       codeNeeded: false,
-      error: error instanceof Error ? error.message : 'An unknown error occurred'
+      error: error instanceof Error ? error.message : 'An unknown error occurred',
+      details: error
     };
   }
 };

@@ -10,7 +10,8 @@ const supabase = createClient(supabaseUrl, supabaseKey)
 // Add Access-Control-Expose-Headers to the CORS headers
 const updatedCorsHeaders = {
   ...corsHeaders,
-  'Access-Control-Expose-Headers': 'X-Connection-Id, X-Telegram-Session'
+  'Access-Control-Expose-Headers': 'X-Connection-Id, X-Telegram-Session',
+  'Content-Type': 'application/json'
 };
 
 Deno.serve(async (req) => {
@@ -199,7 +200,6 @@ Deno.serve(async (req) => {
           headers: {
             ...updatedCorsHeaders,
             'X-Telegram-Session': mockSession,
-            'Content-Type': 'application/json'
           }
         }
       )
@@ -244,7 +244,7 @@ Deno.serve(async (req) => {
         }),
         {
           status: 200,
-          headers: {...updatedCorsHeaders, 'Content-Type': 'application/json'}
+          headers: updatedCorsHeaders
         }
       )
     }
@@ -259,7 +259,7 @@ Deno.serve(async (req) => {
         }),
         {
           status: 200,
-          headers: {...updatedCorsHeaders, 'Content-Type': 'application/json'}
+          headers: updatedCorsHeaders
         }
       )
     }
@@ -273,7 +273,7 @@ Deno.serve(async (req) => {
         }),
         {
           status: 400,
-          headers: {...updatedCorsHeaders, 'Content-Type': 'application/json'}
+          headers: updatedCorsHeaders
         }
       )
     }
@@ -294,7 +294,7 @@ Deno.serve(async (req) => {
       }),
       {
         status: 500,
-        headers: {...updatedCorsHeaders, 'Content-Type': 'application/json'}
+        headers: updatedCorsHeaders
       }
     )
   }

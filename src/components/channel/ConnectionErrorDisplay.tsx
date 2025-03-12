@@ -3,9 +3,10 @@ import React from 'react';
 
 interface ConnectionErrorDisplayProps {
   error: string | null;
+  details?: any; // Add support for detailed error information
 }
 
-const ConnectionErrorDisplay: React.FC<ConnectionErrorDisplayProps> = ({ error }) => {
+const ConnectionErrorDisplay: React.FC<ConnectionErrorDisplayProps> = ({ error, details }) => {
   if (!error) return null;
   
   // Extract possible API ID/Hash errors for clearer display
@@ -18,6 +19,12 @@ const ConnectionErrorDisplay: React.FC<ConnectionErrorDisplayProps> = ({ error }
   return (
     <div className="bg-destructive/10 border border-destructive/30 text-destructive rounded-md p-3 text-sm mb-4">
       <strong className="font-semibold">Connection Error:</strong> {error}
+      
+      {details && (
+        <div className="mt-1 text-xs opacity-80">
+          <strong>Details:</strong> {typeof details === 'object' ? JSON.stringify(details) : details}
+        </div>
+      )}
       
       {isCredentialsError && (
         <div className="mt-2 text-xs">
@@ -50,6 +57,7 @@ const ConnectionErrorDisplay: React.FC<ConnectionErrorDisplayProps> = ({ error }
             <li>Check your internet connection</li>
             <li>Make sure CORS is properly configured in the Edge Function</li>
             <li>Verify that the Supabase URL is correct and accessible</li>
+            <li>Try opening the browser console (F12) and check for detailed network error messages</li>
           </ul>
         </div>
       )}
@@ -62,6 +70,7 @@ const ConnectionErrorDisplay: React.FC<ConnectionErrorDisplayProps> = ({ error }
             <li>Verify your Telegram API credentials</li>
             <li>Make sure all required environment variables are set</li>
             <li>Try again in a few minutes as Telegram may have rate-limiting in place</li>
+            <li>Open the browser console (F12) to check for more detailed error messages</li>
           </ul>
         </div>
       )}

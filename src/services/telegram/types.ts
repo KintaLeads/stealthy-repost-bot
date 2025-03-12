@@ -1,3 +1,4 @@
+
 export interface ConnectionResult {
   success: boolean;
   codeNeeded?: boolean;
