@@ -1,4 +1,3 @@
-
 /**
  * MTProto implementation for Telegram API
  * Using GramJS for Deno
@@ -24,23 +23,54 @@ export class MTProto {
   private lastPhoneCodeHash: string | null = null;
   
   constructor(options: MTProtoOptions) {
-    // Validate API ID - ensure it's a valid number
-    if (!options.apiId || isNaN(Number(options.apiId)) || Number(options.apiId) <= 0) {
-      console.error("Invalid API ID provided:", options.apiId);
-      throw new Error(`Invalid API ID: ${options.apiId}. Must be a positive number.`);
+    console.log("==== MTPROTO INITIALIZATION ====");
+    console.log("Constructor called with options:", {
+      apiId: options.apiId,
+      apiHash: options.apiHash ? `${options.apiHash.substring(0, 3)}... (${options.apiHash.length} chars)` : 'undefined'
+    });
+    
+    // Direct check for undefined, null or empty values
+    if (options.apiId === undefined || options.apiId === null) {
+      console.error("CRITICAL ERROR: API ID is undefined or null");
+      throw new Error("API ID cannot be undefined or null");
     }
     
-    // Validate API Hash - ensure it's a non-empty string matching expected format
-    if (!options.apiHash || typeof options.apiHash !== 'string' || options.apiHash.length < 5) {
-      console.error("Invalid API Hash provided:", typeof options.apiHash);
-      throw new Error(`Invalid API Hash format. Must be a non-empty string.`);
+    if (options.apiHash === undefined || options.apiHash === null) {
+      console.error("CRITICAL ERROR: API Hash is undefined or null");
+      throw new Error("API Hash cannot be undefined or null");
     }
     
-    this.apiId = Number(options.apiId);
-    this.apiHash = options.apiHash;
+    // Convert apiId to number if it's a string
+    let numericApiId: number;
+    if (typeof options.apiId === 'string') {
+      console.log(`API ID is a string (${options.apiId}), converting to number`);
+      numericApiId = parseInt(options.apiId, 10);
+      
+      if (isNaN(numericApiId)) {
+        console.error(`Failed to parse API ID string "${options.apiId}" to number`);
+        throw new Error(`Invalid API ID: "${options.apiId}". Could not convert to number.`);
+      }
+    } else {
+      numericApiId = options.apiId;
+    }
+    
+    // Final validation
+    if (isNaN(numericApiId) || numericApiId <= 0) {
+      console.error("Invalid API ID:", numericApiId);
+      throw new Error(`Invalid API ID: ${numericApiId}. Must be a positive number.`);
+    }
+    
+    if (!options.apiHash || typeof options.apiHash !== 'string' || options.apiHash.trim() === '') {
+      console.error("Empty API Hash:", options.apiHash);
+      throw new Error("API Hash cannot be empty");
+    }
+    
+    // Store validated values
+    this.apiId = numericApiId;
+    this.apiHash = options.apiHash.trim();
     this.session = options.storageOptions.session || "";
     
-    console.log(`MTProto created with API ID: ${this.apiId} and API Hash: ${this.apiHash.substring(0, 3)}...`);
+    console.log(`MTProto initialized with API ID: ${this.apiId} and API Hash: ${this.apiHash.substring(0, 3)}... (length: ${this.apiHash.length})`);
     
     // Initialize string session if we have a session
     if (this.session) {
@@ -65,18 +95,13 @@ export class MTProto {
    */
   private initClient() {
     try {
-      console.log(`Initializing Telegram client with apiId: ${this.apiId}, apiHash: ${this.apiHash.substring(0, 3)}...`);
-      
-      // Final validation check before client creation
-      if (!this.apiId || isNaN(this.apiId) || this.apiId <= 0) {
-        throw new Error(`Invalid API ID format: ${this.apiId}`);
-      }
-      
-      if (!this.apiHash || typeof this.apiHash !== 'string' || this.apiHash.length < 5) {
-        throw new Error(`Invalid API Hash format. Length: ${this.apiHash ? this.apiHash.length : 0}`);
-      }
+      console.log(`==== TELEGRAM CLIENT INITIALIZATION ====`);
+      console.log(`Using apiId: ${this.apiId} (${typeof this.apiId})`);
+      console.log(`Using apiHash: ${this.apiHash.substring(0, 3)}... (${typeof this.apiHash}, length: ${this.apiHash.length})`);
+      console.log(`Using session: ${this.session ? 'Yes' : 'No'}`);
       
       // Create TelegramClient instance with session if available
+      console.log("Creating TelegramClient instance...");
       this.client = new TelegramClient({
         apiId: this.apiId,
         apiHash: this.apiHash,
@@ -89,6 +114,7 @@ export class MTProto {
       console.log("Telegram client initialized successfully");
     } catch (error) {
       console.error("Error initializing Telegram client:", error);
+      console.error("Stack trace:", error instanceof Error ? error.stack : "No stack trace");
       throw error;
     }
   }

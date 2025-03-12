@@ -1,3 +1,4 @@
+
 // Main function handler for Telegram connector
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
@@ -33,6 +34,18 @@ function debugCheckValue(name: string, value: any): void {
   console.log(`  Is 'undefined' string: ${value === 'undefined'}`);
   console.log(`  Is 'null' string: ${value === 'null'}`);
   console.log(`  Passes basic validity: ${value && value !== 'undefined' && value !== 'null' && String(value).trim() !== ''}`);
+  
+  // NEW: Check value after trimming and conversion to number if applicable
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    console.log(`  After trim: "${trimmed}" (length: ${trimmed.length})`);
+    
+    // If this is potentially a numeric field, check numeric conversion
+    if (name.toLowerCase().includes('id')) {
+      const asNumber = Number(trimmed);
+      console.log(`  As number: ${asNumber} (isNaN: ${isNaN(asNumber)})`);
+    }
+  }
 }
 
 // NEW: Debug function to stringifyValues while hiding sensitive data
@@ -234,6 +247,16 @@ Deno.serve(async (req) => {
       
       if (!trimmedApiHash || trimmedApiHash === 'undefined' || trimmedApiHash === 'null') {
         throw new Error(`API Hash is invalid after trimming: "${trimmedApiHash.substring(0, 3)}..."`);
+      }
+      
+      // NEW: Manual conversion test for numeric apiId
+      console.log("Manual numeric conversion test for API ID:");
+      const testNumericId = Number(trimmedApiId);
+      console.log(`- As Number(): ${testNumericId} (isNaN: ${isNaN(testNumericId)})`);
+      console.log(`- parseInt(): ${parseInt(trimmedApiId, 10)} (isNaN: ${isNaN(parseInt(trimmedApiId, 10))})`);
+      
+      if (isNaN(testNumericId) || testNumericId <= 0) {
+        throw new Error(`API ID conversion to number failed: "${trimmedApiId}" -> ${testNumericId}`);
       }
       
       // Create the client with validated credentials
