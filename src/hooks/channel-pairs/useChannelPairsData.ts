@@ -1,9 +1,9 @@
-
 import { useState, useEffect } from 'react';
 import { ChannelPair, ApiAccount } from '@/types/channels';
 import { toast } from "@/components/ui/use-toast";
 import { UseChannelPairsState, UseChannelPairsStateInternal } from './types';
 import { supabase } from "@/integrations/supabase/client";
+import { logError } from "@/services/telegram/debugger";
 
 export const useChannelPairsData = (selectedAccount: ApiAccount | null): UseChannelPairsStateInternal & { 
   fetchChannelPairs: () => Promise<void> 
@@ -13,7 +13,6 @@ export const useChannelPairsData = (selectedAccount: ApiAccount | null): UseChan
   const [isSaving, setIsSaving] = useState(false);
   const [isAutoRepost, setIsAutoRepost] = useState(true);
   
-  // Fetch channel pairs from Supabase
   const fetchChannelPairs = async () => {
     if (!selectedAccount) return;
     
@@ -26,13 +25,23 @@ export const useChannelPairsData = (selectedAccount: ApiAccount | null): UseChan
         .eq('account_id', selectedAccount.id);
       
       if (error) {
+        const errorDetails = {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint
+        };
+        logError(
+          "ChannelPairs",
+          `Failed to fetch channel pairs for account ${selectedAccount.id}:`,
+          errorDetails
+        );
         throw error;
       }
       
       if (storedPairs && storedPairs.length > 0) {
         console.log(`Loaded ${storedPairs.length} channel pairs from Supabase for account: ${selectedAccount?.nickname}`);
         
-        // Transform from DB schema (snake_case) to application schema (camelCase)
         const transformedPairs: ChannelPair[] = storedPairs.map(pair => ({
           id: pair.id,
           createdAt: pair.created_at,
@@ -45,7 +54,6 @@ export const useChannelPairsData = (selectedAccount: ApiAccount | null): UseChan
         
         setChannelPairs(transformedPairs);
       } else {
-        // If no stored pairs, create a default one
         const defaultPair: ChannelPair = {
           id: crypto.randomUUID(),
           createdAt: new Date().toISOString(),
@@ -62,13 +70,22 @@ export const useChannelPairsData = (selectedAccount: ApiAccount | null): UseChan
       }
     } catch (error) {
       console.error('Error fetching channel pairs:', error);
+      const errorMessage = error instanceof Error ? 
+        error.message : 
+        'An unexpected error occurred while fetching channel pairs';
+      
+      logError(
+        "ChannelPairs",
+        `Error fetching channel pairs for account ${selectedAccount?.nickname}:`,
+        { error, account: selectedAccount.id }
+      );
+      
       toast({
         title: "Failed to load channels",
-        description: "Could not load your channel configurations from the database",
+        description: errorMessage,
         variant: "destructive",
       });
       
-      // Create a default pair if we can't load from Supabase
       const defaultPair: ChannelPair = {
         id: crypto.randomUUID(),
         createdAt: new Date().toISOString(),
@@ -84,22 +101,30 @@ export const useChannelPairsData = (selectedAccount: ApiAccount | null): UseChan
     }
   };
   
-  // Save channel pairs to Supabase
   const savePairsToSupabase = async (pairs: ChannelPair[]) => {
     if (!selectedAccount) return;
     
     try {
-      // First, delete existing pairs for this account
       const { error: deleteError } = await supabase
         .from('channel_pairs')
         .delete()
         .eq('account_id', selectedAccount.id);
       
       if (deleteError) {
+        const errorDetails = {
+          code: deleteError.code,
+          message: deleteError.message,
+          details: deleteError.details,
+          hint: deleteError.hint
+        };
+        logError(
+          "ChannelPairs",
+          `Failed to delete existing channel pairs for account ${selectedAccount.id}:`,
+          errorDetails
+        );
         throw deleteError;
       }
       
-      // Transform from application schema (camelCase) to DB schema (snake_case)
       const transformedPairs = pairs.map(pair => ({
         id: pair.id,
         created_at: pair.createdAt,
@@ -110,23 +135,36 @@ export const useChannelPairsData = (selectedAccount: ApiAccount | null): UseChan
         is_active: pair.isActive
       }));
       
-      // Then insert the new pairs
       const { error: insertError } = await supabase
         .from('channel_pairs')
         .insert(transformedPairs);
       
       if (insertError) {
+        const errorDetails = {
+          code: insertError.code,
+          message: insertError.message,
+          details: insertError.details,
+          hint: insertError.hint
+        };
+        logError(
+          "ChannelPairs",
+          `Failed to insert new channel pairs for account ${selectedAccount.id}:`,
+          errorDetails
+        );
         throw insertError;
       }
       
       console.log(`Saved ${pairs.length} channel pairs to Supabase for account: ${selectedAccount?.nickname}`);
     } catch (error) {
-      console.error('Error saving channel pairs to Supabase:', error);
+      logError(
+        "ChannelPairs",
+        `Error saving channel pairs to Supabase for account ${selectedAccount?.nickname}:`,
+        { error, pairsCount: pairs.length }
+      );
       throw error;
     }
   };
   
-  // Override setChannelPairs to also save to Supabase
   const setPairsWithDatabase = async (pairs: ChannelPair[]) => {
     setChannelPairs(pairs);
     try {
@@ -136,7 +174,6 @@ export const useChannelPairsData = (selectedAccount: ApiAccount | null): UseChan
     }
   };
   
-  // Load channel pairs when the selected account changes
   useEffect(() => {
     if (selectedAccount) {
       fetchChannelPairs();

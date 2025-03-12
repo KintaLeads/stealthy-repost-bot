@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/use-toast";
 import { ApiAccount } from "@/types/channels";
@@ -22,28 +23,44 @@ export const setupRealtimeListener = async (
     const sessionString = getStoredSession(account.id);
     if (!sessionString) {
       logInfo("RealtimeService", "No session found for account:", account.nickname);
+      
+      const error = new Error("Authentication required");
+      logError("RealtimeService", "Session validation failed:", {
+        accountId: account.id,
+        error: error.message
+      });
+      
       toast({
         title: "Authentication Required",
         description: "Please connect to Telegram using the connection button",
         variant: "destructive",
       });
-      throw new Error("Authentication required");
+      throw error;
     }
     
     // Extract channel names from the pairs
     const channelNames = channelPairs.map(pair => pair.sourceChannel).filter(Boolean);
     
     if (channelNames.length === 0) {
+      const error = new Error("No channels configured");
+      logError("RealtimeService", "Channel validation failed:", {
+        accountId: account.id,
+        error: error.message
+      });
+      
       toast({
         title: "No Channels Configured",
         description: "Please add source channels before connecting",
         variant: "destructive",
       });
-      throw new Error("No channels configured");
+      throw error;
     }
     
     // Call the real Telegram realtime endpoint to setup the listener
-    logInfo("RealtimeService", "Calling telegram-realtime Edge Function to set up listener");
+    logInfo("RealtimeService", "Calling telegram-realtime Edge Function to set up listener", {
+      accountId: account.id,
+      channelCount: channelNames.length
+    });
     
     const { data, error } = await supabase.functions.invoke('telegram-realtime', {
       body: {
@@ -61,7 +78,11 @@ export const setupRealtimeListener = async (
     });
     
     if (error) {
-      logError("RealtimeService", "Error calling realtime Edge Function:", error);
+      logError("RealtimeService", "Error calling realtime Edge Function:", {
+        error,
+        accountId: account.id,
+        channelCount: channelNames.length
+      });
       
       // Check if it's an authentication error
       if (error.status === 401 || (error.message && error.message.includes('authentication'))) {
@@ -69,22 +90,25 @@ export const setupRealtimeListener = async (
         
         toast({
           title: "Authentication Required",
-          description: "Please connect to Telegram using the connection button",
+          description: "Your session has expired. Please reconnect to Telegram.",
           variant: "destructive",
         });
-        throw new Error("Authentication required");
+        throw new Error("Authentication required - session expired");
       }
       
       toast({
         title: "Connection Error",
-        description: error.message || "Failed to connect to Telegram",
+        description: `Failed to connect: ${error.message || "Unknown error"}`,
         variant: "destructive",
       });
       throw error;
     }
     
     if (!data.success) {
-      logError("RealtimeService", "Unsuccessful realtime response:", data);
+      logError("RealtimeService", "Unsuccessful realtime response:", {
+        data,
+        accountId: account.id
+      });
       
       toast({
         title: "Listener Setup Failed",
@@ -149,27 +173,52 @@ export const setupRealtimeListener = async (
     // Return a function to stop the listener
     return {
       stopListener: async () => {
-        logInfo("RealtimeService", "Stopping realtime listener");
-        clearInterval(pollingInterval);
+        logInfo("RealtimeService", "Stopping realtime listener", {
+          accountId: account.id
+        });
         
         try {
+          clearInterval(pollingInterval);
+          
           // Call the disconnect operation
-          await supabase.functions.invoke('telegram-realtime', {
+          const { error } = await supabase.functions.invoke('telegram-realtime', {
             body: {
               operation: 'disconnect',
               accountId: account.id
             }
           });
           
+          if (error) {
+            logError("RealtimeService", "Error disconnecting listener:", {
+              error,
+              accountId: account.id
+            });
+            throw error;
+          }
+          
           logInfo("RealtimeService", "Realtime listener stopped successfully");
         } catch (error) {
-          logError("RealtimeService", "Error stopping listener:", error);
+          logError("RealtimeService", "Error stopping listener:", {
+            error,
+            accountId: account.id
+          });
           // Continue with local cleanup even if the remote disconnect fails
         }
       }
     };
   } catch (error) {
-    logError("RealtimeService", "Error setting up realtime listener:", error);
+    const errorDetails = error instanceof Error ? {
+      name: error.name,
+      message: error.message,
+      stack: error.stack
+    } : error;
+    
+    logError("RealtimeService", "Error setting up realtime listener:", {
+      error: errorDetails,
+      account: account.nickname,
+      accountId: account.id
+    });
+    
     toast({
       title: "Listener Error",
       description: `Failed to setup listener: ${error instanceof Error ? error.message : String(error)}`,
