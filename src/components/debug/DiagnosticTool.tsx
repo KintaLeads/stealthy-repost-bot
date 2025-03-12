@@ -1,96 +1,80 @@
-
-import React, { useState } from 'react';
-import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
-import { AlertTriangle, Loader2, RefreshCw } from "lucide-react";
-import { runConnectivityChecks, testCorsConfiguration } from "@/services/telegram";
+import React, { useState, useEffect } from 'react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { runConnectivityChecks } from '@/services/telegram/networkConnectivity';
+import StatusSummary from './StatusSummary';
 import DiagnosticResults from './DiagnosticResults';
-import { DiagnosticResultData } from './types';
+import DiagnosticActions from './DiagnosticActions';
+import CorsDetails from './CorsDetails';
+import EdgeFunctionTester from './EdgeFunctionTester';
+
+interface DiagnosticResultsType {
+  supabase: boolean;
+  telegram: boolean;
+  edgeFunction: {
+    deployed: boolean;
+    url: string;
+    error: string;
+    connector: {
+      available: boolean;
+      response: any;
+    };
+    realtime: {
+      available: boolean;
+      response: any;
+    };
+  };
+}
 
 const DiagnosticTool: React.FC = () => {
-  const [isRunning, setIsRunning] = useState(false);
-  const [results, setResults] = useState<DiagnosticResultData | null>(null);
-
-  const runChecks = async () => {
-    setIsRunning(true);
+  const [diagnosticResults, setDiagnosticResults] = useState<DiagnosticResultsType | null>(null);
+  const [isChecking, setIsChecking] = useState(false);
+  
+  const runDiagnosticChecks = async () => {
+    setIsChecking(true);
     try {
-      // The project ID is hardcoded for now, but could be made configurable
-      const projectId = "eswfrzdqxsaizkdswxfn";
-      
-      // Run connectivity checks first
-      const checkResults = await runConnectivityChecks(projectId);
-      
-      // If edge function is deployed, also test CORS
-      let corsResults = undefined;
-      if (checkResults.edgeFunction.deployed) {
-        corsResults = await testCorsConfiguration(projectId);
-      }
-      
-      setResults({
-        ...checkResults,
-        cors: corsResults
-      });
-      
-      // Log full diagnostics results for debugging
-      console.log("Full diagnostics results:", {
-        supabase: checkResults.supabase,
-        telegram: checkResults.telegram,
-        edgeFunction: checkResults.edgeFunction,
-        cors: corsResults
-      });
+      const projectId = process.env.NEXT_PUBLIC_SUPABASE_PROJECT_ID || '';
+      const results = await runConnectivityChecks(projectId);
+      setDiagnosticResults(results);
     } catch (error) {
-      console.error("Error running diagnostics:", error);
+      console.error("Error running diagnostic checks:", error);
     } finally {
-      setIsRunning(false);
+      setIsChecking(false);
     }
   };
-
-  const openSupabaseFunctions = () => {
-    window.open('https://supabase.com/dashboard/project/eswfrzdqxsaizkdswxfn/functions', '_blank');
-  };
-
+  
+  useEffect(() => {
+    runDiagnosticChecks();
+  }, []);
+  
   return (
-    <Card className="w-full">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <AlertTriangle className="h-5 w-5" />
-          Telegram Connection Diagnostics
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        {!results ? (
-          <div className="text-center py-4">
-            <p className="text-muted-foreground mb-4">
-              Run the diagnostics to check your Telegram API connection
-            </p>
-          </div>
-        ) : (
-          <DiagnosticResults 
-            results={results} 
-            onOpenSupabaseFunctions={openSupabaseFunctions} 
-          />
-        )}
-      </CardContent>
-      <CardFooter>
-        <Button 
-          className="w-full" 
-          onClick={runChecks} 
-          disabled={isRunning}
-        >
-          {isRunning ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Running Diagnostics...
-            </>
-          ) : (
-            <>
-              <RefreshCw className="mr-2 h-4 w-4" />
-              {results ? "Run Diagnostics Again" : "Run Diagnostics"}
-            </>
-          )}
-        </Button>
-      </CardFooter>
-    </Card>
+    <div className="space-y-4">
+      <StatusSummary results={diagnosticResults} isLoading={isChecking} />
+      
+      <Tabs defaultValue="details">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="details">Detailed Results</TabsTrigger>
+          <TabsTrigger value="edge">Edge Functions</TabsTrigger>
+          <TabsTrigger value="cors">CORS Details</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="details" className="space-y-4">
+          <DiagnosticResults results={diagnosticResults} isLoading={isChecking} />
+        </TabsContent>
+        
+        <TabsContent value="edge" className="space-y-4">
+          <EdgeFunctionTester />
+        </TabsContent>
+        
+        <TabsContent value="cors" className="space-y-4">
+          <CorsDetails />
+        </TabsContent>
+      </Tabs>
+      
+      <DiagnosticActions 
+        onRunChecks={runDiagnosticChecks} 
+        isChecking={isChecking}
+      />
+    </div>
   );
 };
 

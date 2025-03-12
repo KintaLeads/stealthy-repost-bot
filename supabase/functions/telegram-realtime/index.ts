@@ -136,6 +136,38 @@ Deno.serve(async (req) => {
     }
 
     console.log(`🔄 Processing operation: ${operation}`);
+    
+    // ADD HEALTHCHECK OPERATION
+    if (operation === 'healthcheck') {
+      console.log("🏥 Handling healthcheck request");
+      
+      const healthResponse = {
+        status: "ok",
+        timestamp: Date.now(),
+        message: "Telegram realtime service is running",
+        serviceInfo: {
+          name: "telegram-realtime",
+          version: "1.0.0",
+          environment: Deno.env.get("ENVIRONMENT") || "development"
+        },
+        denoInfo: {
+          version: Deno.version.deno,
+          v8: Deno.version.v8,
+          typescript: Deno.version.typescript
+        }
+      };
+      
+      console.log("Healthcheck response:", healthResponse);
+      
+      return new Response(
+        JSON.stringify(healthResponse),
+        { 
+          headers: updatedCorsHeaders,
+          status: 200
+        }
+      );
+    }
+    
     console.log(`Channel names:`, channelNames || 'None provided');
     console.log(`Session provided: ${effectiveSessionString ? 'Yes (length: ' + effectiveSessionString.length + ')' : 'No'}`);
 

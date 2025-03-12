@@ -42,6 +42,10 @@ export const handleInitialConnection = async (
     // Call the edge function
     logInfo(context, '⚡ Calling telegram-connector edge function');
     
+    // Make sure we're using the project ID from the config
+    const projectId = 'eswfrzdqxsaizkdswxfn';
+    logInfo(context, `Using Supabase project ID: ${projectId}`);
+    
     const { data, error } = await supabase.functions.invoke('telegram-connector', {
       body: connectionData,
       headers: {

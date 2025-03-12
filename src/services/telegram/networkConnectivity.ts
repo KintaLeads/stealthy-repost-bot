@@ -16,7 +16,15 @@ export const runConnectivityChecks = async (projectId: string) => {
     edgeFunction: {
       deployed: false,
       url: '',
-      error: ''
+      error: '',
+      connector: {
+        available: false,
+        response: null
+      },
+      realtime: {
+        available: false,
+        response: null
+      }
     }
   };
   
@@ -59,66 +67,123 @@ export const runConnectivityChecks = async (projectId: string) => {
     const edgeFunctionUrl = `https://${projectId}.supabase.co/functions/v1/telegram-connector`;
     results.edgeFunction.url = edgeFunctionUrl;
     
-    // Perform a health check request with detailed diagnostics
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000); // Increased timeout to 15 seconds
-    
+    // First, try to directly call the healthcheck on the connector
     try {
-      logInfo(context, `Sending OPTIONS request to ${edgeFunctionUrl}`);
+      logInfo(context, 'Testing telegram-connector with healthcheck operation');
       
-      // Use the public anon key for authentication
-      const response = await fetch(edgeFunctionUrl, {
-        method: 'OPTIONS',
-        signal: controller.signal,
-        headers: {
-          'apikey': supabase.auth.getSession() ? await supabase.auth.getSession().then(res => res.data.session?.access_token || '') : '',
-          'Origin': window.location.origin,
-          'Access-Control-Request-Method': 'POST',
-          'Access-Control-Request-Headers': 'content-type,authorization,apikey'
-        }
+      const { data: connectorData, error: connectorError } = await supabase.functions.invoke('telegram-connector', {
+        body: { operation: 'healthcheck' }
       });
       
-      clearTimeout(timeoutId);
-      logInfo(context, `Edge Function response status: ${response.status}`);
-      logInfo(context, `Edge Function response headers:`, Object.fromEntries([...response.headers.entries()]));
-      
-      if (response.status === 204 || response.ok) {
-        results.edgeFunction.deployed = true;
-        logInfo(context, 'Edge Function deployment check: Successful');
+      if (connectorError) {
+        logError(context, 'telegram-connector healthcheck failed:', connectorError);
+        results.edgeFunction.connector = {
+          available: false,
+          response: connectorError
+        };
+      } else {
+        logInfo(context, 'telegram-connector healthcheck successful:', connectorData);
+        results.edgeFunction.connector = {
+          available: true,
+          response: connectorData
+        };
         
-        // Additional health check with a simple POST request
-        try {
-          const healthResponse = await fetch(edgeFunctionUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'apikey': supabase.auth.getSession() ? await supabase.auth.getSession().then(res => res.data.session?.access_token || '') : '',
-              'Origin': window.location.origin
-            },
-            body: JSON.stringify({ operation: 'healthcheck' })
-          });
-          
-          logInfo(context, `Health check POST status: ${healthResponse.status}`);
-        } catch (healthError) {
-          logWarning(context, 'Health check POST failed but OPTIONS succeeded', healthError);
-        }
-      } else {
-        // Function exists but returned an unexpected status
-        results.edgeFunction.deployed = false;
-        results.edgeFunction.error = `Unexpected status: ${response.status}`;
-        logWarning(context, `Edge Function returns unexpected status: ${response.status}`);
+        // If connector is available, mark edge functions as deployed
+        results.edgeFunction.deployed = true;
       }
-    } catch (fetchError) {
-      logError(context, 'Edge Function fetch failed', fetchError);
+    } catch (connectorTestError) {
+      logError(context, 'Exception testing telegram-connector:', connectorTestError);
+      results.edgeFunction.connector = {
+        available: false,
+        response: {
+          error: connectorTestError instanceof Error ? connectorTestError.message : String(connectorTestError)
+        }
+      };
+    }
+    
+    // Next, try to directly call the healthcheck on the realtime function
+    try {
+      logInfo(context, 'Testing telegram-realtime with healthcheck operation');
       
-      if (fetchError.name === 'AbortError') {
-        results.edgeFunction.error = 'Connection timeout - the Edge Function didn\'t respond in time';
-      } else if (fetchError.message?.includes('Failed to fetch')) {
-        results.edgeFunction.error = 'Network error - unable to connect to the Edge Function. The function may not be deployed correctly.';
+      const { data: realtimeData, error: realtimeError } = await supabase.functions.invoke('telegram-realtime', {
+        body: { operation: 'healthcheck' }
+      });
+      
+      if (realtimeError) {
+        logError(context, 'telegram-realtime healthcheck failed:', realtimeError);
+        results.edgeFunction.realtime = {
+          available: false,
+          response: realtimeError
+        };
       } else {
-        results.edgeFunction.error = fetchError.message || 'Unknown error';
+        logInfo(context, 'telegram-realtime healthcheck successful:', realtimeData);
+        results.edgeFunction.realtime = {
+          available: true,
+          response: realtimeData
+        };
+        
+        // If realtime is available, mark edge functions as deployed
+        results.edgeFunction.deployed = true;
+      }
+    } catch (realtimeTestError) {
+      logError(context, 'Exception testing telegram-realtime:', realtimeTestError);
+      results.edgeFunction.realtime = {
+        available: false,
+        response: {
+          error: realtimeTestError instanceof Error ? realtimeTestError.message : String(realtimeTestError)
+        }
+      };
+    }
+    
+    // If neither test worked, fallback to the OPTIONS check
+    if (!results.edgeFunction.deployed) {
+      logInfo(context, 'Direct healthchecks failed, falling back to OPTIONS request');
+      
+      // Perform a health check request with detailed diagnostics
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // Increased timeout to 15 seconds
+      
+      try {
+        logInfo(context, `Sending OPTIONS request to ${edgeFunctionUrl}`);
+        
+        // Use the public anon key for authentication
+        const response = await fetch(edgeFunctionUrl, {
+          method: 'OPTIONS',
+          signal: controller.signal,
+          headers: {
+            'apikey': supabase.auth.getSession() ? await supabase.auth.getSession().then(res => res.data.session?.access_token || '') : '',
+            'Origin': window.location.origin,
+            'Access-Control-Request-Method': 'POST',
+            'Access-Control-Request-Headers': 'content-type,authorization,apikey'
+          }
+        });
+        
+        clearTimeout(timeoutId);
+        logInfo(context, `Edge Function response status: ${response.status}`);
+        logInfo(context, `Edge Function response headers:`, Object.fromEntries([...response.headers.entries()]));
+        
+        if (response.status === 204 || response.ok) {
+          results.edgeFunction.deployed = true;
+          logInfo(context, 'Edge Function deployment check: Successful');
+        } else {
+          // Function exists but returned an unexpected status
+          results.edgeFunction.deployed = false;
+          results.edgeFunction.error = `Unexpected status: ${response.status}`;
+          logWarning(context, `Edge Function returns unexpected status: ${response.status}`);
+        }
+      } catch (fetchError) {
+        logError(context, 'Edge Function fetch failed', fetchError);
+        
+        if (fetchError.name === 'AbortError') {
+          results.edgeFunction.error = 'Connection timeout - the Edge Function didn\'t respond in time';
+        } else if (fetchError.message?.includes('Failed to fetch')) {
+          results.edgeFunction.error = 'Network error - unable to connect to the Edge Function. The function may not be deployed correctly.';
+        } else {
+          results.edgeFunction.error = fetchError.message || 'Unknown error';
+        }
       }
     }
+    
   } catch (error) {
     logError(context, 'Error checking Edge Function deployment', error);
     results.edgeFunction.error = error instanceof Error ? error.message : 'Unknown error';
