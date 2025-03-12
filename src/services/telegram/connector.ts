@@ -1,6 +1,6 @@
 
 import { supabase } from '@/integrations/supabase/client';
-import { ApiAccount } from '@/types/channels';
+import { ApiAccount } from '@/types/dashboard';
 import { logInfo, logError, trackApiCall } from './debugger';
 import { ConnectionResult } from './types';
 

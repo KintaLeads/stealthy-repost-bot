@@ -37,13 +37,15 @@ export const useApiAccountOperations = (
       
       // First, validate that the Telegram credentials work
       console.log("Validating Telegram credentials before saving to database...");
-      // Fix: Convert dashboard.ApiAccount to channels.ApiAccount and convert Date to string
-      const validationResult = await validateTelegramCredentials({
+      
+      // Convert dashboard.ApiAccount to channels.ApiAccount format for validation
+      const channelsApiAccount = {
         ...newAccount,
-        // Adding the missing properties that channels.ApiAccount expects
         userId: userId,
-        createdAt: new Date().toISOString() // Fix: Convert Date to string
-      });
+        createdAt: new Date().toISOString()
+      };
+      
+      const validationResult = await validateTelegramCredentials(channelsApiAccount);
       
       if (!validationResult.success) {
         toast({

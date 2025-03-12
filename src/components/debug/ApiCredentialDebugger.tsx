@@ -1,10 +1,10 @@
 
 import React from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { ApiAccount } from '@/types/channels';
+import { ApiAccount as DashboardApiAccount } from '@/types/dashboard';
 
 interface ApiCredentialDebuggerProps {
-  account: ApiAccount | null;
+  account: DashboardApiAccount | null;
 }
 
 const ApiCredentialDebugger: React.FC<ApiCredentialDebuggerProps> = ({ account }) => {
