@@ -1,3 +1,4 @@
+
 // Base client class with common functionality for MTProto
 import { MTProto } from "../proto/mtproto.ts";
 
@@ -114,7 +115,91 @@ export abstract class BaseClient {
     }
   }
   
-  abstract isAuthenticated(): Promise<boolean>;
-  abstract startAuthentication(): Promise<{ success: boolean; codeNeeded?: boolean; phoneCodeHash?: string; error?: string; session?: string; _testCode?: string }>;
-  abstract verifyAuthenticationCode(code: string): Promise<{ success: boolean; error?: string; session?: string }>;
+  /**
+   * Call MTProto method with error handling and retry logic
+   */
+  protected async callMTProto(method: string, params: any = {}, options: { retries?: number } = {}): Promise<any> {
+    if (!this.client) {
+      this.client = this.initMTProto();
+    }
+    
+    const retries = options.retries ?? 1;
+    let lastError: any = null;
+    
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        console.log(`Calling MTProto method: ${method} (attempt ${attempt + 1}/${retries + 1})`);
+        const result = await this.client.call(method, params);
+        console.log(`MTProto method ${method} succeeded`);
+        return result;
+      } catch (error) {
+        console.error(`Error calling MTProto method ${method} (attempt ${attempt + 1}/${retries + 1}):`, error);
+        lastError = error;
+        
+        if (attempt < retries) {
+          // Wait a bit before retrying
+          const delay = Math.min(1000 * Math.pow(2, attempt), 10000);
+          console.log(`Retrying in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
+    }
+    
+    // All retries failed
+    console.error(`All ${retries + 1} attempts to call ${method} failed`);
+    return { error: lastError };
+  }
+  
+  /**
+   * Save the current session
+   */
+  protected async saveSession(): Promise<void> {
+    if (!this.client) {
+      console.warn("Cannot save session: Client not initialized");
+      return;
+    }
+    
+    try {
+      // Get the current session string
+      this.sessionString = await this.client.exportSession();
+      console.log("Session saved successfully (length: " + this.sessionString.length + ")");
+    } catch (error) {
+      console.error("Error saving session:", error);
+      throw new Error(`Failed to save session: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  
+  /**
+   * Check if the client is authenticated
+   */
+  async isAuthenticated(): Promise<boolean> {
+    try {
+      if (!this.client) {
+        // Initialize the client if it doesn't exist
+        this.client = this.initMTProto();
+      }
+      
+      if (!this.sessionString) {
+        console.log("No session string available, not authenticated");
+        return false;
+      }
+      
+      // Try to get user info to check authentication status
+      const result = await this.callMTProto('users.getFullUser', {
+        id: {
+          _: 'inputUserSelf'
+        }
+      });
+      
+      const authenticated = !result.error;
+      this.authState = authenticated ? 'authorized' : 'unauthorized';
+      
+      console.log(`Authentication check: ${authenticated ? 'Authenticated' : 'Not authenticated'}`);
+      return authenticated;
+    } catch (error) {
+      console.error("Error checking authentication status:", error);
+      this.authState = 'unauthorized';
+      return false;
+    }
+  }
 }

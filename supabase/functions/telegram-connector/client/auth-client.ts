@@ -1,8 +1,8 @@
 
 // Auth client for handling Telegram authentication using MTProto
-import { BaseTelegramClient } from './base-client.ts';
+import { BaseClient } from './base-client.ts';
 
-export class AuthClient extends BaseTelegramClient {
+export class AuthClient extends BaseClient {
   // Store phone code hash during authentication flow
   private phoneCodeHash: string = '';
   
@@ -77,7 +77,7 @@ export class AuthClient extends BaseTelegramClient {
       
       if (sendCodeResult.error) {
         console.error("Error sending authentication code:", sendCodeResult.error);
-        this.authState = 'error';
+        this.authState = 'unauthorized';
         
         return {
           success: false,
@@ -87,7 +87,7 @@ export class AuthClient extends BaseTelegramClient {
       
       // Store the phone code hash
       this.phoneCodeHash = sendCodeResult.phone_code_hash;
-      this.authState = 'awaiting_verification';
+      this.authState = 'awaiting_code';
       
       console.log("Code sent successfully via MTProto, awaiting verification");
       
@@ -98,7 +98,7 @@ export class AuthClient extends BaseTelegramClient {
       };
     } catch (error) {
       console.error("Error starting MTProto authentication:", error);
-      this.authState = 'error';
+      this.authState = 'unauthorized';
       
       return {
         success: false,
@@ -138,7 +138,7 @@ export class AuthClient extends BaseTelegramClient {
       
       if (signInResult.error) {
         console.error("Error verifying code:", signInResult.error);
-        this.authState = 'error';
+        this.authState = 'unauthorized';
         
         return {
           success: false,
@@ -147,7 +147,7 @@ export class AuthClient extends BaseTelegramClient {
       }
       
       // Authentication successful
-      this.authState = 'authenticated';
+      this.authState = 'authorized';
       
       // Save the session
       await this.saveSession();
@@ -160,7 +160,7 @@ export class AuthClient extends BaseTelegramClient {
       };
     } catch (error) {
       console.error("Error verifying MTProto authentication code:", error);
-      this.authState = 'error';
+      this.authState = 'unauthorized';
       
       return {
         success: false,
