@@ -1,12 +1,10 @@
 
 // Base client class with common functionality for MTProto
 import { MTProto } from "../proto/index.ts";
-import { AuthState } from "./types/auth-types.ts";
+import { AuthState, AuthenticationResult } from "./types/auth-types.ts";
 import { ClientConfig, validateClientConfig } from "./config/client-config.ts";
 import { initializeMTProto, callMTProtoMethod } from "./utils/mtproto-utils.ts";
 import { exportSession, checkAuthentication } from "./utils/session-manager.ts";
-
-export { AuthState };
 
 export abstract class BaseClient {
   protected accountId: string;

@@ -1,6 +1,5 @@
 
 // Common types used across client implementations
-import { AuthState } from "./base-client.ts";
 
 export interface TelegramClientInterface {
   // Core methods
@@ -49,3 +48,6 @@ export interface TelegramClientOptions {
   accountId: string;
   sessionString?: string;
 }
+
+// Re-export auth state for use in other files
+export type AuthState = "unauthorized" | "awaiting_code" | "authorized";

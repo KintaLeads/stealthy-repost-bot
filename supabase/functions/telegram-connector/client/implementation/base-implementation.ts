@@ -1,7 +1,6 @@
 
 // Base implementation class for Telegram client
-import { TelegramClientInterface } from "../types.ts";
-import { AuthState } from "../types/auth-types.ts";
+import { TelegramClientInterface, AuthState } from "../types.ts";
 import { ValidationClient } from "../validation-client.ts";
 
 export abstract class BaseTelegramImplementation implements Partial<TelegramClientInterface> {
