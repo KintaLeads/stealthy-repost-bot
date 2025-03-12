@@ -4,7 +4,7 @@ import { TelegramClientFactory } from "./client-factory.ts";
 import { TelegramClientInterface, TelegramClientOptions } from "./types.ts";
 
 // Re-export AuthState type for external use
-export { type AuthState } from "./base-client.ts";
+export { AuthState } from "./types/auth-types.ts";
 export { type TelegramClientInterface, type TelegramClientOptions } from "./types.ts";
 
 /**
