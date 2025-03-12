@@ -31,7 +31,19 @@ export const useChannelPairsData = (selectedAccount: ApiAccount | null): UseChan
       
       if (storedPairs && storedPairs.length > 0) {
         console.log(`Loaded ${storedPairs.length} channel pairs from Supabase for account: ${selectedAccount?.nickname}`);
-        setChannelPairs(storedPairs as ChannelPair[]);
+        
+        // Transform from DB schema (snake_case) to application schema (camelCase)
+        const transformedPairs: ChannelPair[] = storedPairs.map(pair => ({
+          id: pair.id,
+          createdAt: pair.created_at,
+          sourceChannel: pair.source_channel,
+          targetChannel: pair.target_channel,
+          targetUsername: pair.target_username || '',
+          accountId: pair.account_id,
+          isActive: pair.is_active
+        }));
+        
+        setChannelPairs(transformedPairs);
       } else {
         // If no stored pairs, create a default one
         const defaultPair: ChannelPair = {
@@ -87,10 +99,21 @@ export const useChannelPairsData = (selectedAccount: ApiAccount | null): UseChan
         throw deleteError;
       }
       
+      // Transform from application schema (camelCase) to DB schema (snake_case)
+      const transformedPairs = pairs.map(pair => ({
+        id: pair.id,
+        created_at: pair.createdAt,
+        source_channel: pair.sourceChannel,
+        target_channel: pair.targetChannel,
+        target_username: pair.targetUsername,
+        account_id: pair.accountId,
+        is_active: pair.isActive
+      }));
+      
       // Then insert the new pairs
       const { error: insertError } = await supabase
         .from('channel_pairs')
-        .insert(pairs);
+        .insert(transformedPairs);
       
       if (insertError) {
         throw insertError;
