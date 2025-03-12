@@ -1,8 +1,8 @@
 
 // Client for handling message operations using direct HTTP
-import { BaseTelegramClient } from './base-client.ts';
+import { BaseClient } from './base-client.ts';
 
-export class MessageClient extends BaseTelegramClient {
+export class MessageClient extends BaseClient {
   constructor(apiId: string, apiHash: string, phoneNumber: string, accountId: string, sessionString: string = "") {
     super(apiId, apiHash, phoneNumber, accountId, sessionString);
     console.log("Creating MessageClient with direct HTTP implementation");
@@ -25,7 +25,7 @@ export class MessageClient extends BaseTelegramClient {
       // Verify each channel exists and we have access to it
       for (const channelName of channels) {
         try {
-          const response = await this.makeApiRequest('channels.getFullChannel', {
+          const response = await this.callMTProto('channels.getFullChannel', {
             channel: channelName
           });
           
@@ -72,7 +72,7 @@ export class MessageClient extends BaseTelegramClient {
       
       // First, get the message from the source channel
       try {
-        const messageResponse = await this.makeApiRequest('channels.getMessages', {
+        const messageResponse = await this.callMTProto('channels.getMessages', {
           channel: sourceChannel,
           id: [messageId]
         });
@@ -87,7 +87,7 @@ export class MessageClient extends BaseTelegramClient {
         const message = messageResponse.messages[0];
         
         // Now, forward the message to the target channel
-        const forwardResponse = await this.makeApiRequest('messages.forwardMessages', {
+        const forwardResponse = await this.callMTProto('messages.forwardMessages', {
           from_peer: sourceChannel,
           to_peer: targetChannel,
           id: [messageId],

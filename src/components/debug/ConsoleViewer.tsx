@@ -8,6 +8,7 @@ import { consoleLogger } from '@/services/telegram/connectionService';
 import { LogEntry } from './types';
 import LogList from './LogList';
 import ConsoleToolbar from './ConsoleToolbar';
+import { toast } from 'sonner';
 
 const ConsoleViewer: React.FC = () => {
   const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -52,6 +53,43 @@ const ConsoleViewer: React.FC = () => {
     linkElement.setAttribute('href', dataUri);
     linkElement.setAttribute('download', `telegram-debug-logs-${new Date().toISOString()}.json`);
     linkElement.click();
+  };
+
+  // Function to copy all error logs to clipboard
+  const copyErrorLogs = () => {
+    const errorLogs = logs.filter(log => log.level === 'error');
+    
+    if (errorLogs.length === 0) {
+      toast.warning("No error logs to copy");
+      return;
+    }
+    
+    const formattedErrors = errorLogs.map(log => {
+      const timestamp = new Date(log.timestamp).toISOString();
+      let content = `${timestamp} ${log.level.toUpperCase()}: ${log.message}`;
+      
+      if (log.data) {
+        let dataStr;
+        try {
+          dataStr = typeof log.data === 'string' ? 
+            log.data : 
+            JSON.stringify(log.data, null, 2);
+          content += `\n${dataStr}`;
+        } catch (e) {
+          content += "\n[Complex data object]";
+        }
+      }
+      
+      return content;
+    }).join('\n--\n');
+    
+    navigator.clipboard.writeText(formattedErrors)
+      .then(() => {
+        toast.success("Error logs copied to clipboard");
+      })
+      .catch((err) => {
+        toast.error("Failed to copy logs: " + err.message);
+      });
   };
 
   if (!isOpen) {
@@ -112,6 +150,7 @@ const ConsoleViewer: React.FC = () => {
           autoRefresh={autoRefresh}
           onToggleAutoRefresh={() => setAutoRefresh(!autoRefresh)}
           onDownload={downloadLogs}
+          onCopyErrors={copyErrorLogs}
         />
       </CardFooter>
     </Card>

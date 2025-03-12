@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, Download } from 'lucide-react';
+import { RefreshCw, Download, Clipboard } from 'lucide-react';
 import { LogEntry } from './types';
 
 interface ConsoleToolbarProps {
@@ -10,6 +10,7 @@ interface ConsoleToolbarProps {
   autoRefresh: boolean;
   onToggleAutoRefresh: () => void;
   onDownload: () => void;
+  onCopyErrors: () => void;
 }
 
 const ConsoleToolbar: React.FC<ConsoleToolbarProps> = ({
@@ -17,7 +18,8 @@ const ConsoleToolbar: React.FC<ConsoleToolbarProps> = ({
   onClear,
   autoRefresh,
   onToggleAutoRefresh,
-  onDownload
+  onDownload,
+  onCopyErrors
 }) => {
   return (
     <div className="flex justify-between p-4 pt-2">
@@ -28,6 +30,10 @@ const ConsoleToolbar: React.FC<ConsoleToolbarProps> = ({
         </Button>
         <Button variant="outline" size="sm" onClick={onClear}>
           Clear
+        </Button>
+        <Button variant="outline" size="sm" onClick={onCopyErrors}>
+          <Clipboard className="h-4 w-4 mr-1" />
+          Copy Errors
         </Button>
       </div>
       <div className="flex gap-2">
