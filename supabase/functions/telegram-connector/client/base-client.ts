@@ -1,6 +1,5 @@
-
 // Base client class with common functionality for MTProto
-import { MTProto } from "../proto/mtproto.ts";
+import { MTProto } from "../proto/index.ts";
 
 export type AuthState = "unauthorized" | "awaiting_code" | "authorized";
 
