@@ -48,7 +48,7 @@ export const useConnectionManager = (
         
         if (connectionResult.codeNeeded) {
           logInfo('ConnectionButton', "Verification code needed, showing dialog");
-          // Show verification dialog with connection result
+          // Show verification dialog with connection result and ensure account is passed
           verificationState.startVerification(selectedAccount, connectionResult);
           
           // Add a toast notification for better visibility
@@ -69,6 +69,7 @@ export const useConnectionManager = (
         // Check if the error message indicates we need verification
         if (errorMessage.includes('verification code') || errorMessage.includes('code needed')) {
           logInfo('ConnectionButton', "Verification code needed based on error message, showing dialog");
+          // Make sure we pass the selectedAccount
           verificationState.startVerification(selectedAccount);
           
           toast({
@@ -92,6 +93,7 @@ export const useConnectionManager = (
   };
 
   const handleVerificationComplete = async () => {
+    // Ensure we have an account before proceeding
     if (verificationState.tempConnectionState.account) {
       logInfo('ConnectionButton', "Verification completed, setting up listener");
       try {
@@ -116,6 +118,16 @@ export const useConnectionManager = (
           variant: "destructive",
         });
       }
+    } else {
+      // Handle the case where account is null
+      logError('ConnectionButton', "Cannot complete verification: Account is null");
+      verificationState.resetVerification();
+      
+      toast({
+        title: "Verification Error",
+        description: "Account information is missing. Please select an account and try again.",
+        variant: "destructive",
+      });
     }
   };
 

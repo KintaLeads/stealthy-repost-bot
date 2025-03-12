@@ -7,6 +7,7 @@ import { toast } from "@/components/ui/use-toast";
 import AuthForm from "@/components/AuthForm";
 import PageLayout from "@/components/PageLayout";
 import LoadingScreen from "@/components/LoadingScreen";
+import ConsoleViewer from "@/components/debug/ConsoleViewer";
 import { useAuth } from "@/hooks/useAuth"; 
 
 const Index = () => {
@@ -41,12 +42,15 @@ const Index = () => {
       onSignOut={handleSignOut}
     >
       {session ? (
-        <Dashboard 
-          isConnected={isConnected}
-          onToggleConnection={toggleConnection}
-          onSettingsChange={updateSettings}
-          isLoading={configLoading}
-        />
+        <>
+          <Dashboard 
+            isConnected={isConnected}
+            onToggleConnection={toggleConnection}
+            onSettingsChange={updateSettings}
+            isLoading={configLoading}
+          />
+          <ConsoleViewer />
+        </>
       ) : (
         <AuthForm onAuthSuccess={() => {}} />
       )}
