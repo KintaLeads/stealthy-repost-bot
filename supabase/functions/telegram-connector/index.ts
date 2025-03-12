@@ -74,8 +74,20 @@ Deno.serve(async (req) => {
       sourceChannel, 
       targetChannel, 
       verificationCode,
-      sessionString
+      sessionString,
+      debug
     } = requestBody;
+    
+    // Enhanced debugging
+    if (debug) {
+      console.log("📝 DEBUG MODE ENABLED - DETAILED REQUEST INFO");
+      console.log(`Operation: ${operation}`);
+      console.log(`API ID: ${apiId ? 'Provided' : 'Missing'} (${typeof apiId}, ${apiId})`);
+      console.log(`API Hash: ${apiHash ? 'Provided' : 'Missing'} (${typeof apiHash}, ${apiHash ? apiHash.substring(0, 3) + '...' : 'null'})`);
+      console.log(`Phone: ${phoneNumber ? phoneNumber.substring(0, 4) + '****' : 'Missing'}`);
+      console.log(`Account ID: ${accountId || 'Missing'}`);
+      console.log(`Session string: ${sessionString ? 'Provided' : 'Missing'} (length: ${sessionString?.length || 0})`);
+    }
     
     // Handle healthcheck operation
     if (operation === 'healthcheck') {
@@ -93,6 +105,23 @@ Deno.serve(async (req) => {
           updatedCorsHeaders
         );
       }
+      
+      // Additional validation for apiId and apiHash
+      if (apiId === 'undefined' || apiId === 'null' || apiId === '') {
+        console.error("⚠️ API ID is empty or invalid:", apiId);
+        return createBadRequestResponse(
+          `Invalid API ID. Please ensure a valid apiId is provided.`,
+          updatedCorsHeaders
+        );
+      }
+      
+      if (apiHash === 'undefined' || apiHash === 'null' || apiHash === '') {
+        console.error("⚠️ API Hash is empty or invalid");
+        return createBadRequestResponse(
+          `Invalid API Hash. Please ensure a valid apiHash is provided.`,
+          updatedCorsHeaders
+        );
+      }
     }
 
     // Get session from headers if available or from request body
@@ -103,53 +132,68 @@ Deno.serve(async (req) => {
     
     // Initialize Telegram client
     console.log("🔄 Initializing TelegramClientImplementation with accountId:", accountId);
-    console.log("🔄 API ID format valid:", !isNaN(Number(apiId)));
-    console.log("🔄 API Hash format reasonable:", apiHash?.length === 32);
+    console.log("🔄 API ID format valid:", !isNaN(Number(apiId)), apiId);
+    console.log("🔄 API Hash format reasonable:", apiHash?.length >= 5, apiHash ? `${apiHash.substring(0, 3)}...` : 'missing');
     console.log("🔄 Phone number format:", phoneNumber ? "Provided" : "Not provided");
     
-    const client = new TelegramClientImplementation(apiId, apiHash, phoneNumber, accountId || 'temp', effectiveSessionString);
+    try {
+      // Create the client with validated credentials
+      const client = new TelegramClientImplementation(
+        String(apiId), 
+        String(apiHash), 
+        phoneNumber || '', 
+        accountId || 'temp', 
+        effectiveSessionString
+      );
 
-    // Check which operation is requested
-    if (!operation) {
-      console.error("⚠️ No operation specified");
-      return createBadRequestResponse('No operation specified. Please provide an operation parameter.', updatedCorsHeaders);
+      // Check which operation is requested
+      if (!operation) {
+        console.error("⚠️ No operation specified");
+        return createBadRequestResponse('No operation specified. Please provide an operation parameter.', updatedCorsHeaders);
+      }
+      
+      // Route to the appropriate operation handler
+      console.log(`🔄 Processing ${operation} operation`);
+      let response;
+      switch (operation) {
+        case 'validate':
+          response = await handleValidate(client, updatedCorsHeaders);
+          break;
+          
+        case 'connect':
+          response = await handleConnect(client, updatedCorsHeaders, { verificationCode, debug: debug === true });
+          break;
+          
+        case 'listen':
+          response = await handleListen(client, sourceChannels, updatedCorsHeaders);
+          break;
+          
+        case 'repost':
+          response = await handleRepost(client, messageId, sourceChannel, targetChannel, updatedCorsHeaders);
+          break;
+          
+        case 'healthcheck':
+          response = handleHealthcheck(updatedCorsHeaders);
+          break;
+          
+        default:
+          console.error("⚠️ Invalid operation:", operation);
+          return createBadRequestResponse(
+            `Invalid operation: ${operation}. Supported operations are: validate, connect, listen, repost, healthcheck`,
+            updatedCorsHeaders
+          );
+      }
+      
+      // Log execution time and return response
+      logExecutionComplete(startTime);
+      return response;
+    } catch (clientError) {
+      console.error("⚠️ Error initializing Telegram client:", clientError);
+      return createBadRequestResponse(
+        `Error initializing Telegram client: ${clientError instanceof Error ? clientError.message : String(clientError)}`,
+        updatedCorsHeaders
+      );
     }
-    
-    // Route to the appropriate operation handler
-    console.log(`🔄 Processing ${operation} operation`);
-    let response;
-    switch (operation) {
-      case 'validate':
-        response = await handleValidate(client, updatedCorsHeaders);
-        break;
-        
-      case 'connect':
-        response = await handleConnect(client, updatedCorsHeaders, { verificationCode });
-        break;
-        
-      case 'listen':
-        response = await handleListen(client, sourceChannels, updatedCorsHeaders);
-        break;
-        
-      case 'repost':
-        response = await handleRepost(client, messageId, sourceChannel, targetChannel, updatedCorsHeaders);
-        break;
-        
-      case 'healthcheck':
-        response = handleHealthcheck(updatedCorsHeaders);
-        break;
-        
-      default:
-        console.error("⚠️ Invalid operation:", operation);
-        return createBadRequestResponse(
-          `Invalid operation: ${operation}. Supported operations are: validate, connect, listen, repost, healthcheck`,
-          updatedCorsHeaders
-        );
-    }
-    
-    // Log execution time and return response
-    logExecutionComplete(startTime);
-    return response;
     
   } catch (error) {
     return createErrorResponse(error, 500, updatedCorsHeaders);

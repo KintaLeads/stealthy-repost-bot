@@ -1,3 +1,4 @@
+
 /**
  * MTProto implementation for Telegram API
  * Using GramJS for Deno
@@ -23,9 +24,20 @@ export class MTProto {
   private lastPhoneCodeHash: string | null = null;
   
   constructor(options: MTProtoOptions) {
-    this.apiId = options.apiId;
+    // Validate API ID and Hash before assigning
+    if (!options.apiId || isNaN(Number(options.apiId))) {
+      throw new Error(`Invalid API ID: ${options.apiId}. Must be a valid number.`);
+    }
+    
+    if (!options.apiHash || typeof options.apiHash !== 'string' || options.apiHash.length < 5) {
+      throw new Error(`Invalid API Hash: ${options.apiHash}. Must be a non-empty string.`);
+    }
+    
+    this.apiId = Number(options.apiId);
     this.apiHash = options.apiHash;
     this.session = options.storageOptions.session || "";
+    
+    console.log(`MTProto created with API ID: ${this.apiId} and API Hash: ${this.apiHash.substring(0, 3)}...`);
     
     // Initialize string session if we have a session
     if (this.session) {
@@ -50,7 +62,11 @@ export class MTProto {
    */
   private initClient() {
     try {
-      console.log("Initializing Telegram client with apiId:", this.apiId);
+      console.log(`Initializing Telegram client with apiId: ${this.apiId}, apiHash: ${this.apiHash.substring(0, 3)}...`);
+      
+      if (!this.apiId || !this.apiHash) {
+        throw new Error(`API ID or Hash cannot be empty. API ID: ${this.apiId}, API Hash length: ${this.apiHash ? this.apiHash.length : 0}`);
+      }
       
       this.client = new TelegramClient({
         apiId: this.apiId,

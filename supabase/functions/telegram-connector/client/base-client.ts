@@ -15,11 +15,30 @@ export class BaseTelegramClient {
   
   constructor(apiId: string, apiHash: string, phoneNumber: string, accountId: string, sessionString: string = "") {
     console.log("Creating BaseTelegramClient with MTProto implementation");
+    
+    // Validate inputs
+    if (!apiId || apiId === "undefined" || apiId === "null") {
+      console.error("Invalid API ID provided:", apiId);
+      throw new Error("API ID cannot be empty or undefined");
+    }
+    
+    if (!apiHash || apiHash === "undefined" || apiHash === "null") {
+      console.error("Invalid API Hash provided:", typeof apiHash);
+      throw new Error("API Hash cannot be empty or undefined");
+    }
+    
     this.apiId = apiId;
     this.apiHash = apiHash;
     this.phoneNumber = phoneNumber;
     this.accountId = accountId;
     this.sessionString = sessionString || "";
+    
+    console.log(`BaseTelegramClient created with: 
+      - API ID: ${this.apiId}
+      - API Hash: ${this.apiHash.substring(0, 3)}...
+      - Phone: ${this.phoneNumber ? this.phoneNumber.substring(0, 4) + '****' : 'Not provided'}
+      - Account ID: ${this.accountId}
+      - Session: ${this.sessionString ? 'Provided' : 'Not provided'}`);
   }
   
   /**
@@ -29,9 +48,20 @@ export class BaseTelegramClient {
     if (!this.mtproto) {
       console.log("Initializing MTProto client...");
       try {
+        // Ensure API ID is a valid number
+        const apiIdNum = parseInt(this.apiId, 10);
+        if (isNaN(apiIdNum)) {
+          throw new Error(`Invalid API ID format: ${this.apiId}`);
+        }
+        
+        // Ensure API Hash is a valid string
+        if (!this.apiHash || typeof this.apiHash !== 'string' || this.apiHash.length < 5) {
+          throw new Error(`Invalid API Hash format. Length: ${this.apiHash ? this.apiHash.length : 0}`);
+        }
+        
         // Create MTProto instance with session if available
         this.mtproto = new MTProto({
-          apiId: parseInt(this.apiId, 10),
+          apiId: apiIdNum,
           apiHash: this.apiHash,
           storageOptions: {
             session: this.sessionString

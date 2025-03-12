@@ -13,16 +13,39 @@ export const handleInitialConnection = async (account: ApiAccount): Promise<Conn
   logInfo(context, `Initializing connection for account: ${account.nickname}`);
   
   try {
+    // Validate that we have all required credentials before sending to the Edge Function
+    if (!account.apiKey || !account.apiHash || !account.phoneNumber) {
+      const missingCredentials = [];
+      if (!account.apiKey) missingCredentials.push('API ID');
+      if (!account.apiHash) missingCredentials.push('API Hash');
+      if (!account.phoneNumber) missingCredentials.push('Phone Number');
+      
+      const errorMessage = `Missing required credentials: ${missingCredentials.join(', ')}`;
+      logError(context, errorMessage);
+      
+      return {
+        success: false,
+        codeNeeded: false,
+        error: errorMessage
+      };
+    }
+    
     const requestData = {
       operation: 'connect',
       apiId: account.apiKey,
       apiHash: account.apiHash,
       phoneNumber: account.phoneNumber,
       accountId: account.id || 'unknown',
-      debug: process.env.NODE_ENV === 'development' // Send debug flag for development
+      debug: true // Always send debug flag to help with troubleshooting
     };
     
     logInfo(context, 'Calling Supabase function \'telegram-connector\' for connection...');
+    logInfo(context, 'Request data:', {
+      apiIdProvided: !!account.apiKey,
+      apiHashProvided: !!account.apiHash,
+      phoneNumberProvided: !!account.phoneNumber,
+      accountIdProvided: !!account.id
+    });
     
     const { data, error } = await supabase.functions.invoke('telegram-connector', {
       body: requestData
@@ -36,9 +59,14 @@ export const handleInitialConnection = async (account: ApiAccount): Promise<Conn
       throw new Error(error.message || 'Failed to connect to Telegram');
     }
     
-    if (!data.success) {
-      logError(context, 'Connection request failed:', data.error);
-      throw new Error(data.error || 'Failed to connect to Telegram API');
+    if (!data || !data.success) {
+      logError(context, 'Connection request failed:', data?.error || 'Unknown error');
+      
+      return {
+        success: false,
+        codeNeeded: false,
+        error: data?.error || 'Failed to connect to Telegram API'
+      };
     }
     
     logInfo(context, 'Connection response:', data);
@@ -52,7 +80,12 @@ export const handleInitialConnection = async (account: ApiAccount): Promise<Conn
     };
   } catch (error) {
     logError(context, 'Exception during connection attempt:', error);
-    throw error;
+    
+    return {
+      success: false,
+      codeNeeded: false,
+      error: error instanceof Error ? error.message : 'An unknown error occurred'
+    };
   }
 };
 
