@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { ApiAccount, ChannelPair } from '@/types/channels';
 import { Message } from '@/types/dashboard';
-import { checkRealtimeStatus, disconnectRealtime } from '@/services/telegram/realtimeService';
+import { disconnectRealtime, setupRealtimeListener } from '@/services/telegram/realtimeService';
 import { verifyTelegramCode } from '@/services/telegram/verifier';
 import { validateTelegramCredentials } from '@/services/telegram/credentialValidator';
 import { checkConnectionStatus, initiateConnection, disconnectConnection } from './connection/connectionOperations';
@@ -39,7 +39,7 @@ export const useConnectionManager = (
     try {
       // Validate credentials first
       const isValid = await validateTelegramCredentials({
-        apiId: selectedAccount.apiKey,
+        apiId: selectedAccount.apiKey, // Use apiKey instead of apiId
         apiHash: selectedAccount.apiHash,
         phoneNumber: selectedAccount.phoneNumber
       });
@@ -74,6 +74,7 @@ export const useConnectionManager = (
     setError(null);
 
     try {
+      // Fix: pass the full account object, not just the ID
       const result = await disconnectConnection(selectedAccount);
       setIsConnected(!result);
     } catch (error) {

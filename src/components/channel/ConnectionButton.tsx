@@ -1,4 +1,5 @@
-import React from 'react';
+
+import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { RefreshCw, Activity, Link2Off } from "lucide-react";
 import { setupRealtimeListener } from "@/services/telegram/realtimeService";
@@ -39,11 +40,7 @@ const ConnectionButton: React.FC<ConnectionButtonProps> = ({
         .map(pair => pair.sourceChannel);
       
       if (validSourceChannels.length === 0) {
-        toast({
-          title: "No Source Channels",
-          description: "Please add at least one source channel before connecting",
-          variant: "destructive",
-        });
+        toast.error("Please add at least one source channel before connecting");
         setIsLoading(false);
         return;
       }
@@ -66,10 +63,7 @@ const ConnectionButton: React.FC<ConnectionButtonProps> = ({
           console.log("Got valid listener, calling onConnected:", listener);
           onConnected(listener);
           
-          toast({
-            title: "Connected",
-            description: `Connected to ${validSourceChannels.length} source channel${validSourceChannels.length !== 1 ? 's' : ''}`,
-          });
+          toast.success(`Connected to ${validSourceChannels.length} source channel${validSourceChannels.length !== 1 ? 's' : ''}`);
         } else {
           console.error("Invalid listener returned:", listener);
           throw new Error("Failed to get a valid listener from setupRealtimeListener");
@@ -82,11 +76,7 @@ const ConnectionButton: React.FC<ConnectionButtonProps> = ({
       console.error('Error connecting to realtime listener:', error);
       setIsLoading(false);
       
-      toast({
-        title: "Connection Failed",
-        description: error instanceof Error ? error.message : String(error),
-        variant: "destructive",
-      });
+      toast.error(error instanceof Error ? error.message : String(error));
     }
   };
   
@@ -99,19 +89,12 @@ const ConnectionButton: React.FC<ConnectionButtonProps> = ({
       
       setIsLoading(false);
       
-      toast({
-        title: "Disconnected",
-        description: "Real-time listener has been stopped",
-      });
+      toast.success("Real-time listener has been stopped");
     } catch (error) {
       console.error('Error disconnecting from realtime listener:', error);
       setIsLoading(false);
       
-      toast({
-        title: "Disconnect Failed",
-        description: error instanceof Error ? error.message : String(error),
-        variant: "destructive",
-      });
+      toast.error(error instanceof Error ? error.message : String(error));
     }
   };
   
