@@ -7,7 +7,7 @@ import { TempConnectionState } from './types';
 interface VerificationDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  state: TempConnectionState;  // Changed from just account to state
+  state: TempConnectionState;
   onVerificationSuccess: () => void;
 }
 
@@ -21,7 +21,7 @@ const VerificationDialog: React.FC<VerificationDialogProps> = ({
     <VerificationCodeDialog
       isOpen={isOpen}
       onClose={onClose}
-      account={state.account as ApiAccount}
+      account={state.account}
       connectionResult={state.connectionResult}
       onVerificationSuccess={onVerificationSuccess}
     />

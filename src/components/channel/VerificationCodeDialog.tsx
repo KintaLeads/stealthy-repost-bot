@@ -12,8 +12,8 @@ import { ConnectionResult } from "@/services/telegram/types";
 interface VerificationCodeDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  account: ApiAccount;
-  connectionResult: ConnectionResult;
+  account: ApiAccount | null;
+  connectionResult?: ConnectionResult;
   onVerificationSuccess: () => void;
 }
 
@@ -38,7 +38,7 @@ const VerificationCodeDialog: React.FC<VerificationCodeDialogProps> = ({
       setCodeHelper("Enter the verification code sent to your Telegram app");
       
       // Store phone code hash in localStorage if provided
-      if (connectionResult?.phoneCodeHash) {
+      if (account && connectionResult?.phoneCodeHash) {
         localStorage.setItem(`telegram_code_hash_${account.id}`, connectionResult.phoneCodeHash);
       }
       
@@ -47,11 +47,16 @@ const VerificationCodeDialog: React.FC<VerificationCodeDialogProps> = ({
         setCodeHelper(`Test code: ${connectionResult._testCode} (only visible in development mode)`);
       }
     }
-  }, [isOpen, connectionResult, account.id]);
+  }, [isOpen, connectionResult, account]);
   
   const handleVerify = async () => {
     if (!code.trim()) {
       setError("Please enter the verification code");
+      return;
+    }
+    
+    if (!account) {
+      setError("Account information is missing. Please try reconnecting.");
       return;
     }
     
