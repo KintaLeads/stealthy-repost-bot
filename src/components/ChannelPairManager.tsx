@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { ApiAccount } from "@/types/channels";
@@ -109,12 +110,18 @@ const ChannelPairManager: React.FC<ChannelPairManagerProps> = ({
           onNewMessages
         );
         
-        // Convert listener to our expected format
+        // Convert listener to our expected format and make sure we handle the case
+        // where setupRealtimeListener returns an object with only id and stop properties
         const listenerObj: ListenerState = {
           id: listener.id,
-          stopListener: listener.stopListener,
           stop: listener.stop
         };
+        
+        // Only add stopListener if it exists
+        if (typeof listener.stopListener === 'function') {
+          listenerObj.stopListener = listener.stopListener;
+        }
+        
         setListenerState(listenerObj);
         
         // Show success message explaining that the connection was updated

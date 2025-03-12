@@ -21,7 +21,8 @@ const DiagnosticTool: React.FC = () => {
   const runDiagnosticChecks = async () => {
     setIsChecking(true);
     try {
-      const results = await runConnectivityChecks();
+      // Pass an empty object as the argument to runConnectivityChecks if needed
+      const results = await runConnectivityChecks({});
       setDiagnosticResults(results);
     } catch (error) {
       console.error("Error running diagnostic checks:", error);
