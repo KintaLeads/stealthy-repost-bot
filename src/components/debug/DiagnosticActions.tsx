@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Button } from "@/components/ui/button";
-import { RefreshCw } from "lucide-react";
+import { ActivityIcon } from "lucide-react";
 
 interface DiagnosticActionsProps {
   onRunChecks: () => void;
@@ -13,17 +13,15 @@ const DiagnosticActions: React.FC<DiagnosticActionsProps> = ({
   isChecking 
 }) => {
   return (
-    <div className="flex justify-end">
-      <Button
-        variant="outline"
-        onClick={onRunChecks}
-        disabled={isChecking}
-        className="flex items-center"
-      >
-        <RefreshCw className={`mr-2 h-4 w-4 ${isChecking ? 'animate-spin' : ''}`} />
-        {isChecking ? "Running diagnostics..." : "Run Diagnostics"}
-      </Button>
-    </div>
+    <Button
+      variant="outline"
+      onClick={onRunChecks}
+      disabled={isChecking}
+      className="flex items-center"
+    >
+      <ActivityIcon className="mr-2 h-4 w-4" />
+      {isChecking ? "Running Diagnostics..." : "Run Diagnostics Again"}
+    </Button>
   );
 };
 

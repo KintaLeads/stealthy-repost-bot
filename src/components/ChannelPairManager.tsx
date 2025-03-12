@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { ApiAccount } from "@/types/channels";
@@ -53,7 +52,7 @@ const ChannelPairManager: React.FC<ChannelPairManagerProps> = ({
     // Convert any listener object to our ListenerState type
     const listenerObj: ListenerState = {
       id: listener.id,
-      stopListener: listener.stopListener || listener.stop,
+      stopListener: listener.stopListener,
       stop: listener.stop
     };
     setListenerState(listenerObj);
@@ -63,10 +62,10 @@ const ChannelPairManager: React.FC<ChannelPairManagerProps> = ({
   
   const handleDisconnected = () => {
     if (listenerState) {
-      // Use stopListener if available, otherwise fall back to stop
-      if (listenerState.stopListener) {
+      // Check and use appropriate stop method based on what's available
+      if (typeof listenerState.stopListener === 'function') {
         listenerState.stopListener();
-      } else if (listenerState.stop) {
+      } else if (typeof listenerState.stop === 'function') {
         listenerState.stop();
       }
       setListenerState(null);
@@ -78,9 +77,9 @@ const ChannelPairManager: React.FC<ChannelPairManagerProps> = ({
   useEffect(() => {
     return () => {
       if (listenerState) {
-        if (listenerState.stopListener) {
+        if (typeof listenerState.stopListener === 'function') {
           listenerState.stopListener();
-        } else if (listenerState.stop) {
+        } else if (typeof listenerState.stop === 'function') {
           listenerState.stop();
         }
       }
@@ -96,9 +95,9 @@ const ChannelPairManager: React.FC<ChannelPairManagerProps> = ({
       if (success && isConnected && selectedAccount) {
         // Disconnect existing listener
         if (listenerState) {
-          if (listenerState.stopListener) {
+          if (typeof listenerState.stopListener === 'function') {
             listenerState.stopListener();
-          } else if (listenerState.stop) {
+          } else if (typeof listenerState.stop === 'function') {
             listenerState.stop();
           }
         }
@@ -113,7 +112,7 @@ const ChannelPairManager: React.FC<ChannelPairManagerProps> = ({
         // Convert listener to our expected format
         const listenerObj: ListenerState = {
           id: listener.id,
-          stopListener: listener.stopListener || listener.stop,
+          stopListener: listener.stopListener,
           stop: listener.stop
         };
         setListenerState(listenerObj);

@@ -13,6 +13,11 @@ const DiagnosticTool: React.FC = () => {
   const [diagnosticResults, setDiagnosticResults] = useState<DiagnosticResultData | null>(null);
   const [isChecking, setIsChecking] = useState(false);
   
+  const openSupabaseFunctions = () => {
+    // Open Supabase Functions in a new tab
+    window.open('https://app.supabase.com/project/_/functions', '_blank');
+  };
+  
   const runDiagnosticChecks = async () => {
     setIsChecking(true);
     try {
@@ -31,8 +36,7 @@ const DiagnosticTool: React.FC = () => {
   
   return (
     <div className="space-y-4">
-      {/* Using the correct properties for StatusSummary based on component definition */}
-      <StatusSummary results={diagnosticResults} />
+      {diagnosticResults && <StatusSummary results={diagnosticResults} />}
       
       <Tabs defaultValue="details">
         <TabsList className="grid w-full grid-cols-3">
@@ -42,8 +46,12 @@ const DiagnosticTool: React.FC = () => {
         </TabsList>
         
         <TabsContent value="details" className="space-y-4">
-          {/* Using the correct properties for DiagnosticResults based on component definition */}
-          <DiagnosticResults results={diagnosticResults} />
+          {diagnosticResults && (
+            <DiagnosticResults 
+              results={diagnosticResults} 
+              onOpenSupabaseFunctions={openSupabaseFunctions}
+            />
+          )}
         </TabsContent>
         
         <TabsContent value="edge" className="space-y-4">
