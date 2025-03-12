@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ApiAccount } from "@/types/channels";
 import { toast } from "@/components/ui/use-toast";
 import { logInfo, logError } from '../debugger';
-import { saveSession, clearSession, validateSession } from '../session/sessionManager';
+import { storeSession, clearSession, validateSession } from '../session/sessionManager';
 
 export interface ConnectionResult {
   success: boolean;
@@ -31,7 +31,7 @@ export const connectToTelegram = async (account: ApiAccount): Promise<Connection
     }
 
     if (data.sessionString) {
-      saveSession(account.id, data.sessionString);
+      storeSession(account.id, data.sessionString);
     }
 
     return {

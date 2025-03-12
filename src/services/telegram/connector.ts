@@ -2,7 +2,7 @@
 import { ApiAccount } from '@/types/channels';
 import { supabase } from '@/integrations/supabase/client';
 import { logInfo, logError, trackApiCall } from './debugger';
-import { getStoredSession } from './sessionManager';
+import { getStoredSession } from './session/sessionManager';
 import { ConnectionResult } from './types';
 
 /**

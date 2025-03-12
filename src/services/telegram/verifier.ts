@@ -2,7 +2,7 @@
 import { ApiAccount } from '@/types/channels';
 import { supabase } from '@/integrations/supabase/client';
 import { logInfo, logError, trackApiCall } from './debugger';
-import { getStoredSession, clearStoredSession, storeSession } from './sessionManager';
+import { getStoredSession, clearSession, storeSession } from './session/sessionManager';
 import { ConnectionResult } from './types';
 
 /**
@@ -61,7 +61,7 @@ export const verifyTelegramCode = async (
       
       // If we get a 401, clear the stored session as it's no longer valid
       if (error.status === 401) {
-        clearStoredSession(account.id);
+        clearSession(account.id);
       }
       
       throw new Error(error.message || 'Failed to verify Telegram code');

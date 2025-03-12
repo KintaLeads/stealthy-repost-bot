@@ -1,10 +1,9 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/components/ui/use-toast";
 import { ApiAccount } from "@/types/dashboard";
 import { ChannelPair } from "@/types/channels";
 import { Message } from "@/types/dashboard";
-import { getStoredSession, storeSession } from "./sessionManager";
+import { getStoredSession, storeSession, clearSession } from "./session/sessionManager";
 import { logInfo, logError, logWarning } from './debugger';
 
 /**
@@ -329,11 +328,7 @@ export const repostMessage = async (
 const clearStoredSession = (accountId: string): void => {
   try {
     logInfo('MessageService', 'Clearing invalid session for account:', accountId);
-    // Use the function from sessionManager
-    if (typeof window !== 'undefined') {
-      const { clearStoredSession } = require('./sessionManager');
-      clearStoredSession(accountId);
-    }
+    clearSession(accountId);
   } catch (error) {
     logError('MessageService', 'Error clearing stored session:', error);
   }
