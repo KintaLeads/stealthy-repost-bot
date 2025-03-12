@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { runConnectivityChecks } from '@/services/telegram/networkConnectivity';
@@ -14,15 +13,13 @@ const DiagnosticTool: React.FC = () => {
   const [isChecking, setIsChecking] = useState(false);
   
   const openSupabaseFunctions = () => {
-    // Open Supabase Functions in a new tab
     window.open('https://app.supabase.com/project/_/functions', '_blank');
   };
   
   const runDiagnosticChecks = async () => {
     setIsChecking(true);
     try {
-      // Pass an empty object as the argument to runConnectivityChecks if needed
-      const results = await runConnectivityChecks({});
+      const results = await runConnectivityChecks("default");
       setDiagnosticResults(results);
     } catch (error) {
       console.error("Error running diagnostic checks:", error);

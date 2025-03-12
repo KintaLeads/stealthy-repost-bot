@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { ApiAccount } from "@/types/channels";
@@ -21,8 +20,8 @@ interface ChannelPairManagerProps {
 
 // Define a proper interface for the listener state
 interface ListenerState {
-  stopListener?: () => void;
   id?: any;
+  stopListener?: () => void;
   stop?: () => Promise<boolean>;
 }
 
@@ -53,7 +52,6 @@ const ChannelPairManager: React.FC<ChannelPairManagerProps> = ({
     // Convert any listener object to our ListenerState type
     const listenerObj: ListenerState = {
       id: listener.id,
-      stopListener: listener.stopListener,
       stop: listener.stop
     };
     setListenerState(listenerObj);
@@ -62,27 +60,18 @@ const ChannelPairManager: React.FC<ChannelPairManagerProps> = ({
   };
   
   const handleDisconnected = () => {
-    if (listenerState) {
-      // Check and use appropriate stop method based on what's available
-      if (typeof listenerState.stopListener === 'function') {
-        listenerState.stopListener();
-      } else if (typeof listenerState.stop === 'function') {
-        listenerState.stop();
-      }
-      setListenerState(null);
+    if (listenerState?.stop) {
+      listenerState.stop();
     }
+    setListenerState(null);
     onToggleConnection();
   };
   
   // Clean up listener on unmount
   useEffect(() => {
     return () => {
-      if (listenerState) {
-        if (typeof listenerState.stopListener === 'function') {
-          listenerState.stopListener();
-        } else if (typeof listenerState.stop === 'function') {
-          listenerState.stop();
-        }
+      if (listenerState?.stop) {
+        listenerState.stop();
       }
     };
   }, [listenerState]);
