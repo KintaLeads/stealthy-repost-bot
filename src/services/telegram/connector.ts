@@ -128,7 +128,7 @@ export const handleInitialConnection = async (account: ApiAccount): Promise<Conn
           success: false,
           codeNeeded: false,
           error: `Edge Function error: ${error.message || 'Unknown error'} (${error.name || 'No error name'})`,
-          details: error
+          details: error // Now valid with the updated type
         };
       }
       
@@ -137,13 +137,14 @@ export const handleInitialConnection = async (account: ApiAccount): Promise<Conn
         const errorMsg = data?.error || 'Failed to connect to Telegram API';
         const errorDetails = data?.details || null;
         
-        logError(context, 'Connection request failed:', errorMsg, errorDetails);
+        // Fix: logError expects only 3 arguments, but was receiving 4
+        logError(context, 'Connection request failed:', `${errorMsg} ${errorDetails ? JSON.stringify(errorDetails) : ''}`);
         
         return {
           success: false,
           codeNeeded: false,
           error: errorMsg,
-          details: errorDetails
+          details: errorDetails // Now valid with the updated type
         };
       }
       
