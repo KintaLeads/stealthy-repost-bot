@@ -23,6 +23,20 @@ export const getStoredSession = (accountId: string, sessionString?: string): str
 };
 
 /**
+ * Store a session for an account
+ */
+export const storeSession = (accountId: string, sessionString: string): void => {
+  if (!sessionString) {
+    logInfo('SessionManager', `Attempted to store empty session for account ${accountId}, ignoring`);
+    return;
+  }
+  
+  const key = `${SESSION_PREFIX}${accountId}`;
+  localStorage.setItem(key, sessionString);
+  logInfo('SessionManager', `Session stored for account ${accountId}`);
+};
+
+/**
  * Clear the stored session for an account
  */
 export const clearStoredSession = (accountId: string): void => {
