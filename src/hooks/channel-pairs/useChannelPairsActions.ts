@@ -74,13 +74,19 @@ export const useChannelPairsActions = (
     setIsSaving(true);
     
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Save channel pairs (already saved in state and localStorage via the setChannelPairs function)
+      
+      // Add a small delay to show saving indicator
+      await new Promise(resolve => setTimeout(resolve, 800));
       
       toast({
         title: "Configuration saved",
         description: `${channelPairs.length} channel${channelPairs.length > 1 ? 's' : ''} configured successfully`,
       });
+      
+      // Additional logging to help with debugging
+      console.log('Channel pairs saved successfully:', channelPairs);
+      
       setIsSaving(false);
       return true;
     } catch (error) {
