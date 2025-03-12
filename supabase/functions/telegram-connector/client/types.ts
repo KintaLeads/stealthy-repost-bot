@@ -1,4 +1,3 @@
-
 // Common types used across client implementations
 
 export interface TelegramClientInterface {
@@ -49,5 +48,5 @@ export interface TelegramClientOptions {
   sessionString?: string;
 }
 
-// Auth state definition - ensuring it's properly defined and exported
+// Auth state definition - single source of truth
 export type AuthState = "unauthorized" | "awaiting_code" | "authorized";

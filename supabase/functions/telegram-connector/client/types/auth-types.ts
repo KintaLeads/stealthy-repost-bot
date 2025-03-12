@@ -1,9 +1,7 @@
-
 /**
  * Authentication state types
  */
 
-// Re-export AuthState for backward compatibility
 import { AuthState } from "../types.ts";
 export { AuthState };
 
