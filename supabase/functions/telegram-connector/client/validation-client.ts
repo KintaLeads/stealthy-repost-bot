@@ -22,7 +22,6 @@ export class ValidationClient extends BaseClient {
       }
       
       // Try to get current user info to verify credentials
-      // This will throw an error if credentials are invalid
       try {
         console.log("Testing credentials with getConfig method");
         

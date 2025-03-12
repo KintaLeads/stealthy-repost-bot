@@ -24,20 +24,18 @@ export class MTProto {
   
   constructor(options: MTProtoOptions) {
     console.log("==== MTPROTO INITIALIZATION ====");
-    console.log("Constructor called with options:", {
-      apiId: options.apiId,
-      apiHash: options.apiHash ? `${options.apiHash.substring(0, 3)}... (${options.apiHash.length} chars)` : 'undefined'
-    });
+    console.log(`Constructor called with options: apiId=${options.apiId}, apiHash=${options.apiHash ? `${options.apiHash.substring(0, 3)}... (${options.apiHash.length} chars)` : 'undefined'}`);
     
-    // Direct check for undefined, null or empty values
-    if (options.apiId === undefined || options.apiId === null) {
-      console.error("CRITICAL ERROR: API ID is undefined or null");
-      throw new Error("API ID cannot be undefined or null");
+    // Validate API ID
+    if (!options.apiId || options.apiId === undefined || options.apiId === null) {
+      console.error(`CRITICAL ERROR: API ID is invalid: "${options.apiId}"`);
+      throw new Error(`API ID cannot be undefined or null, received: ${options.apiId}`);
     }
     
-    if (options.apiHash === undefined || options.apiHash === null) {
-      console.error("CRITICAL ERROR: API Hash is undefined or null");
-      throw new Error("API Hash cannot be undefined or null");
+    // Validate API Hash
+    if (!options.apiHash || options.apiHash === undefined || options.apiHash === null || options.apiHash.trim() === '') {
+      console.error(`CRITICAL ERROR: API Hash is invalid: "${options.apiHash}"`);
+      throw new Error(`API Hash cannot be undefined, null or empty, received: ${options.apiHash}`);
     }
     
     // Convert apiId to number if it's a string
@@ -56,13 +54,8 @@ export class MTProto {
     
     // Final validation
     if (isNaN(numericApiId) || numericApiId <= 0) {
-      console.error("Invalid API ID:", numericApiId);
+      console.error(`Invalid API ID: ${numericApiId}`);
       throw new Error(`Invalid API ID: ${numericApiId}. Must be a positive number.`);
-    }
-    
-    if (!options.apiHash || typeof options.apiHash !== 'string' || options.apiHash.trim() === '') {
-      console.error("Empty API Hash:", options.apiHash);
-      throw new Error("API Hash cannot be empty");
     }
     
     // Store validated values
