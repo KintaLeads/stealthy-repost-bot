@@ -1,6 +1,8 @@
 
 // Client for handling authentication operations using MTProto
-import { BaseClient } from './base-client.ts';
+import { BaseClient, AuthState } from './base-client.ts';
+import { AuthenticationResult, VerificationResult } from './types/auth-types.ts';
+import { requestVerificationCode, verifyAuthenticationCode } from './utils/auth-code-manager.ts';
 
 export class AuthClient extends BaseClient {
   private phoneCodeHash: string = "";
@@ -13,11 +15,11 @@ export class AuthClient extends BaseClient {
   /**
    * Start the authentication process
    */
-  async startAuthentication(): Promise<{ success: boolean; codeNeeded?: boolean; phoneCodeHash?: string; error?: string; session?: string; _testCode?: string }> {
+  async startAuthentication(): Promise<AuthenticationResult> {
     try {
       console.log("Starting authentication process with MTProto");
       
-      // If we already have a session string, check if it's valid
+      // Check if we already have a valid session
       if (this.sessionString) {
         console.log("Session string is present, checking if it's valid");
         
@@ -39,7 +41,7 @@ export class AuthClient extends BaseClient {
         }
       }
       
-      // Initialize the client
+      // Initialize the client if needed
       if (!this.client) {
         console.log("Initializing MTProto client");
         this.client = this.initMTProto();
@@ -71,49 +73,31 @@ export class AuthClient extends BaseClient {
         console.log("Not logged in yet, proceeding with authentication", error);
       }
       
-      // Send the phone number to get a verification code
-      console.log(`Sending verification code to phone: ${this.phoneNumber}`);
+      // Request verification code
+      const codeResult = await requestVerificationCode(
+        this.client, 
+        this.phoneNumber, 
+        this.apiId,
+        this.apiHash
+      );
       
-      try {
-        const sentCode = await this.callMTProto('auth.sendCode', {
-          phone_number: this.phoneNumber,
-          settings: {
-            _: 'codeSettings',
-            allow_flashcall: false,
-            current_number: true,
-            allow_app_hash: true,
-          }
-        });
-        
-        if (sentCode.error) {
-          console.error("Error sending verification code:", sentCode.error);
-          
-          return {
-            success: false,
-            error: `Error sending verification code: ${sentCode.error}`
-          };
-        }
-        
-        console.log("Verification code sent successfully");
-        
-        // Save the phone code hash for later use
-        this.phoneCodeHash = sentCode.phone_code_hash;
-        this.authState = "awaiting_code";
-        
-        return {
-          success: true,
-          codeNeeded: true,
-          phoneCodeHash: this.phoneCodeHash,
-          _testCode: sentCode._testMode ? sentCode.phone_code : undefined // Only included in test environment
-        };
-      } catch (error) {
-        console.error("Error sending verification code:", error);
-        
+      if (!codeResult.success) {
         return {
           success: false,
-          error: error instanceof Error ? error.message : "Unknown error sending verification code"
+          error: codeResult.error
         };
       }
+      
+      // Save the phone code hash for later use
+      this.phoneCodeHash = codeResult.phoneCodeHash || "";
+      this.authState = "awaiting_code";
+      
+      return {
+        success: true,
+        codeNeeded: true,
+        phoneCodeHash: this.phoneCodeHash,
+        _testCode: codeResult._testCode
+      };
     } catch (error) {
       console.error("Exception during authentication:", error);
       
@@ -127,11 +111,14 @@ export class AuthClient extends BaseClient {
   /**
    * Verify the authentication code sent to the phone
    */
-  async verifyAuthenticationCode(code: string): Promise<{ success: boolean; error?: string; session?: string }> {
+  async verifyAuthenticationCode(code: string, phone_code_hash?: string): Promise<VerificationResult> {
     try {
       console.log(`Verifying authentication code: ${code}`);
       
-      if (!this.phoneCodeHash) {
+      // Use either the provided phone code hash or the stored one
+      const phoneCodeHash = phone_code_hash || this.phoneCodeHash;
+      
+      if (!phoneCodeHash) {
         console.error("No phone code hash available, cannot verify code");
         
         return {
@@ -146,49 +133,31 @@ export class AuthClient extends BaseClient {
         this.client = this.initMTProto();
       }
       
-      // Sign in with the code
-      try {
-        const signInResult = await this.callMTProto('auth.signIn', {
-          phone_number: this.phoneNumber,
-          phone_code_hash: this.phoneCodeHash,
-          phone_code: code
-        });
-        
-        if (signInResult.error) {
-          console.error("Error signing in:", signInResult.error);
-          
-          // Special case for 2FA
-          if (signInResult.error === 'SESSION_PASSWORD_NEEDED') {
-            return {
-              success: false,
-              error: "Two-factor authentication is required but not supported in this version."
-            };
-          }
-          
-          return {
-            success: false,
-            error: `Error signing in: ${signInResult.error}`
-          };
-        }
-        
-        console.log("Authentication successful!");
-        this.authState = "authorized";
-        
-        // Save the session
-        await this.saveSession();
-        
-        return {
-          success: true,
-          session: this.sessionString
-        };
-      } catch (error) {
-        console.error("Error verifying code:", error);
-        
+      // Verify the code
+      const verificationResult = await verifyAuthenticationCode(
+        this.client,
+        this.phoneNumber,
+        phoneCodeHash,
+        code
+      );
+      
+      if (!verificationResult.success) {
         return {
           success: false,
-          error: error instanceof Error ? error.message : "Unknown error verifying code"
+          error: verificationResult.error
         };
       }
+      
+      // Update auth state
+      this.authState = "authorized";
+      
+      // Save the session
+      await this.saveSession();
+      
+      return {
+        success: true,
+        session: this.sessionString
+      };
     } catch (error) {
       console.error("Exception during code verification:", error);
       
