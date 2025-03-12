@@ -3,9 +3,7 @@ import { useState, useEffect } from 'react';
 import { ChannelPair, ApiAccount } from '@/types/channels';
 import { toast } from "@/components/ui/use-toast";
 import { UseChannelPairsState, UseChannelPairsStateInternal } from './types';
-
-// Local storage key for channel pairs
-const STORAGE_KEY_PREFIX = 'telegram_channel_pairs_';
+import { supabase } from "@/integrations/supabase/client";
 
 export const useChannelPairsData = (selectedAccount: ApiAccount | null): UseChannelPairsStateInternal & { 
   fetchChannelPairs: () => Promise<void> 
@@ -15,47 +13,104 @@ export const useChannelPairsData = (selectedAccount: ApiAccount | null): UseChan
   const [isSaving, setIsSaving] = useState(false);
   const [isAutoRepost, setIsAutoRepost] = useState(true);
   
-  // Get storage key for the current account
-  const getStorageKey = () => {
-    if (!selectedAccount) return null;
-    return `${STORAGE_KEY_PREFIX}${selectedAccount.id}`;
-  };
-  
-  // Save channel pairs to local storage
-  const saveToLocalStorage = (pairs: ChannelPair[]) => {
-    const storageKey = getStorageKey();
-    if (!storageKey) return;
+  // Fetch channel pairs from Supabase
+  const fetchChannelPairs = async () => {
+    if (!selectedAccount) return;
     
     try {
-      localStorage.setItem(storageKey, JSON.stringify(pairs));
-      console.log(`Saved ${pairs.length} channel pairs to local storage for account: ${selectedAccount?.nickname}`);
-    } catch (error) {
-      console.error('Error saving channel pairs to local storage:', error);
-    }
-  };
-  
-  // Load channel pairs from local storage
-  const loadFromLocalStorage = (): ChannelPair[] => {
-    const storageKey = getStorageKey();
-    if (!storageKey) return [];
-    
-    try {
-      const storedPairs = localStorage.getItem(storageKey);
-      if (!storedPairs) return [];
+      setIsLoading(true);
       
-      const pairs = JSON.parse(storedPairs) as ChannelPair[];
-      console.log(`Loaded ${pairs.length} channel pairs from local storage for account: ${selectedAccount?.nickname}`);
-      return pairs;
+      const { data: storedPairs, error } = await supabase
+        .from('channel_pairs')
+        .select('*')
+        .eq('accountId', selectedAccount.id);
+      
+      if (error) {
+        throw error;
+      }
+      
+      if (storedPairs && storedPairs.length > 0) {
+        console.log(`Loaded ${storedPairs.length} channel pairs from Supabase for account: ${selectedAccount?.nickname}`);
+        setChannelPairs(storedPairs as ChannelPair[]);
+      } else {
+        // If no stored pairs, create a default one
+        const defaultPair: ChannelPair = {
+          id: crypto.randomUUID(),
+          createdAt: new Date().toISOString(),
+          sourceChannel: '',
+          targetChannel: '',
+          targetUsername: '',
+          accountId: selectedAccount.id,
+          isActive: true
+        };
+        
+        await savePairsToSupabase([defaultPair]);
+        setChannelPairs([defaultPair]);
+        console.log(`Created default channel pair for account: ${selectedAccount?.nickname}`);
+      }
     } catch (error) {
-      console.error('Error loading channel pairs from local storage:', error);
-      return [];
+      console.error('Error fetching channel pairs:', error);
+      toast({
+        title: "Failed to load channels",
+        description: "Could not load your channel configurations from the database",
+        variant: "destructive",
+      });
+      
+      // Create a default pair if we can't load from Supabase
+      const defaultPair: ChannelPair = {
+        id: crypto.randomUUID(),
+        createdAt: new Date().toISOString(),
+        sourceChannel: '',
+        targetChannel: '',
+        targetUsername: '',
+        accountId: selectedAccount.id,
+        isActive: true
+      };
+      setChannelPairs([defaultPair]);
+    } finally {
+      setIsLoading(false);
     }
   };
   
-  // Override setChannelPairs to also save to local storage
-  const setPairsWithStorage = (pairs: ChannelPair[]) => {
+  // Save channel pairs to Supabase
+  const savePairsToSupabase = async (pairs: ChannelPair[]) => {
+    if (!selectedAccount) return;
+    
+    try {
+      // First, delete existing pairs for this account
+      const { error: deleteError } = await supabase
+        .from('channel_pairs')
+        .delete()
+        .eq('accountId', selectedAccount.id);
+      
+      if (deleteError) {
+        throw deleteError;
+      }
+      
+      // Then insert the new pairs
+      const { error: insertError } = await supabase
+        .from('channel_pairs')
+        .insert(pairs);
+      
+      if (insertError) {
+        throw insertError;
+      }
+      
+      console.log(`Saved ${pairs.length} channel pairs to Supabase for account: ${selectedAccount?.nickname}`);
+    } catch (error) {
+      console.error('Error saving channel pairs to Supabase:', error);
+      throw error;
+    }
+  };
+  
+  // Override setChannelPairs to also save to Supabase
+  const setPairsWithDatabase = async (pairs: ChannelPair[]) => {
     setChannelPairs(pairs);
-    saveToLocalStorage(pairs);
+    try {
+      await savePairsToSupabase(pairs);
+    } catch (error) {
+      console.error('Failed to save channel pairs to database:', error);
+    }
   };
   
   // Load channel pairs when the selected account changes
@@ -66,44 +121,6 @@ export const useChannelPairsData = (selectedAccount: ApiAccount | null): UseChan
       setChannelPairs([]);
     }
   }, [selectedAccount]);
-  
-  const fetchChannelPairs = async () => {
-    if (!selectedAccount) return;
-    
-    try {
-      setIsLoading(true);
-      
-      // Try to load from local storage first
-      const storedPairs = loadFromLocalStorage();
-      
-      if (storedPairs.length > 0) {
-        setChannelPairs(storedPairs);
-      } else {
-        // If no stored pairs, create a default one
-        const defaultPair: ChannelPair = {
-          id: '1',
-          createdAt: new Date().toISOString(),
-          sourceChannel: '',
-          targetChannel: '',
-          targetUsername: '',
-          accountId: selectedAccount.id,
-          isActive: true
-        };
-        
-        setChannelPairs([defaultPair]);
-        saveToLocalStorage([defaultPair]);
-      }
-    } catch (error) {
-      console.error('Error fetching channel pairs:', error);
-      toast({
-        title: "Failed to load channels",
-        description: "Could not load your channel configurations",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   return {
     channelPairs,
@@ -112,7 +129,7 @@ export const useChannelPairsData = (selectedAccount: ApiAccount | null): UseChan
     isAutoRepost,
     setIsAutoRepost,
     fetchChannelPairs,
-    setChannelPairs: setPairsWithStorage,
+    setChannelPairs: setPairsWithDatabase,
     setIsSaving
   };
 };

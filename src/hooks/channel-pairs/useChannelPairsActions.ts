@@ -21,7 +21,7 @@ export const useChannelPairsActions = (
   
   const addChannelPair = () => {
     const newPair: ChannelPair = {
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
       createdAt: new Date().toISOString(),
       sourceChannel: '',
       targetChannel: '',
@@ -74,7 +74,9 @@ export const useChannelPairsActions = (
     setIsSaving(true);
     
     try {
-      // Save channel pairs (already saved in state and localStorage via the setChannelPairs function)
+      // The actual save happens in setPairsWithDatabase, 
+      // which is already called when updating the pairs
+      // We're just adding a save confirmation here
       
       // Add a small delay to show saving indicator
       await new Promise(resolve => setTimeout(resolve, 800));
@@ -93,7 +95,7 @@ export const useChannelPairsActions = (
       console.error('Error saving channel pairs:', error);
       toast({
         title: "Save failed",
-        description: "Could not save channel configurations",
+        description: "Could not save channel configurations to the database",
         variant: "destructive",
       });
       setIsSaving(false);
