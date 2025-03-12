@@ -1,9 +1,10 @@
+
 import { useState, useEffect } from 'react';
 import { ChannelPair, ApiAccount } from '@/types/channels';
 import { toast } from "@/components/ui/use-toast";
 import { UseChannelPairsState, UseChannelPairsStateInternal } from './types';
 import { supabase } from "@/integrations/supabase/client";
-import { logError } from "@/services/telegram/debugger";
+import { logError, logInfo } from "@/services/telegram/debugger";
 
 export const useChannelPairsData = (selectedAccount: ApiAccount | null): UseChannelPairsStateInternal & { 
   fetchChannelPairs: () => Promise<void> 
@@ -14,10 +15,14 @@ export const useChannelPairsData = (selectedAccount: ApiAccount | null): UseChan
   const [isAutoRepost, setIsAutoRepost] = useState(true);
   
   const fetchChannelPairs = async () => {
-    if (!selectedAccount) return;
+    if (!selectedAccount) {
+      logInfo("ChannelPairs", "No account selected, skipping fetch");
+      return;
+    }
     
     try {
       setIsLoading(true);
+      logInfo("ChannelPairs", `Fetching channel pairs for account: ${selectedAccount.nickname}`);
       
       const { data: storedPairs, error } = await supabase
         .from('channel_pairs')
@@ -40,7 +45,7 @@ export const useChannelPairsData = (selectedAccount: ApiAccount | null): UseChan
       }
       
       if (storedPairs && storedPairs.length > 0) {
-        console.log(`Loaded ${storedPairs.length} channel pairs from Supabase for account: ${selectedAccount?.nickname}`);
+        logInfo("ChannelPairs", `Found ${storedPairs.length} existing pairs for account: ${selectedAccount.nickname}`);
         
         const transformedPairs: ChannelPair[] = storedPairs.map(pair => ({
           id: pair.id,
@@ -54,6 +59,8 @@ export const useChannelPairsData = (selectedAccount: ApiAccount | null): UseChan
         
         setChannelPairs(transformedPairs);
       } else {
+        logInfo("ChannelPairs", `No existing pairs found for account: ${selectedAccount.nickname}, creating default`);
+        
         const defaultPair: ChannelPair = {
           id: crypto.randomUUID(),
           createdAt: new Date().toISOString(),
@@ -66,18 +73,14 @@ export const useChannelPairsData = (selectedAccount: ApiAccount | null): UseChan
         
         await savePairsToSupabase([defaultPair]);
         setChannelPairs([defaultPair]);
-        console.log(`Created default channel pair for account: ${selectedAccount?.nickname}`);
       }
     } catch (error) {
-      console.error('Error fetching channel pairs:', error);
-      const errorMessage = error instanceof Error ? 
-        error.message : 
-        'An unexpected error occurred while fetching channel pairs';
+      const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
       
       logError(
         "ChannelPairs",
-        `Error fetching channel pairs for account ${selectedAccount?.nickname}:`,
-        { error, account: selectedAccount.id }
+        `Error fetching channel pairs for account ${selectedAccount.nickname}:`,
+        { error, accountId: selectedAccount.id }
       );
       
       toast({
@@ -86,6 +89,7 @@ export const useChannelPairsData = (selectedAccount: ApiAccount | null): UseChan
         variant: "destructive",
       });
       
+      // Create a default pair even on error to allow the user to continue
       const defaultPair: ChannelPair = {
         id: crypto.randomUUID(),
         createdAt: new Date().toISOString(),
@@ -102,9 +106,16 @@ export const useChannelPairsData = (selectedAccount: ApiAccount | null): UseChan
   };
   
   const savePairsToSupabase = async (pairs: ChannelPair[]) => {
-    if (!selectedAccount) return;
+    if (!selectedAccount) {
+      logInfo("ChannelPairs", "No account selected, skipping save");
+      return;
+    }
     
     try {
+      setIsSaving(true);
+      logInfo("ChannelPairs", `Saving ${pairs.length} pairs for account: ${selectedAccount.nickname}`);
+      
+      // Delete existing pairs
       const { error: deleteError } = await supabase
         .from('channel_pairs')
         .delete()
@@ -125,6 +136,7 @@ export const useChannelPairsData = (selectedAccount: ApiAccount | null): UseChan
         throw deleteError;
       }
       
+      // Transform pairs to match database schema
       const transformedPairs = pairs.map(pair => ({
         id: pair.id,
         created_at: pair.createdAt,
@@ -135,6 +147,7 @@ export const useChannelPairsData = (selectedAccount: ApiAccount | null): UseChan
         is_active: pair.isActive
       }));
       
+      // Insert new pairs
       const { error: insertError } = await supabase
         .from('channel_pairs')
         .insert(transformedPairs);
@@ -154,14 +167,16 @@ export const useChannelPairsData = (selectedAccount: ApiAccount | null): UseChan
         throw insertError;
       }
       
-      console.log(`Saved ${pairs.length} channel pairs to Supabase for account: ${selectedAccount?.nickname}`);
+      logInfo("ChannelPairs", `Successfully saved ${pairs.length} pairs for account: ${selectedAccount.nickname}`);
     } catch (error) {
       logError(
         "ChannelPairs",
-        `Error saving channel pairs to Supabase for account ${selectedAccount?.nickname}:`,
+        `Error saving channel pairs to Supabase for account ${selectedAccount.nickname}:`,
         { error, pairsCount: pairs.length }
       );
       throw error;
+    } finally {
+      setIsSaving(false);
     }
   };
   
@@ -169,15 +184,30 @@ export const useChannelPairsData = (selectedAccount: ApiAccount | null): UseChan
     setChannelPairs(pairs);
     try {
       await savePairsToSupabase(pairs);
+      logInfo("ChannelPairs", "Channel pairs saved successfully:", pairs);
     } catch (error) {
-      console.error('Failed to save channel pairs to database:', error);
+      const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
+      
+      logError(
+        "ChannelPairs",
+        "Failed to save channel pairs to database:",
+        { error, pairs }
+      );
+      
+      toast({
+        title: "Failed to save channel pairs",
+        description: errorMessage,
+        variant: "destructive",
+      });
     }
   };
   
   useEffect(() => {
     if (selectedAccount) {
+      logInfo("ChannelPairs", `Selected account changed to: ${selectedAccount.nickname}`);
       fetchChannelPairs();
     } else {
+      logInfo("ChannelPairs", "No account selected, clearing pairs");
       setChannelPairs([]);
     }
   }, [selectedAccount]);

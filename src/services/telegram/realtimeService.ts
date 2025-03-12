@@ -8,9 +8,6 @@ import { fetchChannelMessages } from "./messageService";
 import { getStoredSession, clearStoredSession } from "./sessionManager";
 import { logInfo, logError } from './debugger';
 
-/**
- * Setup the realtime listener for telegram messages
- */
 export const setupRealtimeListener = async (
   account: ApiAccount,
   channelPairs: ChannelPair[],
@@ -19,12 +16,24 @@ export const setupRealtimeListener = async (
   try {
     logInfo("RealtimeService", "Setting up realtime listener for account:", account.nickname);
     
-    // Check if we have a valid session first
+    // Validate account and session
+    if (!account.id) {
+      const error = new Error("Invalid account configuration");
+      logError("RealtimeService", "Account validation failed:", {
+        account,
+        error: error.message
+      });
+      throw error;
+    }
+    
+    // Check if we have a valid session
     const sessionString = getStoredSession(account.id);
     if (!sessionString) {
       logInfo("RealtimeService", "No session found for account:", account.nickname);
       
+      clearStoredSession(account.id); // Clean up any invalid session data
       const error = new Error("Authentication required");
+      
       logError("RealtimeService", "Session validation failed:", {
         accountId: account.id,
         error: error.message
@@ -38,8 +47,10 @@ export const setupRealtimeListener = async (
       throw error;
     }
     
-    // Extract channel names from the pairs
-    const channelNames = channelPairs.map(pair => pair.sourceChannel).filter(Boolean);
+    // Validate channel configuration
+    const channelNames = channelPairs
+      .filter(pair => pair.sourceChannel && pair.sourceChannel.trim() !== '')
+      .map(pair => pair.sourceChannel);
     
     if (channelNames.length === 0) {
       const error = new Error("No channels configured");
@@ -56,8 +67,8 @@ export const setupRealtimeListener = async (
       throw error;
     }
     
-    // Call the real Telegram realtime endpoint to setup the listener
-    logInfo("RealtimeService", "Calling telegram-realtime Edge Function to set up listener", {
+    // Call the Telegram realtime endpoint
+    logInfo("RealtimeService", "Calling telegram-realtime Edge Function", {
       accountId: account.id,
       channelCount: channelNames.length
     });
@@ -84,7 +95,7 @@ export const setupRealtimeListener = async (
         channelCount: channelNames.length
       });
       
-      // Check if it's an authentication error
+      // Handle authentication errors
       if (error.status === 401 || (error.message && error.message.includes('authentication'))) {
         clearStoredSession(account.id);
         
@@ -104,6 +115,7 @@ export const setupRealtimeListener = async (
       throw error;
     }
     
+    // Validate response
     if (!data.success) {
       logError("RealtimeService", "Unsuccessful realtime response:", {
         data,
@@ -120,7 +132,7 @@ export const setupRealtimeListener = async (
     
     logInfo("RealtimeService", "Listener set up successfully:", data);
     
-    // Initial fetch of messages to populate the UI
+    // Initial fetch of messages
     try {
       const messages = await fetchChannelMessages(account, channelPairs);
       if (messages.length > 0) {
@@ -128,17 +140,15 @@ export const setupRealtimeListener = async (
       }
     } catch (initError) {
       logError("RealtimeService", "Error during initial fetch:", initError);
-      // Continue anyway, this is just to populate initial data
     }
     
-    // Store session if it was returned
+    // Update session if returned
     if (data.sessionString) {
       logInfo("RealtimeService", "Updating stored session");
       getStoredSession(account.id, data.sessionString);
     }
     
-    // Setup polling interval for new messages as a fallback mechanism
-    // This ensures we get messages even if the WebSocket connection isn't delivering them
+    // Setup polling interval
     const pollingInterval = setInterval(async () => {
       try {
         logInfo("RealtimeService", "Polling for new messages...");
@@ -150,9 +160,9 @@ export const setupRealtimeListener = async (
       } catch (error) {
         logError("RealtimeService", "Error in polling interval:", error);
         
-        // Check if it's an authentication error
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        if (errorMessage.includes('authentication') || errorMessage.includes('not authenticated')) {
+        if (error instanceof Error && 
+            (error.message.includes('authentication') || 
+             error.message.includes('not authenticated'))) {
           clearInterval(pollingInterval);
           clearStoredSession(account.id);
           
@@ -163,14 +173,13 @@ export const setupRealtimeListener = async (
           });
         }
       }
-    }, 30000); // Poll every 30 seconds
+    }, 30000);
     
     toast({
       title: "Listener Active",
       description: `Listening for messages from ${channelNames.length} channel${channelNames.length !== 1 ? 's' : ''}`
     });
     
-    // Return a function to stop the listener
     return {
       stopListener: async () => {
         logInfo("RealtimeService", "Stopping realtime listener", {
@@ -180,7 +189,6 @@ export const setupRealtimeListener = async (
         try {
           clearInterval(pollingInterval);
           
-          // Call the disconnect operation
           const { error } = await supabase.functions.invoke('telegram-realtime', {
             body: {
               operation: 'disconnect',
@@ -202,7 +210,6 @@ export const setupRealtimeListener = async (
             error,
             accountId: account.id
           });
-          // Continue with local cleanup even if the remote disconnect fails
         }
       }
     };
