@@ -1,174 +1,201 @@
 
-// Auth client for handling Telegram authentication using MTProto
+// Client for handling authentication operations using MTProto
 import { BaseClient } from './base-client.ts';
 
 export class AuthClient extends BaseClient {
-  // Store phone code hash during authentication flow
-  private phoneCodeHash: string = '';
+  private phoneCodeHash: string = "";
   
   constructor(apiId: string, apiHash: string, phoneNumber: string, accountId: string, sessionString: string = "") {
     super(apiId, apiHash, phoneNumber, accountId, sessionString);
-    console.log("Creating AuthClient with MTProto");
+    console.log("Creating AuthClient with MTProto implementation");
   }
-  
+
   /**
-   * Start the authentication process using MTProto
+   * Start the authentication process
    */
-  async startAuthentication(options: Record<string, any> = {}): Promise<{ success: boolean; codeNeeded?: boolean; phoneCodeHash?: string; error?: string; session?: string; _testCode?: string }> {
+  async startAuthentication(): Promise<{ success: boolean; codeNeeded?: boolean; phoneCodeHash?: string; error?: string; session?: string; _testCode?: string }> {
     try {
-      console.log("Starting MTProto authentication process");
+      console.log("Starting authentication process with MTProto");
       
-      // Check if we're already authenticated
-      const isAuthorized = await this.isAuthenticated();
+      // If we already have a session string, check if it's valid
+      if (this.sessionString) {
+        console.log("Session string is present, checking if it's valid");
+        
+        const isAuthenticated = await this.isAuthenticated();
+        
+        if (isAuthenticated) {
+          console.log("Already authenticated, no need for verification code");
+          this.authState = "authorized";
+          
+          return {
+            success: true,
+            codeNeeded: false,
+            session: this.sessionString
+          };
+        } else {
+          console.log("Session invalid, need to re-authenticate");
+          this.sessionString = "";
+          this.authState = "unauthorized";
+        }
+      }
       
-      if (isAuthorized) {
-        console.log("Already authenticated with MTProto");
+      // Initialize the client
+      if (!this.client) {
+        console.log("Initializing MTProto client");
+        this.client = this.initMTProto();
+      }
+      
+      // First check if we are already logged in
+      try {
+        console.log("Checking if already logged in");
+        const user = await this.callMTProto('users.getFullUser', {
+          id: {
+            _: 'inputUserSelf'
+          }
+        });
+        
+        if (!user.error) {
+          console.log("Already logged in, no code needed");
+          this.authState = "authorized";
+          
+          // Save the session
+          await this.saveSession();
+          
+          return {
+            success: true,
+            codeNeeded: false,
+            session: this.sessionString
+          };
+        }
+      } catch (error) {
+        console.log("Not logged in yet, proceeding with authentication", error);
+      }
+      
+      // Send the phone number to get a verification code
+      console.log(`Sending verification code to phone: ${this.phoneNumber}`);
+      
+      try {
+        const sentCode = await this.callMTProto('auth.sendCode', {
+          phone_number: this.phoneNumber,
+          settings: {
+            _: 'codeSettings',
+            allow_flashcall: false,
+            current_number: true,
+            allow_app_hash: true,
+          }
+        });
+        
+        if (sentCode.error) {
+          console.error("Error sending verification code:", sentCode.error);
+          
+          return {
+            success: false,
+            error: `Error sending verification code: ${sentCode.error}`
+          };
+        }
+        
+        console.log("Verification code sent successfully");
+        
+        // Save the phone code hash for later use
+        this.phoneCodeHash = sentCode.phone_code_hash;
+        this.authState = "awaiting_code";
         
         return {
           success: true,
-          codeNeeded: false,
-          session: this.sessionString
+          codeNeeded: true,
+          phoneCodeHash: this.phoneCodeHash,
+          _testCode: sentCode._testMode ? sentCode.phone_code : undefined // Only included in test environment
         };
-      }
-      
-      // Test connectivity to Telegram API
-      try {
-        await this.initMTProto();
-        console.log("Connectivity to Telegram API confirmed via MTProto");
-      } catch (connectError) {
-        console.error("Cannot connect to Telegram API via MTProto:", connectError);
-        return {
-          success: false,
-          error: connectError instanceof Error 
-            ? `Cannot connect to Telegram: ${connectError.message}` 
-            : "Cannot connect to Telegram API"
-        };
-      }
-      
-      // First check if the phone is registered
-      const checkPhoneResult = await this.callMTProto('auth.checkPhone', {
-        phone: this.phoneNumber
-      });
-      
-      if (checkPhoneResult.error) {
-        console.error("Error checking phone:", checkPhoneResult.error);
-        return {
-          success: false,
-          error: checkPhoneResult.error.message || "Error checking phone"
-        };
-      }
-      
-      if (!checkPhoneResult.phone_registered) {
-        return {
-          success: false,
-          error: "Phone number is not registered with Telegram"
-        };
-      }
-      
-      // Send authentication code
-      const sendCodeResult = await this.callMTProto('auth.sendCode', {
-        phone: this.phoneNumber,
-        api_id: this.apiId,
-        api_hash: this.apiHash,
-        settings: {
-          allow_app_hash_login: true
-        }
-      });
-      
-      if (sendCodeResult.error) {
-        console.error("Error sending authentication code:", sendCodeResult.error);
-        this.authState = 'unauthorized';
+      } catch (error) {
+        console.error("Error sending verification code:", error);
         
         return {
           success: false,
-          error: sendCodeResult.error.message || "Error sending authentication code"
+          error: error instanceof Error ? error.message : "Unknown error sending verification code"
         };
       }
-      
-      // Store the phone code hash
-      this.phoneCodeHash = sendCodeResult.phone_code_hash;
-      this.authState = 'awaiting_code';
-      
-      console.log("Code sent successfully via MTProto, awaiting verification");
-      
-      return {
-        success: true,
-        codeNeeded: true,
-        phoneCodeHash: this.phoneCodeHash
-      };
     } catch (error) {
-      console.error("Error starting MTProto authentication:", error);
-      this.authState = 'unauthorized';
+      console.error("Exception during authentication:", error);
       
       return {
         success: false,
-        error: error instanceof Error ? error.message : "Unknown error during authentication"
+        error: error instanceof Error ? error.message : "An unexpected error occurred during authentication"
       };
     }
   }
   
   /**
-   * Verify the authentication code sent to the user's phone using MTProto
+   * Verify the authentication code sent to the phone
    */
-  async verifyAuthenticationCode(code: string, options: Record<string, any> = {}): Promise<{ success: boolean; error?: string; session?: string }> {
+  async verifyAuthenticationCode(code: string): Promise<{ success: boolean; error?: string; session?: string }> {
     try {
-      console.log(`Verifying MTProto authentication code: ${code}`);
+      console.log(`Verifying authentication code: ${code}`);
       
       if (!this.phoneCodeHash) {
-        return {
-          success: false,
-          error: "No active authentication session. Please start authentication first."
-        };
-      }
-      
-      // Validate the code format
-      if (!code || code.trim().length < 5) {
-        return {
-          success: false,
-          error: "Invalid verification code format. Code should be at least 5 characters."
-        };
-      }
-      
-      // Sign in with the code
-      const signInResult = await this.callMTProto('auth.signIn', {
-        phone: this.phoneNumber,
-        phone_code_hash: this.phoneCodeHash,
-        phone_code: code
-      });
-      
-      if (signInResult.error) {
-        console.error("Error verifying code:", signInResult.error);
-        this.authState = 'unauthorized';
+        console.error("No phone code hash available, cannot verify code");
         
         return {
           success: false,
-          error: signInResult.error.message || "Error verifying authentication code"
+          error: "No phone code hash available. Please request a new verification code."
         };
       }
       
-      // Authentication successful
-      this.authState = 'authorized';
+      // Initialize the client if needed
+      if (!this.client) {
+        console.log("Initializing MTProto client for verification");
+        this.client = this.initMTProto();
+      }
       
-      // Save the session
-      await this.saveSession();
-      
-      console.log("MTProto authentication successful, session created");
-      
-      return {
-        success: true,
-        session: this.sessionString
-      };
+      // Sign in with the code
+      try {
+        const signInResult = await this.callMTProto('auth.signIn', {
+          phone_number: this.phoneNumber,
+          phone_code_hash: this.phoneCodeHash,
+          phone_code: code
+        });
+        
+        if (signInResult.error) {
+          console.error("Error signing in:", signInResult.error);
+          
+          // Special case for 2FA
+          if (signInResult.error === 'SESSION_PASSWORD_NEEDED') {
+            return {
+              success: false,
+              error: "Two-factor authentication is required but not supported in this version."
+            };
+          }
+          
+          return {
+            success: false,
+            error: `Error signing in: ${signInResult.error}`
+          };
+        }
+        
+        console.log("Authentication successful!");
+        this.authState = "authorized";
+        
+        // Save the session
+        await this.saveSession();
+        
+        return {
+          success: true,
+          session: this.sessionString
+        };
+      } catch (error) {
+        console.error("Error verifying code:", error);
+        
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : "Unknown error verifying code"
+        };
+      }
     } catch (error) {
-      console.error("Error verifying MTProto authentication code:", error);
-      this.authState = 'unauthorized';
+      console.error("Exception during code verification:", error);
       
       return {
         success: false,
-        error: error instanceof Error ? error.message : "Unknown error during code verification"
+        error: error instanceof Error ? error.message : "An unexpected error occurred during verification"
       };
-    } finally {
-      // Reset the phone code hash
-      this.phoneCodeHash = '';
     }
   }
 }
