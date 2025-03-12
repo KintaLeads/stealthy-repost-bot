@@ -2,6 +2,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1'
 import { corsHeaders } from '../_shared/cors.ts';
 import { createTelegramClient } from "../telegram-connector/client/index.ts";
+import { Message } from '../_shared/types.ts';
 
 // Create Supabase client
 const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
@@ -13,6 +14,17 @@ const updatedCorsHeaders = {
   ...corsHeaders,
   'Access-Control-Expose-Headers': 'X-Connection-Id, X-Telegram-Session',
   'Content-Type': 'application/json'
+};
+
+// Create a map to store active listeners
+const activeListeners = new Map();
+
+// Function to create a unique listener ID
+const createListenerId = (accountId: string) => `listener_${accountId}_${Date.now()}`;
+
+// Function to check if a session string is valid
+const isValidSession = (sessionString: string) => {
+  return sessionString && sessionString.length > 10;
 };
 
 Deno.serve(async (req) => {
@@ -94,8 +106,18 @@ Deno.serve(async (req) => {
       );
     }
     
-    const { operation, apiId, apiHash, phoneNumber, channelNames, sessionString: bodySessionString } = requestData;
+    const { 
+      operation, 
+      apiId, 
+      apiHash, 
+      phoneNumber, 
+      accountId,
+      channelNames, 
+      sessionString: bodySessionString 
+    } = requestData;
+    
     const effectiveSessionString = sessionString || bodySessionString || '';
+    const clientId = accountId || 'unknown_account';
 
     // Basic validation
     if (!operation) {
@@ -117,71 +139,342 @@ Deno.serve(async (req) => {
     console.log(`Channel names:`, channelNames || 'None provided');
     console.log(`Session provided: ${effectiveSessionString ? 'Yes (length: ' + effectiveSessionString.length + ')' : 'No'}`);
 
-    // Check authentication for operations that require it
-    if (operation === 'subscribe' || operation === 'listen') {
-      if (!effectiveSessionString) {
-        console.error("Authentication required but no session provided");
-        return new Response(
-          JSON.stringify({ 
-            success: false, 
-            error: 'Not authenticated. Please authenticate first.',
-            needsAuthentication: true,
-            details: { tip: 'Connect to Telegram first to get an authentication session' }
-          }),
-          {
-            status: 401,
-            headers: updatedCorsHeaders
-          }
-        );
-      }
-    }
+    // Handle the different operations
+    switch (operation) {
+      case 'connect': {
+        // Validate required parameters
+        if (!apiId || !apiHash || !phoneNumber) {
+          return new Response(
+            JSON.stringify({
+              success: false,
+              error: 'Missing required parameters for connect operation',
+              details: {
+                required: ['apiId', 'apiHash', 'phoneNumber'],
+                provided: {
+                  apiId: !!apiId,
+                  apiHash: !!apiHash,
+                  phoneNumber: !!phoneNumber
+                }
+              }
+            }),
+            {
+              status: 400,
+              headers: updatedCorsHeaders
+            }
+          );
+        }
 
-    // Initialize Telegram client if needed for operations
-    if ((operation === 'connect' || operation === 'subscribe') && apiId && apiHash) {
-      try {
-        // Using the shared Telegram client creation logic
-        const client = createTelegramClient({
-          apiId: apiId,
-          apiHash: apiHash,
-          phoneNumber: phoneNumber || '',
-          accountId: 'realtime_listener',
-          sessionString: effectiveSessionString
-        });
-        
-        console.log("Telegram client created successfully for realtime operations");
-        
-        // Process the rest of the operation with the client...
-        // (would continue with real implementation)
-      } catch (error) {
-        console.error("Failed to create Telegram client:", error);
+        // Initialize the client
+        try {
+          console.log("Creating Telegram client for connection check");
+          const client = createTelegramClient({
+            apiId,
+            apiHash,
+            phoneNumber,
+            accountId: clientId,
+            sessionString: effectiveSessionString
+          });
+
+          // Check if we're authenticated
+          const isAuthenticated = await client.isAuthenticated();
+          
+          if (isAuthenticated) {
+            console.log("Client is already authenticated");
+            const session = client.getSession();
+            
+            return new Response(
+              JSON.stringify({
+                success: true,
+                authenticated: true,
+                message: 'Already authenticated to Telegram',
+                sessionString: session
+              }),
+              {
+                status: 200,
+                headers: {
+                  ...updatedCorsHeaders,
+                  'X-Telegram-Session': session
+                }
+              }
+            );
+          } else {
+            console.log("Client is not authenticated, needs to connect first");
+            
+            return new Response(
+              JSON.stringify({
+                success: false,
+                authenticated: false,
+                error: 'Not authenticated. Please authenticate using the telegram-connector function first.',
+                needsAuthentication: true
+              }),
+              {
+                status: 401,
+                headers: updatedCorsHeaders
+              }
+            );
+          }
+        } catch (error) {
+          console.error("Error creating or checking Telegram client:", error);
+          
+          return new Response(
+            JSON.stringify({
+              success: false,
+              error: `Failed to create or check Telegram client: ${error instanceof Error ? error.message : String(error)}`
+            }),
+            {
+              status: 500,
+              headers: updatedCorsHeaders
+            }
+          );
+        }
+      }
+
+      case 'listen': {
+        // Check authentication
+        if (!isValidSession(effectiveSessionString)) {
+          console.error("Invalid or missing session for listen operation");
+          
+          return new Response(
+            JSON.stringify({
+              success: false,
+              error: 'Not authenticated. Please connect to Telegram first.',
+              needsAuthentication: true
+            }),
+            {
+              status: 401,
+              headers: updatedCorsHeaders
+            }
+          );
+        }
+
+        // Validate required parameters
+        if (!channelNames || !Array.isArray(channelNames) || channelNames.length === 0) {
+          return new Response(
+            JSON.stringify({
+              success: false,
+              error: 'Missing or invalid channel names for listen operation',
+              details: {
+                required: 'Array of channel names',
+                provided: channelNames ? typeof channelNames : 'undefined'
+              }
+            }),
+            {
+              status: 400,
+              headers: updatedCorsHeaders
+            }
+          );
+        }
+
+        // Initialize the client
+        try {
+          console.log(`Setting up listener for account: ${clientId}`);
+          
+          // Check if we already have an active listener for this account
+          if (activeListeners.has(clientId)) {
+            console.log(`Stopping existing listener for account: ${clientId}`);
+            const existingListener = activeListeners.get(clientId);
+            
+            if (existingListener.stopListener) {
+              await existingListener.stopListener();
+            }
+            
+            activeListeners.delete(clientId);
+          }
+          
+          // Create new client with the session
+          const client = createTelegramClient({
+            apiId,
+            apiHash,
+            phoneNumber,
+            accountId: clientId,
+            sessionString: effectiveSessionString
+          });
+          
+          // Start listening to channels
+          const listenResult = await client.listenToChannels(channelNames);
+          
+          if (!listenResult.success) {
+            console.error("Failed to listen to channels:", listenResult.error);
+            
+            return new Response(
+              JSON.stringify({
+                success: false,
+                error: listenResult.error || 'Failed to listen to channels'
+              }),
+              {
+                status: 400,
+                headers: updatedCorsHeaders
+              }
+            );
+          }
+          
+          // Create a unique listener ID
+          const listenerId = createListenerId(clientId);
+          
+          // Store the listener with its stop function
+          activeListeners.set(clientId, {
+            id: listenerId,
+            client,
+            channels: channelNames,
+            startedAt: new Date(),
+            stopListener: () => {
+              return client.disconnect();
+            }
+          });
+          
+          console.log(`Listener ${listenerId} created for account ${clientId}`);
+          
+          // Return success response
+          return new Response(
+            JSON.stringify({
+              success: true,
+              message: `Now listening to ${channelNames.length} channels`,
+              listenerId,
+              sessionString: client.getSession(),
+              channels: channelNames
+            }),
+            {
+              status: 200,
+              headers: {
+                ...updatedCorsHeaders,
+                'X-Connection-Id': listenerId,
+                'X-Telegram-Session': client.getSession()
+              }
+            }
+          );
+        } catch (error) {
+          console.error("Error setting up listener:", error);
+          
+          return new Response(
+            JSON.stringify({
+              success: false,
+              error: `Failed to set up listener: ${error instanceof Error ? error.message : String(error)}`
+            }),
+            {
+              status: 500,
+              headers: updatedCorsHeaders
+            }
+          );
+        }
+      }
+
+      case 'disconnect': {
+        try {
+          // Check if we have an active listener for this account
+          if (accountId && activeListeners.has(accountId)) {
+            console.log(`Stopping listener for account: ${accountId}`);
+            
+            const listener = activeListeners.get(accountId);
+            
+            if (listener.stopListener) {
+              await listener.stopListener();
+            }
+            
+            activeListeners.delete(accountId);
+            
+            return new Response(
+              JSON.stringify({
+                success: true,
+                message: `Disconnected from Telegram for account: ${accountId}`
+              }),
+              {
+                status: 200,
+                headers: updatedCorsHeaders
+              }
+            );
+          } else {
+            console.log(`No active listener found for account: ${accountId}`);
+            
+            return new Response(
+              JSON.stringify({
+                success: true,
+                message: 'No active listener to disconnect'
+              }),
+              {
+                status: 200,
+                headers: updatedCorsHeaders
+              }
+            );
+          }
+        } catch (error) {
+          console.error("Error disconnecting listener:", error);
+          
+          return new Response(
+            JSON.stringify({
+              success: false,
+              error: `Failed to disconnect: ${error instanceof Error ? error.message : String(error)}`
+            }),
+            {
+              status: 500,
+              headers: updatedCorsHeaders
+            }
+          );
+        }
+      }
+
+      case 'status': {
+        try {
+          // Check if we have an active listener for this account
+          if (accountId && activeListeners.has(accountId)) {
+            const listener = activeListeners.get(accountId);
+            
+            return new Response(
+              JSON.stringify({
+                success: true,
+                connected: true,
+                listenerId: listener.id,
+                startedAt: listener.startedAt,
+                channels: listener.channels
+              }),
+              {
+                status: 200,
+                headers: updatedCorsHeaders
+              }
+            );
+          } else {
+            return new Response(
+              JSON.stringify({
+                success: true,
+                connected: false,
+                message: 'No active listener found'
+              }),
+              {
+                status: 200,
+                headers: updatedCorsHeaders
+              }
+            );
+          }
+        } catch (error) {
+          console.error("Error checking listener status:", error);
+          
+          return new Response(
+            JSON.stringify({
+              success: false,
+              error: `Failed to check status: ${error instanceof Error ? error.message : String(error)}`
+            }),
+            {
+              status: 500,
+              headers: updatedCorsHeaders
+            }
+          );
+        }
+      }
+
+      default:
         return new Response(
           JSON.stringify({
             success: false,
-            error: `Failed to create Telegram client: ${error instanceof Error ? error.message : String(error)}`,
-            details: { errorSource: 'clientCreation' }
+            error: `Unknown operation: ${operation}`,
+            details: {
+              supportedOperations: ['connect', 'listen', 'disconnect', 'status']
+            }
           }),
           {
-            status: 500,
+            status: 400,
             headers: updatedCorsHeaders
           }
         );
-      }
     }
-
-    // For now, return a response indicating that real-time functionality is being implemented
-    return new Response(
-      JSON.stringify({
-        success: true,
-        message: 'Realtime functionality is being implemented with actual Telegram API calls',
-        operation: operation,
-        mock: false,
-        implementation: 'in_progress'
-      }),
-      {
-        status: 200,
-        headers: updatedCorsHeaders
-      }
-    );
   } catch (error) {
     console.error('Error in telegram-realtime function:', error);
     console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');

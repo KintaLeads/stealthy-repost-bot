@@ -1,7 +1,7 @@
 
 import { toast } from "@/components/ui/use-toast";
 import { ApiAccount } from "@/types/channels";
-import { setupRealtimeListener } from "@/services/telegram";
+import { setupRealtimeListener, checkRealtimeStatus, disconnectRealtime } from "@/services/telegram/realtimeService";
 import { logInfo, logError } from '@/services/telegram';
 import { Message } from "@/types/dashboard";
 import { runConnectivityChecks, testCorsConfiguration } from "@/services/telegram/networkCheck";
@@ -30,6 +30,13 @@ export const setupListener = async (
     if (connectResult.codeNeeded) {
       logInfo('ConnectionButton', "Verification code needed");
       throw new Error('Verification code needed. Please verify your account first.');
+    }
+    
+    // Check if we're already connected using the status endpoint
+    const isAlreadyConnected = await checkRealtimeStatus(account);
+    if (isAlreadyConnected) {
+      logInfo('ConnectionButton', "Already connected, disconnecting first");
+      await disconnectRealtime(account);
     }
     
     // Setup the realtime listener - this will make actual API calls
