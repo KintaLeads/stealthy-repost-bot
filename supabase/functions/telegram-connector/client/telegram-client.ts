@@ -1,4 +1,3 @@
-
 // Factory class for creating different types of Telegram clients using MTProto
 import { AuthClient } from "./auth-client.ts";
 import { MessageClient } from "./message-client.ts";
@@ -18,16 +17,28 @@ export class TelegramClientImplementation {
   private messageClient: MessageClient | null = null;
 
   constructor(apiId: string, apiHash: string, phoneNumber: string, accountId: string, sessionString: string = "") {
-    this.apiId = apiId;
-    this.apiHash = apiHash;
+    // Enhanced validation to catch issues early
+    if (!apiId || apiId === "undefined" || apiId === "null" || apiId.trim() === "") {
+      console.error("Invalid API ID provided in TelegramClientImplementation constructor:", apiId);
+      throw new Error("API ID cannot be empty or undefined");
+    }
+    
+    if (!apiHash || apiHash === "undefined" || apiHash === "null" || apiHash.trim() === "") {
+      console.error("Invalid API Hash provided in TelegramClientImplementation constructor");
+      throw new Error("API Hash cannot be empty or undefined");
+    }
+    
+    this.apiId = apiId.trim();
+    this.apiHash = apiHash.trim();
     this.phoneNumber = phoneNumber;
     this.accountId = accountId;
     this.sessionString = sessionString;
     
     console.log("Creating TelegramClientImplementation with MTProto implementation");
+    console.log(`API ID: ${this.apiId}, API Hash: ${this.apiHash.substring(0, 3)}..., Phone: ${this.phoneNumber ? this.phoneNumber.substring(0, 4) + '****' : 'Not provided'}`);
     
     // Initialize validation client
-    this.validationClient = new ValidationClient(apiId, apiHash, phoneNumber, accountId, sessionString);
+    this.validationClient = new ValidationClient(this.apiId, this.apiHash, this.phoneNumber, this.accountId, this.sessionString);
   }
   
   // Method to validate credentials
@@ -39,6 +50,12 @@ export class TelegramClientImplementation {
   // Method to get auth client (lazy loading)
   async getAuthClient(): Promise<AuthClient> {
     if (!this.authClient) {
+      // Validate credentials again before creating the client
+      if (!this.apiId || !this.apiHash) {
+        console.error("Cannot create AuthClient: Missing API credentials");
+        throw new Error("API ID and Hash must be provided to create AuthClient");
+      }
+      
       this.authClient = new AuthClient(
         this.apiId, 
         this.apiHash, 
@@ -116,7 +133,7 @@ export class TelegramClientImplementation {
     return this.sessionString;
   }
   
-  // Method to get phone number (missing method that's causing the error)
+  // Method to get phone number
   getPhoneNumber(): string {
     return this.phoneNumber;
   }

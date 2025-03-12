@@ -17,19 +17,19 @@ export class BaseTelegramClient {
     console.log("Creating BaseTelegramClient with MTProto implementation");
     
     // Validate inputs
-    if (!apiId || apiId === "undefined" || apiId === "null") {
+    if (!apiId || apiId === "undefined" || apiId === "null" || apiId.trim() === "") {
       console.error("Invalid API ID provided:", apiId);
       throw new Error("API ID cannot be empty or undefined");
     }
     
-    if (!apiHash || apiHash === "undefined" || apiHash === "null") {
+    if (!apiHash || apiHash === "undefined" || apiHash === "null" || apiHash.trim() === "") {
       console.error("Invalid API Hash provided:", typeof apiHash);
       throw new Error("API Hash cannot be empty or undefined");
     }
     
-    this.apiId = apiId;
-    this.apiHash = apiHash;
-    this.phoneNumber = phoneNumber;
+    this.apiId = apiId.trim();
+    this.apiHash = apiHash.trim();
+    this.phoneNumber = phoneNumber || "";
     this.accountId = accountId;
     this.sessionString = sessionString || "";
     
@@ -48,13 +48,13 @@ export class BaseTelegramClient {
     if (!this.mtproto) {
       console.log("Initializing MTProto client...");
       try {
-        // Ensure API ID is a valid number
+        // Convert API ID to number and validate
         const apiIdNum = parseInt(this.apiId, 10);
-        if (isNaN(apiIdNum)) {
+        if (isNaN(apiIdNum) || apiIdNum <= 0) {
           throw new Error(`Invalid API ID format: ${this.apiId}`);
         }
         
-        // Ensure API Hash is a valid string
+        // Validate API Hash format - should be a hex string
         if (!this.apiHash || typeof this.apiHash !== 'string' || this.apiHash.length < 5) {
           throw new Error(`Invalid API Hash format. Length: ${this.apiHash ? this.apiHash.length : 0}`);
         }

@@ -24,13 +24,16 @@ export class MTProto {
   private lastPhoneCodeHash: string | null = null;
   
   constructor(options: MTProtoOptions) {
-    // Validate API ID and Hash before assigning
-    if (!options.apiId || isNaN(Number(options.apiId))) {
-      throw new Error(`Invalid API ID: ${options.apiId}. Must be a valid number.`);
+    // Validate API ID - ensure it's a valid number
+    if (!options.apiId || isNaN(Number(options.apiId)) || Number(options.apiId) <= 0) {
+      console.error("Invalid API ID provided:", options.apiId);
+      throw new Error(`Invalid API ID: ${options.apiId}. Must be a positive number.`);
     }
     
+    // Validate API Hash - ensure it's a non-empty string matching expected format
     if (!options.apiHash || typeof options.apiHash !== 'string' || options.apiHash.length < 5) {
-      throw new Error(`Invalid API Hash: ${options.apiHash}. Must be a non-empty string.`);
+      console.error("Invalid API Hash provided:", typeof options.apiHash);
+      throw new Error(`Invalid API Hash format. Must be a non-empty string.`);
     }
     
     this.apiId = Number(options.apiId);
@@ -64,10 +67,16 @@ export class MTProto {
     try {
       console.log(`Initializing Telegram client with apiId: ${this.apiId}, apiHash: ${this.apiHash.substring(0, 3)}...`);
       
-      if (!this.apiId || !this.apiHash) {
-        throw new Error(`API ID or Hash cannot be empty. API ID: ${this.apiId}, API Hash length: ${this.apiHash ? this.apiHash.length : 0}`);
+      // Final validation check before client creation
+      if (!this.apiId || isNaN(this.apiId) || this.apiId <= 0) {
+        throw new Error(`Invalid API ID format: ${this.apiId}`);
       }
       
+      if (!this.apiHash || typeof this.apiHash !== 'string' || this.apiHash.length < 5) {
+        throw new Error(`Invalid API Hash format. Length: ${this.apiHash ? this.apiHash.length : 0}`);
+      }
+      
+      // Create TelegramClient instance with session if available
       this.client = new TelegramClient({
         apiId: this.apiId,
         apiHash: this.apiHash,

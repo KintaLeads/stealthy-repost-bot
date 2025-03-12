@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +25,74 @@ const AccountForm: React.FC<AccountFormProps> = ({
 }) => {
   const isEditing = !isNew;
   
+  // Validate API ID format
+  const validateApiId = (value: string): string => {
+    if (!value.trim()) {
+      return "API ID is required";
+    }
+    
+    const apiId = parseInt(value, 10);
+    if (isNaN(apiId) || apiId <= 0) {
+      return "API ID must be a positive number";
+    }
+    
+    return "";
+  };
+  
+  // Validate API Hash format
+  const validateApiHash = (value: string): string => {
+    if (!value.trim()) {
+      return "API Hash is required";
+    }
+    
+    if (value.length < 5) {
+      return "API Hash is too short";
+    }
+    
+    return "";
+  };
+  
+  // Validate phone number format
+  const validatePhoneNumber = (value: string): string => {
+    if (!value.trim()) {
+      return "Phone number is required";
+    }
+    
+    // Basic phone number validation - should start with + and contain numbers
+    if (!/^\+[0-9]{7,15}$/.test(value)) {
+      return "Invalid phone number format (e.g. +1234567890)";
+    }
+    
+    return "";
+  };
+  
+  // Get error message for a specific field
+  const getErrorMessage = (field: keyof ApiAccount): string => {
+    switch (field) {
+      case 'apiKey':
+        return validateApiId(account.apiKey);
+      case 'apiHash':
+        return validateApiHash(account.apiHash);
+      case 'phoneNumber':
+        return validatePhoneNumber(account.phoneNumber);
+      default:
+        return "";
+    }
+  };
+  
+  // Handle input change with validation
+  const handleInputChange = (field: keyof ApiAccount, value: string) => {
+    onChange(field, value);
+  };
+  
+  // Check if form is valid
+  const isFormValid = (): boolean => {
+    return !validateApiId(account.apiKey) &&
+           !validateApiHash(account.apiHash) &&
+           !validatePhoneNumber(account.phoneNumber) &&
+           !!account.nickname;
+  };
+  
   return (
     <div className="space-y-4">
       <div className="space-y-2">
@@ -33,7 +102,7 @@ const AccountForm: React.FC<AccountFormProps> = ({
             id={`nickname-${account.id || 'new'}`}
             placeholder="My Channel Account"
             value={account.nickname}
-            onChange={(e) => onChange('nickname', e.target.value)}
+            onChange={(e) => handleInputChange('nickname', e.target.value)}
             className="transition-all focus:border-primary/30"
           />
         </div>
@@ -49,13 +118,16 @@ const AccountForm: React.FC<AccountFormProps> = ({
             id={`apiKey-${account.id || 'new'}`}
             placeholder="12345678"
             value={account.apiKey}
-            onChange={(e) => onChange('apiKey', e.target.value)}
+            onChange={(e) => handleInputChange('apiKey', e.target.value)}
             className="pl-9 transition-all focus:border-primary/30"
           />
           <div className="absolute left-3 top-2.5 text-muted-foreground">
             <Key size={16} />
           </div>
         </div>
+        {getErrorMessage('apiKey') && (
+          <p className="text-xs text-red-500 mt-1">{getErrorMessage('apiKey')}</p>
+        )}
       </div>
       
       <div className="space-y-2">
@@ -65,7 +137,7 @@ const AccountForm: React.FC<AccountFormProps> = ({
             id={`apiHash-${account.id || 'new'}`}
             placeholder="a1b2c3d4e5f6g7h8i9j0..."
             value={account.apiHash}
-            onChange={(e) => onChange('apiHash', e.target.value)}
+            onChange={(e) => handleInputChange('apiHash', e.target.value)}
             className="pl-9 transition-all focus:border-primary/30"
             type="password"
           />
@@ -73,6 +145,9 @@ const AccountForm: React.FC<AccountFormProps> = ({
             <Shield size={16} />
           </div>
         </div>
+        {getErrorMessage('apiHash') && (
+          <p className="text-xs text-red-500 mt-1">{getErrorMessage('apiHash')}</p>
+        )}
       </div>
       
       <div className="space-y-2">
@@ -82,19 +157,22 @@ const AccountForm: React.FC<AccountFormProps> = ({
             id={`phoneNumber-${account.id || 'new'}`}
             placeholder="+1234567890"
             value={account.phoneNumber}
-            onChange={(e) => onChange('phoneNumber', e.target.value)}
+            onChange={(e) => handleInputChange('phoneNumber', e.target.value)}
             className="pl-9 transition-all focus:border-primary/30"
           />
           <div className="absolute left-3 top-2.5 text-muted-foreground">
             <Phone size={16} />
           </div>
         </div>
+        {getErrorMessage('phoneNumber') && (
+          <p className="text-xs text-red-500 mt-1">{getErrorMessage('phoneNumber')}</p>
+        )}
       </div>
       
       <div className="pt-2">
         <Button 
           onClick={onSave}
-          disabled={isSaving}
+          disabled={isSaving || !isFormValid()}
           className="w-full"
         >
           {isSaving ? (

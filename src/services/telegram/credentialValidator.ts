@@ -6,6 +6,41 @@ import { logInfo, logWarning, logError, trackApiCall } from './debugger';
 import { runConnectivityChecks } from './networkCheck';
 
 /**
+ * Validate format of Telegram API credentials
+ */
+const validateCredentialFormat = (account: ApiAccount): { valid: boolean; error?: string } => {
+  // Check API ID format
+  if (!account.apiKey || account.apiKey.trim() === '') {
+    return { valid: false, error: "API ID cannot be empty" };
+  }
+  
+  const apiId = parseInt(account.apiKey, 10);
+  if (isNaN(apiId) || apiId <= 0) {
+    return { valid: false, error: "API ID must be a positive number" };
+  }
+  
+  // Check API Hash format (should be at least 32 characters for Telegram)
+  if (!account.apiHash || account.apiHash.trim() === '') {
+    return { valid: false, error: "API Hash cannot be empty" };
+  }
+  
+  if (account.apiHash.length < 5) {
+    return { valid: false, error: "API Hash appears to be too short" };
+  }
+  
+  // Check phone number format (should include country code with +)
+  if (!account.phoneNumber || account.phoneNumber.trim() === '') {
+    return { valid: false, error: "Phone number cannot be empty" };
+  }
+  
+  if (!/^\+[0-9]{7,15}$/.test(account.phoneNumber)) {
+    return { valid: false, error: "Invalid phone number format. Must include country code (e.g. +1234567890)" };
+  }
+  
+  return { valid: true };
+}
+
+/**
  * Validates Telegram API credentials by attempting a connection
  * @param account The API account to validate
  * @returns Object containing success status and optional error message
@@ -17,6 +52,16 @@ export const validateTelegramCredentials = async (account: ApiAccount) => {
   logInfo(context, `API ID: ${account.apiKey}`);
   
   try {
+    // First validate format of credentials before making any network requests
+    const formatValidation = validateCredentialFormat(account);
+    if (!formatValidation.valid) {
+      logError(context, `Validation failed: ${formatValidation.error}`);
+      return { 
+        success: false, 
+        error: formatValidation.error
+      };
+    }
+    
     // First check if the edge function is deployed and accessible
     logInfo(context, 'Checking Edge Function deployment status...');
     const projectId = 'eswfrzdqxsaizkdswxfn'; // This should be configurable
@@ -49,25 +94,12 @@ export const validateTelegramCredentials = async (account: ApiAccount) => {
     // If all connectivity checks pass, call the Edge Function
     logInfo(context, 'Calling Supabase function \'telegram-connector\' for validation...');
     
-    // Validate input parameters before sending
-    if (!account.apiKey || !account.apiHash || !account.phoneNumber) {
-      const missingParams = {
-        apiKey: !account.apiKey,
-        apiHash: !account.apiHash,
-        phoneNumber: !account.phoneNumber
-      };
-      logError(context, 'Missing required parameters for validation', missingParams);
-      return {
-        success: false,
-        error: 'Missing required parameters. Please provide API ID, API Hash, and Phone Number.'
-      };
-    }
-    
+    // Trim whitespace from all fields
     const requestData = {
       operation: 'validate',
-      apiId: account.apiKey,
-      apiHash: account.apiHash,
-      phoneNumber: account.phoneNumber,
+      apiId: account.apiKey.trim(),
+      apiHash: account.apiHash.trim(),
+      phoneNumber: account.phoneNumber.trim(),
       accountId: account.id || 'temp-validation',
       // CRITICAL: Make sure we are explicitly requesting version 2.26.22
       telegramVersion: '2.26.22'

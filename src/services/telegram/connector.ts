@@ -5,6 +5,33 @@ import { logInfo, logError, trackApiCall } from './debugger';
 import { ConnectionResult } from './types';
 
 /**
+ * Validates API credentials before sending to the Edge Function
+ */
+const validateCredentials = (account: ApiAccount): string | null => {
+  // Check API ID
+  if (!account.apiKey || account.apiKey.trim() === '') {
+    return "API ID cannot be empty";
+  }
+  
+  const apiIdNum = parseInt(account.apiKey, 10);
+  if (isNaN(apiIdNum) || apiIdNum <= 0) {
+    return "API ID must be a positive number";
+  }
+  
+  // Check API Hash
+  if (!account.apiHash || account.apiHash.trim() === '') {
+    return "API Hash cannot be empty";
+  }
+  
+  // Check phone number
+  if (!account.phoneNumber || account.phoneNumber.trim() === '') {
+    return "Phone number cannot be empty";
+  }
+  
+  return null; // No validation errors
+};
+
+/**
  * Handles the initial connection attempt to Telegram API
  * This determines if verification is needed
  */
@@ -13,7 +40,18 @@ export const handleInitialConnection = async (account: ApiAccount): Promise<Conn
   logInfo(context, `Initializing connection for account: ${account.nickname}`);
   
   try {
-    // Validate that we have all required credentials before sending to the Edge Function
+    // Validate API credentials before sending to the Edge Function
+    const validationError = validateCredentials(account);
+    if (validationError) {
+      logError(context, validationError);
+      return {
+        success: false,
+        codeNeeded: false,
+        error: validationError
+      };
+    }
+    
+    // Original validation that checks for missing credentials
     if (!account.apiKey || !account.apiHash || !account.phoneNumber) {
       const missingCredentials = [];
       if (!account.apiKey) missingCredentials.push('API ID');
@@ -32,9 +70,9 @@ export const handleInitialConnection = async (account: ApiAccount): Promise<Conn
     
     const requestData = {
       operation: 'connect',
-      apiId: account.apiKey,
-      apiHash: account.apiHash,
-      phoneNumber: account.phoneNumber,
+      apiId: account.apiKey.trim(),
+      apiHash: account.apiHash.trim(),
+      phoneNumber: account.phoneNumber.trim(),
       accountId: account.id || 'unknown',
       debug: true // Always send debug flag to help with troubleshooting
     };
