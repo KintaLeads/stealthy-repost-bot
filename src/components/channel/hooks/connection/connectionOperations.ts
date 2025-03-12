@@ -5,7 +5,7 @@ import { setupRealtimeListener, checkRealtimeStatus, disconnectRealtime } from "
 import { logInfo, logError } from '@/services/telegram';
 import { Message } from "@/types/dashboard";
 import { runConnectivityChecks, testCorsConfiguration } from "@/services/telegram/networkCheck";
-import { handleInitialConnection } from "@/services/telegram/connector";
+import { handleInitialConnection } from '@/services/telegram/connector';
 import { ConnectionResult } from "@/services/telegram/types";
 
 // The project ID is hardcoded for now
@@ -18,28 +18,34 @@ export const setupListener = async (
   onConnected: (listener: any) => void
 ) => {
   try {
-    logInfo('ConnectionButton', "Setting up realtime listener for account:", account.nickname);
+    logInfo('ConnectionOperations', "Setting up realtime listener for account:", account.nickname);
     
-    // First check if we need to authenticate
-    const connectResult = await handleInitialConnection(account) as ConnectionResult;
+    // First check if we need to authenticate - THIS WILL CALL THE CONNECTOR
+    logInfo('ConnectionOperations', "Calling connector to verify authentication");
+    const connectResult = await handleInitialConnection(account, {
+      debug: true,
+      logLevel: 'verbose'
+    }) as ConnectionResult;
+    
     if (!connectResult.success) {
-      logError('ConnectionButton', 'Connection failed:', connectResult.error);
+      logError('ConnectionOperations', 'Connection failed:', connectResult.error);
       throw new Error(connectResult.error || 'Failed to connect to Telegram');
     }
     
     if (connectResult.codeNeeded) {
-      logInfo('ConnectionButton', "Verification code needed");
+      logInfo('ConnectionOperations', "Verification code needed");
       throw new Error('Verification code needed. Please verify your account first.');
     }
     
     // Check if we're already connected using the status endpoint
     const isAlreadyConnected = await checkRealtimeStatus(account);
     if (isAlreadyConnected) {
-      logInfo('ConnectionButton', "Already connected, disconnecting first");
+      logInfo('ConnectionOperations', "Already connected, disconnecting first");
       await disconnectRealtime(account);
     }
     
     // Setup the realtime listener - this will make actual API calls
+    logInfo('ConnectionOperations', "Setting up realtime listener with channel pairs:", channelPairs.length);
     const listener = await setupRealtimeListener(
       account,
       channelPairs,
@@ -52,8 +58,10 @@ export const setupListener = async (
       title: "Connected",
       description: "Now listening to Telegram channels",
     });
+    
+    return listener;
   } catch (error) {
-    logError('ConnectionButton', 'Error setting up realtime listener:', error);
+    logError('ConnectionOperations', 'Error setting up realtime listener:', error);
     
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
     
@@ -80,7 +88,7 @@ export const runConnectionDiagnostics = async () => {
     const connectivityResults = await runConnectivityChecks(PROJECT_ID);
     const corsResults = await testCorsConfiguration(PROJECT_ID);
     
-    logInfo('ConnectionButton', "Diagnostics completed", {
+    logInfo('ConnectionOperations', "Diagnostics completed", {
       connectivity: connectivityResults,
       cors: corsResults
     });
@@ -92,7 +100,7 @@ export const runConnectionDiagnostics = async () => {
 
     return { connectivityResults, corsResults };
   } catch (error) {
-    logError('ConnectionButton', "Error running diagnostics", error);
+    logError('ConnectionOperations', "Error running diagnostics", error);
     
     toast({
       title: "Diagnostics Failed",

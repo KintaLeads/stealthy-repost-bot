@@ -1,4 +1,3 @@
-
 import { ApiAccount } from '@/types/channels';
 import { supabase } from '@/integrations/supabase/client';
 import { logInfo, logError, trackApiCall } from './debugger';
@@ -34,11 +33,14 @@ export const handleInitialConnection = async (
       ...options
     };
     
-    logInfo(context, 'Calling Supabase function \'telegram-connector\' with apiId:', account.apiKey);
+    logInfo(context, 'Calling Supabase function \'telegram-connector\' with accountId:', account.id);
     console.log('Full connection data:', {
       ...connectionData,
-      apiHash: connectionData.apiHash ? '******' : undefined
+      apiHash: connectionData.apiHash ? '[REDACTED]' : undefined
     });
+    
+    // This is the call to the telegram-connector edge function
+    logInfo(context, '=== CALLING TELEGRAM CONNECTOR EDGE FUNCTION ===');
     
     const { data, error } = await supabase.functions.invoke('telegram-connector', {
       body: connectionData,
@@ -46,7 +48,10 @@ export const handleInitialConnection = async (
     });
     
     // Track API call for debugging
-    trackApiCall('telegram-connector/connect', connectionData, data, error);
+    trackApiCall('telegram-connector/connect', {
+      ...connectionData,
+      apiHash: '[REDACTED]'
+    }, data, error);
     
     if (error) {
       logError(context, 'Error connecting to Telegram:', error);
@@ -88,11 +93,12 @@ export const handleInitialConnection = async (
     }
     
     // Otherwise we're already authenticated
-    logInfo(context, 'Already authenticated');
+    logInfo(context, 'Already authenticated, session received');
     
     return {
       success: true,
       codeNeeded: false,
+      session: data.session,
       user: data.user
     };
   } catch (error) {

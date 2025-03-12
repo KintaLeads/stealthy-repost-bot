@@ -99,8 +99,16 @@ export const useConnectionManager = (
         logInfo('ConnectionManager', 'Connecting to Telegram');
         
         try {
-          // First check if we need verification
-          const connectResult = await handleInitialConnection(selectedAccount);
+          // First check if we need verification - THIS CALLS TELEGRAM-CONNECTOR
+          logInfo('ConnectionManager', 'Calling handleInitialConnection with account:', 
+            selectedAccount.nickname || selectedAccount.phoneNumber);
+            
+          const connectResult = await handleInitialConnection(selectedAccount, {
+            debug: true, // Enable debug mode to get more logs
+            logLevel: 'verbose'
+          });
+          
+          logInfo('ConnectionManager', 'Initial connection result:', connectResult);
           
           if (connectResult.codeNeeded) {
             logInfo('ConnectionManager', 'Verification needed, showing verification dialog');
@@ -113,6 +121,7 @@ export const useConnectionManager = (
           
           // Store the session if we got one
           if (connectResult.session) {
+            logInfo('ConnectionManager', 'Got session, storing it');
             storeSession(selectedAccount.id, connectResult.session);
           }
           
@@ -138,7 +147,10 @@ export const useConnectionManager = (
             logInfo('ConnectionManager', 'Verification needed, getting code hash');
             
             try {
-              const connectResult = await handleInitialConnection(selectedAccount);
+              const connectResult = await handleInitialConnection(selectedAccount, {
+                debug: true,
+                logLevel: 'verbose'
+              });
               
               if (connectResult.codeNeeded && connectResult.phoneCodeHash) {
                 // Store temporary state for the verification dialog
