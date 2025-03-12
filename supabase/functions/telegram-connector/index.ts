@@ -22,6 +22,20 @@ const updatedCorsHeaders = {
   'Access-Control-Expose-Headers': 'X-Telegram-Session'
 };
 
+// Debug function to check if a string value is valid
+function debugCheckValue(name: string, value: any): void {
+  console.log(`DEBUG CHECK - ${name}:`);
+  console.log(`  Type: ${typeof value}`);
+  console.log(`  Value: "${String(value)}"`);
+  console.log(`  Length: ${typeof value === 'string' ? value.length : 'N/A'}`);
+  console.log(`  Is empty: ${!value}`);
+  console.log(`  Is undefined: ${value === undefined}`);
+  console.log(`  Is null: ${value === null}`);
+  console.log(`  Is 'undefined' string: ${value === 'undefined'}`);
+  console.log(`  Is 'null' string: ${value === 'null'}`);
+  console.log(`  Passes basic validity: ${value && value !== 'undefined' && value !== 'null' && String(value).trim() !== ''}`);
+}
+
 Deno.serve(async (req) => {
   // Measure function execution time
   const startTime = Date.now();
@@ -78,16 +92,16 @@ Deno.serve(async (req) => {
       debug
     } = requestBody;
     
-    // Enhanced debugging
-    if (debug) {
-      console.log("📝 DEBUG MODE ENABLED - DETAILED REQUEST INFO");
-      console.log(`Operation: ${operation}`);
-      console.log(`API ID: ${apiId ? 'Provided' : 'Missing'} (${typeof apiId}, ${apiId})`);
-      console.log(`API Hash: ${apiHash ? 'Provided' : 'Missing'} (${typeof apiHash}, ${apiHash ? apiHash.substring(0, 3) + '...' : 'null'})`);
-      console.log(`Phone: ${phoneNumber ? phoneNumber.substring(0, 4) + '****' : 'Missing'}`);
-      console.log(`Account ID: ${accountId || 'Missing'}`);
-      console.log(`Session string: ${sessionString ? 'Provided' : 'Missing'} (length: ${sessionString?.length || 0})`);
-    }
+    // Enhanced debugging for ALL requests
+    console.log("📝 DETAILED REQUEST INFO (DEBUG MODE)");
+    console.log(`Operation: ${operation}`);
+    
+    // Debug check for all critical parameters
+    debugCheckValue("apiId", apiId);
+    debugCheckValue("apiHash", apiHash); 
+    debugCheckValue("phoneNumber", phoneNumber);
+    debugCheckValue("accountId", accountId);
+    debugCheckValue("sessionString", sessionString);
     
     // Handle healthcheck operation
     if (operation === 'healthcheck') {
@@ -122,6 +136,25 @@ Deno.serve(async (req) => {
           updatedCorsHeaders
         );
       }
+      
+      // Verify API ID is numeric
+      const apiIdNum = Number(apiId);
+      if (isNaN(apiIdNum) || apiIdNum <= 0) {
+        console.error("⚠️ API ID is not a valid positive number:", apiId);
+        return createBadRequestResponse(
+          `Invalid API ID format. Expected a positive number, got: ${apiId}`,
+          updatedCorsHeaders
+        );
+      }
+      
+      // Verify API Hash has reasonable length (Telegram hashes are typically 32 chars)
+      if (apiHash.length < 5) {
+        console.error("⚠️ API Hash is suspiciously short:", apiHash.length, "characters");
+        return createBadRequestResponse(
+          `Invalid API Hash format. Hash appears to be too short: ${apiHash.length} characters`,
+          updatedCorsHeaders
+        );
+      }
     }
 
     // Get session from headers if available or from request body
@@ -137,11 +170,22 @@ Deno.serve(async (req) => {
     console.log("🔄 Phone number format:", phoneNumber ? "Provided" : "Not provided");
     
     try {
+      // Create client with explicitly trimmed values
+      const trimmedApiId = String(apiId).trim();
+      const trimmedApiHash = String(apiHash).trim();
+      const trimmedPhoneNumber = phoneNumber ? String(phoneNumber).trim() : '';
+      
+      // Additional debug logs for trimmed values
+      console.log("TRIMMED VALUES CHECK:");
+      console.log(`- API ID: "${trimmedApiId}" (length: ${trimmedApiId.length})`);
+      console.log(`- API Hash: "${trimmedApiHash.substring(0, 3)}..." (length: ${trimmedApiHash.length})`);
+      console.log(`- Phone: "${trimmedPhoneNumber}" (length: ${trimmedPhoneNumber.length})`);
+      
       // Create the client with validated credentials
       const client = new TelegramClientImplementation(
-        String(apiId), 
-        String(apiHash), 
-        phoneNumber || '', 
+        trimmedApiId, 
+        trimmedApiHash, 
+        trimmedPhoneNumber, 
         accountId || 'temp', 
         effectiveSessionString
       );

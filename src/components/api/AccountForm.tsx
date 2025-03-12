@@ -1,10 +1,11 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { RefreshCw, Key, Shield, Phone } from "lucide-react";
+import { RefreshCw, Key, Shield, Phone, Bug } from "lucide-react";
 import { ApiAccount } from '@/types/dashboard';
+import ApiCredentialDebugger from '../debug/ApiCredentialDebugger';
 
 interface AccountFormProps {
   account: ApiAccount;
@@ -23,6 +24,7 @@ const AccountForm: React.FC<AccountFormProps> = ({
   onCancel,
   isSaving
 }) => {
+  const [showDebugger, setShowDebugger] = useState(false);
   const isEditing = !isNew;
   
   // Validate API ID format
@@ -168,7 +170,7 @@ const AccountForm: React.FC<AccountFormProps> = ({
           <p className="text-xs text-red-500 mt-1">{getErrorMessage('phoneNumber')}</p>
         )}
       </div>
-      
+
       <div className="pt-2">
         <Button 
           onClick={onSave}
@@ -195,7 +197,19 @@ const AccountForm: React.FC<AccountFormProps> = ({
             Cancel
           </Button>
         )}
+
+        <Button
+          variant="ghost"
+          size="sm" 
+          className="w-full mt-2 text-xs" 
+          onClick={() => setShowDebugger(!showDebugger)}
+        >
+          <Bug className="h-3 w-3 mr-1" />
+          {showDebugger ? 'Hide Debug Info' : 'Show Debug Info'}
+        </Button>
       </div>
+
+      {showDebugger && <ApiCredentialDebugger account={account} />}
     </div>
   );
 };
