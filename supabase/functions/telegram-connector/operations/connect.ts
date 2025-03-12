@@ -58,11 +58,20 @@ export async function handleConnect(
       // Add more debug logging if requested
       if (debug) {
         console.log("Debug mode enabled for connection");
-        console.log("Client details:", {
-          phoneNumber: client.getPhoneNumber().substring(0, 4) + "****", // Only log first few digits
-          hasSession: !!client.getSession(),
-          authState: client.getAuthState()
-        });
+        try {
+          // Safely try to get phone number
+          const phoneDisplay = client.getPhoneNumber ? 
+            client.getPhoneNumber().substring(0, 4) + "****" : 
+            "Not available";
+            
+          console.log("Client details:", {
+            phoneNumber: phoneDisplay,
+            hasSession: !!client.getSession(),
+            authState: client.getAuthState()
+          });
+        } catch (err) {
+          console.error("Error accessing client properties:", err);
+        }
       }
       
       const connectResult = await client.connect();

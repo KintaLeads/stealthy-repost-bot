@@ -116,6 +116,11 @@ export class TelegramClientImplementation {
     return this.sessionString;
   }
   
+  // Method to get phone number (missing method that's causing the error)
+  getPhoneNumber(): string {
+    return this.phoneNumber;
+  }
+  
   // Method to get auth state
   getAuthState(): string {
     if (this.authClient) {
