@@ -1,7 +1,8 @@
+
 import { useState, useEffect } from 'react';
 import { toast } from "@/components/ui/use-toast";
 import { ApiAccount } from "@/types/channels";
-import { logInfo, logError } from '@/services/telegram';
+import { logInfo, logError, hasStoredSession, storeSession } from '@/services/telegram';
 import { Message } from "@/types/dashboard";
 import { useVerificationState } from './connection/useVerificationState';
 import { useDiagnosticState } from './connection/useDiagnosticState';
