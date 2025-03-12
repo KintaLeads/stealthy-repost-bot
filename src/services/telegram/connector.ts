@@ -70,7 +70,7 @@ export const handleInitialConnection = async (account: ApiAccount): Promise<Conn
       };
     }
     
-    // Original validation that checks for missing credentials
+    // Double-check for missing credentials
     if (!account.apiKey || !account.apiHash || !account.phoneNumber) {
       const missingCredentials = [];
       if (!account.apiKey) missingCredentials.push('API ID');
@@ -94,6 +94,13 @@ export const handleInitialConnection = async (account: ApiAccount): Promise<Conn
     
     logInfo(context, `After trimming - API ID: ${trimmedApiId}, API Hash: ${trimmedApiHash.substring(0, 3)}..., Phone: ${trimmedPhoneNumber}`);
     
+    // Log the exact values we're sending for debugging
+    logInfo(context, 'EXACT REQUEST VALUES:');
+    logInfo(context, `apiId: "${trimmedApiId}" (${typeof trimmedApiId}, length: ${trimmedApiId.length})`);
+    logInfo(context, `apiHash: "${trimmedApiHash.substring(0, 3)}..." (${typeof trimmedApiHash}, length: ${trimmedApiHash.length})`);
+    logInfo(context, `phoneNumber: "${trimmedPhoneNumber}" (${typeof trimmedPhoneNumber}, length: ${trimmedPhoneNumber.length})`);
+    logInfo(context, `accountId: "${account.id || 'unknown'}" (${typeof account.id})`);
+    
     const requestData = {
       operation: 'connect',
       apiId: trimmedApiId,
@@ -104,16 +111,8 @@ export const handleInitialConnection = async (account: ApiAccount): Promise<Conn
     };
     
     logInfo(context, 'Calling Supabase function \'telegram-connector\' for connection...');
-    logInfo(context, 'Debug request data:', {
-      apiId: trimmedApiId,
-      apiIdLength: trimmedApiId.length,
-      apiHashProvided: !!trimmedApiHash,
-      apiHashLength: trimmedApiHash.length,
-      phoneNumberProvided: !!trimmedPhoneNumber,
-      phoneNumberLength: trimmedPhoneNumber.length,
-      accountIdProvided: !!account.id
-    });
     
+    // Make request to the Edge Function
     const { data, error } = await supabase.functions.invoke('telegram-connector', {
       body: requestData
     });

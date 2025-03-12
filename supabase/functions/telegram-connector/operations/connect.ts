@@ -69,11 +69,22 @@ export async function handleConnect(
             hasSession: !!client.getSession(),
             authState: client.getAuthState()
           });
+          
+          // NEW: Log the client's internal state for additional debugging
+          console.log("Client internal state check:");
+          console.log(`Phone number set: ${!!client.getPhoneNumber()}`);
+          console.log(`Auth state: ${client.getAuthState()}`);
+          console.log(`Session available: ${!!client.getSession()}`);
         } catch (err) {
           console.error("Error accessing client properties:", err);
         }
       }
       
+      // NEW: Add a small delay to ensure proper initialization
+      console.log("Pausing for 500ms to ensure proper initialization...");
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      console.log("Starting connection process...");
       const connectResult = await client.connect();
       
       if (connectResult.success) {

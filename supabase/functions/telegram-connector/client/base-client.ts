@@ -16,29 +16,40 @@ export class BaseTelegramClient {
   constructor(apiId: string, apiHash: string, phoneNumber: string, accountId: string, sessionString: string = "") {
     console.log("Creating BaseTelegramClient with MTProto implementation");
     
-    // Validate inputs
+    // Validate inputs with more detailed errors
     if (!apiId || apiId === "undefined" || apiId === "null" || apiId.trim() === "") {
-      console.error("Invalid API ID provided:", apiId);
-      throw new Error("API ID cannot be empty or undefined");
+      const detailedError = `Invalid API ID provided: "${apiId}", type: ${typeof apiId}, length: ${apiId ? apiId.length : 0}`;
+      console.error(detailedError);
+      throw new Error(detailedError);
     }
     
     if (!apiHash || apiHash === "undefined" || apiHash === "null" || apiHash.trim() === "") {
-      console.error("Invalid API Hash provided:", typeof apiHash);
-      throw new Error("API Hash cannot be empty or undefined");
+      const detailedError = `Invalid API Hash provided: Type: ${typeof apiHash}, Length: ${apiHash ? apiHash.length : 0}`;
+      console.error(detailedError);
+      throw new Error(detailedError);
     }
     
+    // Store trimmed values
     this.apiId = apiId.trim();
     this.apiHash = apiHash.trim();
-    this.phoneNumber = phoneNumber || "";
+    this.phoneNumber = phoneNumber ? phoneNumber.trim() : "";
     this.accountId = accountId;
     this.sessionString = sessionString || "";
     
-    console.log(`BaseTelegramClient created with: 
-      - API ID: ${this.apiId}
-      - API Hash: ${this.apiHash.substring(0, 3)}...
-      - Phone: ${this.phoneNumber ? this.phoneNumber.substring(0, 4) + '****' : 'Not provided'}
+    // Log the values we've stored
+    console.log(`BaseTelegramClient created with:
+      - API ID: ${this.apiId} 
+      - API Hash: ${this.apiHash.substring(0, 3)}... (length: ${this.apiHash.length})
+      - Phone: ${this.phoneNumber ? this.phoneNumber.substring(0, 4) + '****' : 'Not provided'} 
       - Account ID: ${this.accountId}
       - Session: ${this.sessionString ? 'Provided' : 'Not provided'}`);
+    
+    // Double-check our stored values
+    console.log("VALIDATION CHECK - Values after assignment:");
+    console.log(`- API ID empty? ${!this.apiId}`);
+    console.log(`- API Hash empty? ${!this.apiHash}`);
+    console.log(`- API ID is string? ${typeof this.apiId === 'string'}`);
+    console.log(`- API Hash is string? ${typeof this.apiHash === 'string'}`);
   }
   
   /**
@@ -48,16 +59,30 @@ export class BaseTelegramClient {
     if (!this.mtproto) {
       console.log("Initializing MTProto client...");
       try {
+        // Final validation check before MTProto creation
+        if (!this.apiId || this.apiId === "undefined" || this.apiId === "null" || this.apiId.trim() === "") {
+          throw new Error(`API ID is invalid: "${this.apiId}"`);
+        }
+        
+        if (!this.apiHash || this.apiHash === "undefined" || this.apiHash === "null" || this.apiHash.trim() === "") {
+          throw new Error(`API Hash is invalid: "${this.apiHash.substring(0, 3)}..."`);
+        }
+        
         // Convert API ID to number and validate
         const apiIdNum = parseInt(this.apiId, 10);
         if (isNaN(apiIdNum) || apiIdNum <= 0) {
           throw new Error(`Invalid API ID format: ${this.apiId}`);
         }
         
-        // Validate API Hash format - should be a hex string
-        if (!this.apiHash || typeof this.apiHash !== 'string' || this.apiHash.length < 5) {
-          throw new Error(`Invalid API Hash format. Length: ${this.apiHash ? this.apiHash.length : 0}`);
+        // Validate API Hash format
+        if (this.apiHash.length < 5) {
+          throw new Error(`Invalid API Hash format. Length: ${this.apiHash.length}`);
         }
+        
+        console.log(`Creating MTProto with:
+          - API ID: ${apiIdNum}
+          - API Hash: ${this.apiHash.substring(0, 3)}... (length: ${this.apiHash.length})
+          - Session: ${this.sessionString ? 'Available' : 'Not available'}`);
         
         // Create MTProto instance with session if available
         this.mtproto = new MTProto({
@@ -90,6 +115,13 @@ export class BaseTelegramClient {
    */
   getSession(): string {
     return this.sessionString;
+  }
+  
+  /**
+   * Get the phone number
+   */
+  getPhoneNumber(): string {
+    return this.phoneNumber;
   }
   
   /**

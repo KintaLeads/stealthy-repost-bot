@@ -1,4 +1,3 @@
-
 // Main function handler for Telegram connector
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
@@ -34,6 +33,24 @@ function debugCheckValue(name: string, value: any): void {
   console.log(`  Is 'undefined' string: ${value === 'undefined'}`);
   console.log(`  Is 'null' string: ${value === 'null'}`);
   console.log(`  Passes basic validity: ${value && value !== 'undefined' && value !== 'null' && String(value).trim() !== ''}`);
+}
+
+// NEW: Debug function to stringifyValues while hiding sensitive data
+function debugStringifyRequestBody(body: any): string {
+  // Create a copy to avoid modifying original
+  const sanitizedBody = { ...body };
+  
+  // Mask sensitive fields but keep length information
+  if (sanitizedBody.apiHash) {
+    const length = String(sanitizedBody.apiHash).length;
+    sanitizedBody.apiHash = `[HIDDEN:${length} chars]`;
+  }
+  
+  if (sanitizedBody.verificationCode) {
+    sanitizedBody.verificationCode = '[HIDDEN]';
+  }
+  
+  return JSON.stringify(sanitizedBody, null, 2);
 }
 
 Deno.serve(async (req) => {
@@ -72,6 +89,10 @@ Deno.serve(async (req) => {
       
       requestBody = JSON.parse(text);
       logRequestBody(requestBody);
+      
+      // NEW: Log detailed request body info for debugging
+      console.log("DETAILED REQUEST BODY DEBUG:");
+      console.log(debugStringifyRequestBody(requestBody));
     } catch (parseError) {
       console.error("⚠️ Failed to parse request body:", parseError);
       return createBadRequestResponse('Invalid request format: Could not parse JSON body', updatedCorsHeaders);
@@ -92,9 +113,9 @@ Deno.serve(async (req) => {
       debug
     } = requestBody;
     
-    // Enhanced debugging for ALL requests
-    console.log("📝 DETAILED REQUEST INFO (DEBUG MODE)");
-    console.log(`Operation: ${operation}`);
+    // NEW: More detailed logging to track exactly what we're working with
+    console.log("📦 REQUEST EXTRACTION DEBUG 📦");
+    console.log(`Operation: "${operation || 'not provided'}"`);
     
     // Debug check for all critical parameters
     debugCheckValue("apiId", apiId);
@@ -103,6 +124,12 @@ Deno.serve(async (req) => {
     debugCheckValue("accountId", accountId);
     debugCheckValue("sessionString", sessionString);
     
+    // NEW: Log stringified values for direct comparison
+    console.log("STRINGIFIED VALUES:");
+    console.log(`apiId: ${JSON.stringify(apiId)}`);
+    console.log(`apiHash: ${JSON.stringify(apiHash)}`);
+    console.log(`phoneNumber: ${JSON.stringify(phoneNumber)}`);
+    
     // Handle healthcheck operation
     if (operation === 'healthcheck') {
       return handleHealthcheck(updatedCorsHeaders);
@@ -110,7 +137,18 @@ Deno.serve(async (req) => {
     
     // Validate required parameters based on operation type
     if (operation === 'validate' || operation === 'connect') {
-      const { isValid, missingParams } = validateRequiredParams(apiId, apiHash, phoneNumber);
+      // NEW: Pre-validation trim
+      const trimmedApiId = typeof apiId === 'string' ? apiId.trim() : apiId;
+      const trimmedApiHash = typeof apiHash === 'string' ? apiHash.trim() : apiHash;
+      const trimmedPhoneNumber = typeof phoneNumber === 'string' ? phoneNumber.trim() : phoneNumber;
+      
+      // NEW: Log trimmed values
+      console.log("VALUES AFTER TRIMMING:");
+      console.log(`apiId: "${trimmedApiId}" (length: ${typeof trimmedApiId === 'string' ? trimmedApiId.length : 'N/A'})`);
+      console.log(`apiHash: "${trimmedApiHash ? trimmedApiHash.substring(0, 3) + '...' : ''}" (length: ${typeof trimmedApiHash === 'string' ? trimmedApiHash.length : 'N/A'})`);
+      console.log(`phoneNumber: "${trimmedPhoneNumber}" (length: ${typeof trimmedPhoneNumber === 'string' ? trimmedPhoneNumber.length : 'N/A'})`);
+      
+      const { isValid, missingParams } = validateRequiredParams(trimmedApiId, trimmedApiHash, trimmedPhoneNumber);
       
       if (!isValid) {
         console.error("⚠️ Missing required parameters:", missingParams);
@@ -121,15 +159,15 @@ Deno.serve(async (req) => {
       }
       
       // Additional validation for apiId and apiHash
-      if (apiId === 'undefined' || apiId === 'null' || apiId === '') {
-        console.error("⚠️ API ID is empty or invalid:", apiId);
+      if (trimmedApiId === 'undefined' || trimmedApiId === 'null' || trimmedApiId === '') {
+        console.error("⚠️ API ID is empty or invalid:", trimmedApiId);
         return createBadRequestResponse(
           `Invalid API ID. Please ensure a valid apiId is provided.`,
           updatedCorsHeaders
         );
       }
       
-      if (apiHash === 'undefined' || apiHash === 'null' || apiHash === '') {
+      if (trimmedApiHash === 'undefined' || trimmedApiHash === 'null' || trimmedApiHash === '') {
         console.error("⚠️ API Hash is empty or invalid");
         return createBadRequestResponse(
           `Invalid API Hash. Please ensure a valid apiHash is provided.`,
@@ -138,20 +176,20 @@ Deno.serve(async (req) => {
       }
       
       // Verify API ID is numeric
-      const apiIdNum = Number(apiId);
+      const apiIdNum = Number(trimmedApiId);
       if (isNaN(apiIdNum) || apiIdNum <= 0) {
-        console.error("⚠️ API ID is not a valid positive number:", apiId);
+        console.error("⚠️ API ID is not a valid positive number:", trimmedApiId);
         return createBadRequestResponse(
-          `Invalid API ID format. Expected a positive number, got: ${apiId}`,
+          `Invalid API ID format. Expected a positive number, got: ${trimmedApiId}`,
           updatedCorsHeaders
         );
       }
       
       // Verify API Hash has reasonable length (Telegram hashes are typically 32 chars)
-      if (apiHash.length < 5) {
-        console.error("⚠️ API Hash is suspiciously short:", apiHash.length, "characters");
+      if (typeof trimmedApiHash === 'string' && trimmedApiHash.length < 5) {
+        console.error("⚠️ API Hash is suspiciously short:", trimmedApiHash.length, "characters");
         return createBadRequestResponse(
-          `Invalid API Hash format. Hash appears to be too short: ${apiHash.length} characters`,
+          `Invalid API Hash format. Hash appears to be too short: ${trimmedApiHash.length} characters`,
           updatedCorsHeaders
         );
       }
@@ -163,25 +201,43 @@ Deno.serve(async (req) => {
     
     console.log("Session provided:", effectiveSessionString ? "Yes (length: " + effectiveSessionString.length + ")" : "No");
     
-    // Initialize Telegram client
-    console.log("🔄 Initializing TelegramClientImplementation with accountId:", accountId);
-    console.log("🔄 API ID format valid:", !isNaN(Number(apiId)), apiId);
-    console.log("🔄 API Hash format reasonable:", apiHash?.length >= 5, apiHash ? `${apiHash.substring(0, 3)}...` : 'missing');
-    console.log("🔄 Phone number format:", phoneNumber ? "Provided" : "Not provided");
+    // NEW: Log the exact parameters we're using for initialization
+    console.log("🚨 FINAL VALUES FOR CLIENT INITIALIZATION 🚨");
+    // Be careful not to log the full apiHash for security
+    const safeApiHash = typeof apiHash === 'string' ? 
+      `${apiHash.substring(0, 3)}...[${apiHash.length} chars]` : 
+      String(apiHash);
+    
+    console.log({
+      apiId: typeof apiId === 'string' ? apiId.trim() : apiId,
+      apiHash: safeApiHash,
+      phoneNumber: typeof phoneNumber === 'string' ? phoneNumber.trim() : phoneNumber,
+      accountId: accountId || 'temp'
+    });
     
     try {
       // Create client with explicitly trimmed values
-      const trimmedApiId = String(apiId).trim();
-      const trimmedApiHash = String(apiHash).trim();
+      const trimmedApiId = typeof apiId === 'string' ? apiId.trim() : String(apiId).trim();
+      const trimmedApiHash = typeof apiHash === 'string' ? apiHash.trim() : String(apiHash).trim();
       const trimmedPhoneNumber = phoneNumber ? String(phoneNumber).trim() : '';
       
       // Additional debug logs for trimmed values
-      console.log("TRIMMED VALUES CHECK:");
+      console.log("TRIMMED VALUES CHECK (FINAL):");
       console.log(`- API ID: "${trimmedApiId}" (length: ${trimmedApiId.length})`);
       console.log(`- API Hash: "${trimmedApiHash.substring(0, 3)}..." (length: ${trimmedApiHash.length})`);
       console.log(`- Phone: "${trimmedPhoneNumber}" (length: ${trimmedPhoneNumber.length})`);
       
+      // NEW: Additional validation before client creation
+      if (!trimmedApiId || trimmedApiId === 'undefined' || trimmedApiId === 'null') {
+        throw new Error(`API ID is invalid after trimming: "${trimmedApiId}"`);
+      }
+      
+      if (!trimmedApiHash || trimmedApiHash === 'undefined' || trimmedApiHash === 'null') {
+        throw new Error(`API Hash is invalid after trimming: "${trimmedApiHash.substring(0, 3)}..."`);
+      }
+      
       // Create the client with validated credentials
+      console.log("🔄 Creating TelegramClientImplementation with validated credentials");
       const client = new TelegramClientImplementation(
         trimmedApiId, 
         trimmedApiHash, 
