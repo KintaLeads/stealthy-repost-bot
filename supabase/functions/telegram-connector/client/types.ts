@@ -49,5 +49,5 @@ export interface TelegramClientOptions {
   sessionString?: string;
 }
 
-// Re-export auth state for use in other files
+// Auth state definition
 export type AuthState = "unauthorized" | "awaiting_code" | "authorized";
