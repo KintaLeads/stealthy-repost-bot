@@ -1,7 +1,7 @@
-
-import { toast } from "@/components/ui/use-toast";
-import { ApiAccount } from "@/types/channels";
-import { setupRealtimeListener, checkRealtimeStatus, disconnectRealtime } from "@/services/telegram/realtimeService";
+import { supabase } from '@/integrations/supabase/client';
+import { ApiAccount } from '@/types/channels';
+import { ChannelPair } from '@/types/channels';
+import { checkRealtimeStatus, disconnectRealtime, setupRealtimeListener } from '@/services/telegram/realtimeService';
 import { logInfo, logError } from '@/services/telegram';
 import { Message } from "@/types/dashboard";
 import { runConnectivityChecks, testCorsConfiguration } from "@/services/telegram/networkCheck";
@@ -13,7 +13,7 @@ const PROJECT_ID = "eswfrzdqxsaizkdswxfn";
 
 export const setupListener = async (
   account: ApiAccount,
-  channelPairs: any[],
+  channelPairs: ChannelPair[],
   onNewMessages: (messages: Message[]) => void,
   onConnected: (listener: any) => void
 ) => {
