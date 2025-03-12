@@ -14,8 +14,13 @@ const updatedCorsHeaders = {
 };
 
 Deno.serve(async (req) => {
+  console.log("📡 Telegram Realtime Function Called:", new Date().toISOString());
+  console.log("Request URL:", req.url);
+  console.log("Request method:", req.method);
+  
   // Handle CORS preflight requests with proper status code
   if (req.method === 'OPTIONS') {
+    console.log("Handling OPTIONS request (CORS preflight)");
     return new Response(null, { 
       headers: updatedCorsHeaders,
       status: 204
@@ -27,6 +32,7 @@ Deno.serve(async (req) => {
     
     // Only allow POST requests
     if (method !== 'POST') {
+      console.error(`Method ${method} not allowed, expected POST`);
       return new Response(
         JSON.stringify({ 
           success: false,
@@ -42,19 +48,42 @@ Deno.serve(async (req) => {
 
     // Get the session from headers if available
     const sessionString = req.headers.get('X-Telegram-Session') || '';
+    console.log("Session header present:", !!sessionString);
     
     // Get the request data
-    const requestData = await req.json().catch(error => {
-      console.error('Error parsing JSON request:', error);
-      return null;
-    });
+    const requestBody = await req.text();
+    console.log("Raw request body:", requestBody);
     
-    if (!requestData) {
+    let requestData;
+    try {
+      requestData = JSON.parse(requestBody);
+      console.log("Parsed request data:", JSON.stringify(requestData, null, 2));
+    } catch (error) {
+      console.error('Error parsing JSON request:', error);
       return new Response(
         JSON.stringify({ 
           success: false,
           error: 'Invalid JSON in request body',
-          details: { tip: 'Ensure the request body is valid JSON' }
+          details: { 
+            errorType: 'ParseError',
+            message: error.message,
+            rawBody: requestBody.substring(0, 200) + (requestBody.length > 200 ? '...' : '')
+          }
+        }),
+        {
+          status: 400,
+          headers: updatedCorsHeaders
+        }
+      );
+    }
+    
+    if (!requestData) {
+      console.error("Request data is null or undefined after parsing");
+      return new Response(
+        JSON.stringify({ 
+          success: false,
+          error: 'Invalid or empty request body',
+          details: { tip: 'Ensure the request body is valid JSON and not empty' }
         }),
         {
           status: 400,
@@ -68,6 +97,7 @@ Deno.serve(async (req) => {
 
     // Basic validation
     if (!operation) {
+      console.error("Missing required parameter: operation");
       return new Response(
         JSON.stringify({ 
           success: false,
@@ -81,12 +111,14 @@ Deno.serve(async (req) => {
       )
     }
 
-    console.log(`Received realtime operation: ${operation} for channels:`, channelNames);
+    console.log(`🔄 Processing operation: ${operation}`);
+    console.log(`Channel names:`, channelNames || 'None provided');
     console.log(`Session provided: ${effectiveSessionString ? 'Yes (length: ' + effectiveSessionString.length + ')' : 'No'}`);
 
     // Check authentication for operations that require it
     if (operation === 'subscribe' || operation === 'listen') {
       if (!effectiveSessionString) {
+        console.error("Authentication required but no session provided");
         return new Response(
           JSON.stringify({ 
             success: false, 
@@ -102,10 +134,13 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Simulate real-time connection (this would be replaced with actual Telegram API integration)
+    // Handle different operations
     if (operation === 'connect') {
       // Log the connection attempt for debugging
-      console.log(`Realtime connection attempt for phone: ${phoneNumber.substring(0, 4)}****`);
+      console.log(`🔗 Realtime connection attempt`);
+      console.log(`API ID: ${apiId || 'Not provided'}`);
+      console.log(`API Hash: ${apiHash ? (apiHash.substring(0, 3) + '...') : 'Not provided'}`);
+      console.log(`Phone: ${phoneNumber ? (phoneNumber.substring(0, 4) + '****') : 'Not provided'}`);
       
       // Validate required params for connection
       if (!apiId || !apiHash || !phoneNumber) {
@@ -114,6 +149,7 @@ Deno.serve(async (req) => {
         if (!apiHash) missingParams.push('apiHash');
         if (!phoneNumber) missingParams.push('phoneNumber');
         
+        console.error(`Missing required parameters: ${missingParams.join(', ')}`);
         return new Response(
           JSON.stringify({
             success: false,
@@ -127,7 +163,28 @@ Deno.serve(async (req) => {
         );
       }
       
+      // Additional validation for API ID format
+      const apiIdNum = Number(apiId);
+      if (isNaN(apiIdNum) || apiIdNum <= 0) {
+        console.error(`Invalid API ID format: ${apiId}`);
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: 'Invalid API ID format',
+            details: { 
+              providedValue: apiId,
+              expected: 'A positive number'
+            }
+          }),
+          {
+            status: 400,
+            headers: updatedCorsHeaders
+          }
+        );
+      }
+      
       // Simulate successful authentication and return a session
+      console.log("✅ Connection simulation successful");
       const mockSession = `session_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
       
       return new Response(
@@ -141,13 +198,15 @@ Deno.serve(async (req) => {
           status: 200,
           headers: {
             ...updatedCorsHeaders,
-            'X-Telegram-Session': mockSession
+            'X-Telegram-Session': mockSession,
+            'Content-Type': 'application/json'
           }
         }
       )
     } 
     else if (operation === 'subscribe') {
       if (!Array.isArray(channelNames) || channelNames.length === 0) {
+        console.error("No channels provided for subscription");
         return new Response(
           JSON.stringify({ 
             success: false,
@@ -161,7 +220,7 @@ Deno.serve(async (req) => {
         )
       }
       
-      console.log(`Subscribing to channels: ${channelNames.join(', ')}`);
+      console.log(`📊 Subscribing to channels: ${channelNames.join(', ')}`);
       
       // Generate some sample messages for testing
       const sampleMessages = channelNames.map(channel => ({
@@ -185,13 +244,13 @@ Deno.serve(async (req) => {
         }),
         {
           status: 200,
-          headers: updatedCorsHeaders
+          headers: {...updatedCorsHeaders, 'Content-Type': 'application/json'}
         }
       )
     }
     else if (operation === 'disconnect') {
       const connectionId = req.headers.get('X-Connection-Id')
-      console.log(`Disconnecting realtime connection: ${connectionId}`)
+      console.log(`🔌 Disconnecting realtime connection: ${connectionId || 'unknown'}`)
       
       return new Response(
         JSON.stringify({
@@ -200,11 +259,12 @@ Deno.serve(async (req) => {
         }),
         {
           status: 200,
-          headers: updatedCorsHeaders
+          headers: {...updatedCorsHeaders, 'Content-Type': 'application/json'}
         }
       )
     }
     else {
+      console.error(`Unknown operation: ${operation}`);
       return new Response(
         JSON.stringify({ 
           success: false,
@@ -213,12 +273,13 @@ Deno.serve(async (req) => {
         }),
         {
           status: 400,
-          headers: updatedCorsHeaders
+          headers: {...updatedCorsHeaders, 'Content-Type': 'application/json'}
         }
       )
     }
   } catch (error) {
-    console.error('Error in telegram-realtime function:', error)
+    console.error('Error in telegram-realtime function:', error);
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
     
     // Enhanced error response with detailed information
     return new Response(
@@ -228,12 +289,12 @@ Deno.serve(async (req) => {
         details: error instanceof Error ? {
           name: error.name,
           message: error.message,
-          stack: error.stack
+          stack: error.stack?.split('\n').map(line => line.trim())
         } : { raw: String(error) }
       }),
       {
         status: 500,
-        headers: updatedCorsHeaders
+        headers: {...updatedCorsHeaders, 'Content-Type': 'application/json'}
       }
     )
   }
