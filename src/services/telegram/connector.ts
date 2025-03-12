@@ -1,3 +1,4 @@
+
 import { ApiAccount } from '@/types/channels';
 import { supabase } from '@/integrations/supabase/client';
 import { logInfo, logError, trackApiCall } from './debugger';
@@ -6,21 +7,18 @@ import { ConnectionResult } from './types';
 
 /**
  * Handles the initial connection to Telegram
- * This will either:
- * 1. Connect directly if we have a valid session
- * 2. Request a verification code to be sent
  */
 export const handleInitialConnection = async (
   account: ApiAccount,
   options: Record<string, any> = {}
 ): Promise<ConnectionResult> => {
   const context = 'TelegramConnector';
-  logInfo(context, `Connecting to Telegram with account: ${account.nickname || account.phoneNumber}`);
+  logInfo(context, `🚀 Starting Telegram connection for account: ${account.nickname || account.phoneNumber}`);
   
   try {
-    // Check if we have an existing session to include
+    // Check for existing session
     const sessionString = getStoredSession(account.id);
-    logInfo(context, `Current session exists: ${!!sessionString}`);
+    logInfo(context, `📦 Session check - exists: ${!!sessionString}, length: ${sessionString?.length || 0}`);
     
     const connectionData = {
       operation: 'connect', 
@@ -29,50 +27,54 @@ export const handleInitialConnection = async (
       phoneNumber: account.phoneNumber,
       accountId: account.id || 'unknown',
       sessionString: sessionString || '',
-      debug: options.debug || true,
+      debug: true, // Always enable debug mode
+      logLevel: 'verbose',
       ...options
     };
     
-    logInfo(context, 'Calling Supabase function \'telegram-connector\' with accountId:', account.id);
-    console.log('Full connection data:', {
+    // Log connection attempt with sanitized data
+    logInfo(context, '📤 Connection data:', {
       ...connectionData,
-      apiHash: connectionData.apiHash ? '[REDACTED]' : undefined
+      apiHash: '[REDACTED]',
+      sessionString: sessionString ? `[${sessionString.length} chars]` : '[NONE]'
     });
     
-    // This is the call to the telegram-connector edge function
-    logInfo(context, '=== CALLING TELEGRAM CONNECTOR EDGE FUNCTION ===');
+    // Call the edge function
+    logInfo(context, '⚡ Calling telegram-connector edge function');
     
     const { data, error } = await supabase.functions.invoke('telegram-connector', {
       body: connectionData,
-      headers: sessionString ? { 'X-Telegram-Session': sessionString } : {}
+      headers: {
+        'Content-Type': 'application/json',
+        ...(sessionString ? { 'X-Telegram-Session': sessionString } : {})
+      }
     });
     
-    // Track API call for debugging
+    // Track API call
     trackApiCall('telegram-connector/connect', {
       ...connectionData,
       apiHash: '[REDACTED]'
     }, data, error);
     
     if (error) {
-      logError(context, 'Error connecting to Telegram:', error);
-      
-      // Check for specific error types
-      if (error.message?.includes('rate limit') || error.message?.includes('Too many requests')) {
-        throw new Error('Rate limited by Telegram. Please try again in a few minutes.');
-      }
-      
+      logError(context, '❌ Edge function error:', error);
       throw new Error(error.message || 'Edge Function error: ' + error.name);
     }
     
     if (!data) {
-      logError(context, 'No data returned from Edge Function');
-      throw new Error('No response from Edge Function. Please check the logs.');
+      logError(context, '❌ No data returned from Edge Function');
+      throw new Error('No response from Edge Function');
     }
     
+    logInfo(context, '📥 Edge function response:', {
+      success: data.success,
+      codeNeeded: data.codeNeeded,
+      hasSession: !!data.session,
+      error: data.error
+    });
+    
     if (!data.success) {
-      logError(context, 'Unsuccessful connection:', data.error);
-      
-      // Return a proper connection result
+      logError(context, '❌ Connection failed:', data.error);
       return {
         success: false,
         error: data.error || 'Failed to connect to Telegram',
@@ -80,10 +82,9 @@ export const handleInitialConnection = async (
       };
     }
     
-    // If code is needed, return that information
+    // Check if verification is needed
     if (data.codeNeeded) {
-      logInfo(context, 'Verification code needed.');
-      
+      logInfo(context, '📱 Verification code needed');
       return {
         success: true,
         codeNeeded: true,
@@ -92,19 +93,17 @@ export const handleInitialConnection = async (
       };
     }
     
-    // Otherwise we're already authenticated
-    logInfo(context, 'Already authenticated, session received');
-    
+    // Connection successful
+    logInfo(context, '✅ Connection successful, session received');
     return {
       success: true,
       codeNeeded: false,
       session: data.session,
       user: data.user
     };
-  } catch (error) {
-    logError(context, 'Exception during connection:', error);
     
-    // Structured error response
+  } catch (error) {
+    logError(context, '💥 Connection error:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'An unknown error occurred',
