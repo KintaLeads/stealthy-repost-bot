@@ -77,6 +77,12 @@ export const verifyTelegramCode = async (
       // Update the stored session for this account
       storeSession(account.id, data.session);
       logInfo(context, 'Updated session for account:', account.id);
+      
+      // Also store user data if available
+      if (data.user) {
+        localStorage.setItem(`telegram_user_${account.id}`, JSON.stringify(data.user));
+        logInfo(context, 'Stored user data for account:', account.id);
+      }
     }
     
     // Clear the phone code hash as it's no longer needed

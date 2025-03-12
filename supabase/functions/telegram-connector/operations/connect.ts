@@ -39,7 +39,8 @@ export async function handleConnect(
             success: true,
             message: "Authentication completed successfully",
             session: session,
-            authState: client.getAuthState()
+            authState: client.getAuthState(),
+            user: verificationResult.user
           }),
           { 
             headers: { 
@@ -140,7 +141,8 @@ export async function handleConnect(
                 success: true,
                 message: "Already authenticated",
                 session: session,
-                authState: client.getAuthState()
+                authState: client.getAuthState(),
+                user: connectResult.user
               }),
               { 
                 headers: { 

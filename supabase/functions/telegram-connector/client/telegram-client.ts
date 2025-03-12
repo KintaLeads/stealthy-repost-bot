@@ -50,17 +50,17 @@ export class TelegramClientImplementation {
     this.validationClient = new ValidationClient(this.apiId, this.apiHash, this.phoneNumber, this.accountId, this.sessionString);
   }
   
-  // NEW: Get API ID
+  // Get API ID
   getApiId(): string {
     return this.apiId;
   }
   
-  // NEW: Get API Hash 
+  // Get API Hash 
   getApiHash(): string {
     return this.apiHash;
   }
   
-  // NEW: Force reinitialization
+  // Force reinitialization
   async reinitialize(): Promise<void> {
     console.log("Reinitializing client with:", {
       apiId: this.apiId,
@@ -143,15 +143,15 @@ export class TelegramClientImplementation {
   }
   
   // Method to connect to Telegram
-  async connect(): Promise<{ success: boolean; codeNeeded?: boolean; phoneCodeHash?: string; error?: string; session?: string; _testCode?: string }> {
+  async connect(): Promise<{ success: boolean; codeNeeded?: boolean; phoneCodeHash?: string; error?: string; session?: string; _testCode?: string; user?: any }> {
     const authClient = await this.getAuthClient();
     return authClient.startAuthentication();
   }
   
   // Method to verify code
-  async verifyCode(code: string): Promise<{ success: boolean; error?: string; session?: string }> {
+  async verifyCode(code: string, phone_code_hash: string): Promise<{ success: boolean; error?: string; session?: string; user?: any }> {
     const authClient = await this.getAuthClient();
-    return authClient.verifyAuthenticationCode(code);
+    return authClient.verifyAuthenticationCode(code, phone_code_hash);
   }
   
   // Method to listen to messages from channels

@@ -87,7 +87,8 @@ export const handleInitialConnection = async (
     
     return {
       success: true,
-      codeNeeded: false
+      codeNeeded: false,
+      user: data.user
     };
   } catch (error) {
     logError(context, 'Exception during connection:', error);

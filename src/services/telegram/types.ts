@@ -5,7 +5,13 @@ export interface ConnectionResult {
   phoneCodeHash?: string;
   error?: string;
   _testCode?: string;
-  details?: any; // Add this to store additional error details
+  details?: any; // For storing additional error details
+  user?: {
+    id: number;
+    username?: string;
+    phone?: string;
+  };
+  session?: string;
 }
 
 export interface TelegramSession {
