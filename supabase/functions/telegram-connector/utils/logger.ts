@@ -53,3 +53,22 @@ export function logExecutionComplete(startTime: number): void {
   const executionTime = Date.now() - startTime;
   console.log(`✅ Function completed in ${executionTime}ms`);
 }
+
+/**
+ * Logs the start of an operation
+ */
+export function logOperationStart(operation: string): void {
+  console.log(`🔄 Starting operation: ${operation}`);
+}
+
+/**
+ * Logs connection status details
+ */
+export function logConnectionStatus(success: boolean, details: Record<string, any> = {}): void {
+  if (success) {
+    console.log("🟢 Connection successful:", details);
+  } else {
+    console.log("🔴 Connection failed:", details);
+  }
+}
+

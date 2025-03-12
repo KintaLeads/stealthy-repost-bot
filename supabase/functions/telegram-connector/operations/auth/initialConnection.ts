@@ -6,15 +6,9 @@ import { TelegramClientInterface } from "../../client/types.ts";
  * Handles the initial connection to Telegram
  */
 export async function handleInitialConnection(
-  client: TelegramClientInterface
-): Promise<{ 
-  success: boolean; 
-  codeNeeded?: boolean; 
-  phoneCodeHash?: string; 
-  error?: string; 
-  _testCode?: string;
-  user?: any;
-}> {
+  client: TelegramClientInterface,
+  headers: Record<string, string>
+): Promise<Response> {
   console.log("Starting connection process...");
   
   try {
@@ -22,18 +16,47 @@ export async function handleInitialConnection(
     await new Promise(resolve => setTimeout(resolve, 1000));
     
     const connectResult = await client.connect();
-    return connectResult;
+    
+    if (!connectResult.success) {
+      // Handle connection failure
+      return buildConnectionErrorResponse(
+        connectResult.error || "Failed to connect to Telegram", 
+        connectResult.details
+      );
+    }
+    
+    // Check if code is needed
+    if (connectResult.codeNeeded) {
+      return buildCodeRequestedResponse(
+        connectResult.phoneCodeHash || "", 
+        connectResult._testCode
+      );
+    }
+    
+    // If we have a session, connection was successful
+    if (connectResult.session) {
+      return buildAuthenticatedResponse(
+        connectResult.session,
+        client.getAuthState() || "unknown",
+        connectResult.user
+      );
+    }
+    
+    // Fallback for unexpected result
+    return buildConnectionErrorResponse(
+      "Unexpected connection result", 
+      connectResult
+    );
   } catch (connectError) {
     console.error("Error during connect:", connectError);
-    return {
-      success: false,
-      error: connectError instanceof Error ? connectError.message : String(connectError),
-      details: {
+    return buildConnectionErrorResponse(
+      connectError instanceof Error ? connectError.message : String(connectError),
+      {
         errorSource: "clientConnectException",
         name: connectError instanceof Error ? connectError.name : "Unknown",
         stack: connectError instanceof Error ? connectError.stack : null
       }
-    };
+    );
   }
 }
 
