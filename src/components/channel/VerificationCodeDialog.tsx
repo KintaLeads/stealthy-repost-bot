@@ -28,7 +28,6 @@ const VerificationCodeDialog: React.FC<VerificationCodeDialogProps> = ({
   const [isVerifying, setIsVerifying] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [codeHelper, setCodeHelper] = useState<string | null>(null);
-  const [debugMode, setDebugMode] = useState<boolean>(process.env.NODE_ENV === 'development');
   
   // Reset state when dialog opens
   useEffect(() => {
@@ -36,15 +35,9 @@ const VerificationCodeDialog: React.FC<VerificationCodeDialogProps> = ({
       setCode("");
       setError(null);
       setIsVerifying(false);
-      
-      // In development mode, show test code if available
-      if (debugMode && connectionResult?._testCode) {
-        setCodeHelper(`Test code: ${connectionResult._testCode}`);
-      } else {
-        setCodeHelper("Enter the verification code sent to your Telegram app");
-      }
+      setCodeHelper("Enter the verification code sent to your Telegram app");
     }
-  }, [isOpen, connectionResult, debugMode]);
+  }, [isOpen, connectionResult]);
   
   const handleVerify = async () => {
     if (!code.trim()) {
