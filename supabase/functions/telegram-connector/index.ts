@@ -1,8 +1,7 @@
-
 // Main function handler for Telegram connector
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders } from '../_shared/cors.ts';
-import { TelegramClientImplementation } from './client/telegram-client.ts';
+import { createTelegramClient } from './client/index.ts';
 import { handleConnect } from './operations/connect.ts';
 import { handleListen } from './operations/listen.ts';
 import { handleRepost } from './operations/repost.ts';
@@ -260,14 +259,14 @@ Deno.serve(async (req) => {
       }
       
       // Create the client with validated credentials
-      console.log("🔄 Creating TelegramClientImplementation with validated credentials");
-      const client = new TelegramClientImplementation(
-        trimmedApiId, 
-        trimmedApiHash, 
-        trimmedPhoneNumber, 
-        accountId || 'temp', 
-        effectiveSessionString
-      );
+      console.log("🔄 Creating Telegram client with validated credentials");
+      const client = createTelegramClient({
+        apiId: trimmedApiId,
+        apiHash: trimmedApiHash,
+        phoneNumber: trimmedPhoneNumber,
+        accountId: accountId || 'temp',
+        sessionString: effectiveSessionString
+      });
 
       // Check which operation is requested
       if (!operation) {

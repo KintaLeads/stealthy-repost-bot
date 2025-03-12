@@ -1,13 +1,13 @@
 
 // Connect to telegram and handle verification
 import { corsHeaders } from "../../_shared/cors.ts";
-import { TelegramClientImplementation } from "../client/telegram-client.ts";
+import { createTelegramClient, TelegramClientInterface } from "../client/index.ts";
 import { handleCodeVerification, buildVerificationSuccessResponse, buildVerificationErrorResponse } from "./auth/codeVerification.ts";
 import { handleInitialConnection, buildCodeRequestedResponse, buildAuthenticatedResponse, buildConnectionErrorResponse } from "./auth/initialConnection.ts";
 import { createOperationErrorResponse, validateClientSetup } from "./auth/errorHandler.ts";
 
 export async function handleConnect(
-  client: TelegramClientImplementation, 
+  client: TelegramClientInterface, 
   corsHeaders: Record<string, string>,
   options: { verificationCode?: string, phone_code_hash?: string, debug?: boolean }
 ): Promise<Response> {

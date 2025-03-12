@@ -1,12 +1,12 @@
 
 import { corsHeaders } from "../../../_shared/cors.ts";
-import { TelegramClientImplementation } from "../../client/telegram-client.ts";
+import { TelegramClientInterface } from "../../client/types.ts";
 
 /**
  * Handles the initial connection to Telegram
  */
 export async function handleInitialConnection(
-  client: TelegramClientImplementation
+  client: TelegramClientInterface
 ): Promise<{ 
   success: boolean; 
   codeNeeded?: boolean; 

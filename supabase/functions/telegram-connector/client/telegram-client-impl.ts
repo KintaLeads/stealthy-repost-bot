@@ -1,13 +1,11 @@
 
-// Factory class for creating different types of Telegram clients using MTProto
+// Implementation class for Telegram client using MTProto
 import { AuthClient } from "./auth-client.ts";
 import { MessageClient } from "./message-client.ts";
 import { ValidationClient } from "./validation-client.ts";
+import { TelegramClientInterface } from "./types.ts";
 
-// Re-export the AuthState type
-export { type AuthState } from "./base-client.ts";
-
-export class TelegramClientImplementation {
+export class TelegramClientImplementation implements TelegramClientInterface {
   private apiId: string;
   private apiHash: string;
   private phoneNumber: string;

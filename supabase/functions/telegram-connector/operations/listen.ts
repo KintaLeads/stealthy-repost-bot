@@ -1,9 +1,9 @@
 
 // Handler for 'listen' operation
-import { TelegramClientImplementation } from '../client/telegram-client.ts';
+import { TelegramClientInterface } from '../client/types.ts';
 
 export async function handleListen(
-  client: TelegramClientImplementation, 
+  client: TelegramClientInterface, 
   sourceChannels: string[], 
   corsHeaders: Record<string, string>
 ) {

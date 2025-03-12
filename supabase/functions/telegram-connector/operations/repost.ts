@@ -1,9 +1,9 @@
 
 // Handler for 'repost' operation
-import { TelegramClientImplementation } from '../client/telegram-client.ts';
+import { TelegramClientInterface } from '../client/types.ts';
 
 export async function handleRepost(
-  client: TelegramClientImplementation,
+  client: TelegramClientInterface,
   messageId: number,
   sourceChannel: string,
   targetChannel: string,

@@ -1,8 +1,8 @@
 
 import { corsHeaders } from "../../_shared/cors.ts";
-import { TelegramClientImplementation } from "../client/telegram-client.ts";
+import { TelegramClientInterface } from "../client/types.ts";
 
-export const handleValidate = async (client: TelegramClientImplementation, corsHeaders: Record<string, string>) => {
+export const handleValidate = async (client: TelegramClientInterface, corsHeaders: Record<string, string>) => {
   try {
     console.log(`Starting validation process with MTProto...`);
     

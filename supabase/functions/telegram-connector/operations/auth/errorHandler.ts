@@ -1,5 +1,6 @@
 
 import { corsHeaders } from "../../../_shared/cors.ts";
+import { TelegramClientInterface } from "../../client/types.ts";
 
 /**
  * Creates a standardized error response for operation errors
@@ -33,7 +34,7 @@ export function createOperationErrorResponse(
  * Helper function to validate client setup
  */
 export function validateClientSetup(
-  client: any, 
+  client: TelegramClientInterface, 
   debug: boolean = false
 ): boolean {
   if (!client) {

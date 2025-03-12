@@ -1,12 +1,12 @@
 
 import { corsHeaders } from "../../../_shared/cors.ts";
-import { TelegramClientImplementation } from "../../client/telegram-client.ts";
+import { TelegramClientInterface } from "../../client/types.ts";
 
 /**
  * Handles the verification of authentication codes
  */
 export async function handleCodeVerification(
-  client: TelegramClientImplementation,
+  client: TelegramClientInterface,
   verificationCode: string,
   phoneCodeHash: string
 ): Promise<{
