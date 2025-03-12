@@ -2,10 +2,11 @@
 import { useState, useEffect } from 'react';
 import { ApiAccount, ChannelPair } from '@/types/channels';
 import { Message } from '@/types/dashboard';
-import { disconnectRealtime, setupRealtimeListener } from '@/services/telegram/realtimeService';
+import { setupRealtimeListener, disconnectRealtime } from '@/services/telegram/realtimeService';
 import { verifyTelegramCode } from '@/services/telegram/verifier';
 import { validateTelegramCredentials } from '@/services/telegram/credentialValidator';
 import { checkConnectionStatus, initiateConnection, disconnectConnection } from './connection/connectionOperations';
+import { toast } from "sonner";
 
 export const useConnectionManager = (
   selectedAccount: ApiAccount | null,
@@ -38,18 +39,17 @@ export const useConnectionManager = (
 
     try {
       // Validate credentials first
-      const isValid = await validateTelegramCredentials({
-        apiId: selectedAccount.apiKey, // Use apiKey instead of apiId
-        apiHash: selectedAccount.apiHash,
-        phoneNumber: selectedAccount.phoneNumber
-      });
+      const validationResult = await validateTelegramCredentials(selectedAccount);
 
-      if (!isValid) {
+      if (!validationResult.success) {
         setError('Invalid Telegram credentials');
+        toast("Validation Failed", {
+          description: validationResult.error || 'Invalid Telegram credentials'
+        });
         return;
       }
 
-      const result = await initiateConnection(
+      const connectionResult = await initiateConnection(
         selectedAccount,
         channelPairs,
         (messages: Message[]) => {
@@ -58,7 +58,7 @@ export const useConnectionManager = (
         }
       );
 
-      setIsConnected(result);
+      setIsConnected(connectionResult);
     } catch (error) {
       console.error('Connection error:', error);
       setError(error instanceof Error ? error.message : 'Failed to connect');
@@ -74,9 +74,9 @@ export const useConnectionManager = (
     setError(null);
 
     try {
-      // Fix: pass the full account object, not just the ID
-      const result = await disconnectConnection(selectedAccount);
-      setIsConnected(!result);
+      // Pass the full account object
+      const disconnected = await disconnectConnection(selectedAccount);
+      setIsConnected(!disconnected);
     } catch (error) {
       console.error('Disconnect error:', error);
       setError(error instanceof Error ? error.message : 'Failed to disconnect');
@@ -89,8 +89,9 @@ export const useConnectionManager = (
     if (!selectedAccount) return;
     
     try {
-      const result = await verifyTelegramCode(selectedAccount.id, code);
-      if (result.success) {
+      const result = await verifyTelegramCode(selectedAccount, code);
+      
+      if (result) {
         setShowVerification(false);
         handleConnect(); // Retry connection after verification
       } else {

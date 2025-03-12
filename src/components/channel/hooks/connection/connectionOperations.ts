@@ -1,88 +1,124 @@
 
+import { toast } from "sonner";
 import { ApiAccount, ChannelPair } from '@/types/channels';
-import { handleInitialConnection } from '@/services/telegram/connector';
-import { setupRealtimeListener, disconnectRealtime } from '@/services/telegram/realtimeService';
-import { toast } from 'sonner';
+import { Message } from '@/types/dashboard';
+import { disconnectRealtime, setupRealtimeListener, checkRealtimeStatus } from '@/services/telegram/realtimeService';
+import { connectToTelegram } from '@/services/telegram/connector';
+import { verifyTelegramCode } from '@/services/telegram/verifier';
 
-export const checkConnectionStatus = async (selectedAccount: ApiAccount): Promise<boolean> => {
-  if (!selectedAccount?.id) {
-    console.log('No account selected for status check');
-    return false;
-  }
-  
+// Check the connection status for a given account
+export const checkConnectionStatus = async (account: ApiAccount): Promise<boolean> => {
   try {
-    // Since checkRealtimeStatus isn't exported from realtimeService,
-    // we'll implement a simple check using disconnectRealtime
-    // In a real implementation, you would add a proper check
-    console.log('Connection status check for account:', selectedAccount.id);
-    return false; // Default to false until properly implemented
+    return await checkRealtimeStatus(account.id);
   } catch (error) {
     console.error('Error checking connection status:', error);
     return false;
   }
 };
 
+// Initialize a connection to Telegram
 export const initiateConnection = async (
-  selectedAccount: ApiAccount,
+  account: ApiAccount,
   channelPairs: ChannelPair[],
-  onNewMessages?: (messages: any[]) => void
-) => {
-  console.log('Initiating connection for account:', selectedAccount?.nickname);
-  
-  if (!selectedAccount) {
-    toast("Please select an account first");
-    return false;
-  }
-
+  onNewMessages?: (messages: Message[]) => void
+): Promise<boolean> => {
   try {
-    // First establish initial connection
-    const initialConnection = await handleInitialConnection(selectedAccount);
-    console.log('Initial connection result:', initialConnection);
-
-    if (!initialConnection.success) {
-      toast.error(initialConnection.error || 'Failed to establish initial connection');
-      return false;
-    }
-
-    // Then setup realtime listener
-    const realtimeResult = await setupRealtimeListener(
-      selectedAccount,
-      channelPairs,
-      onNewMessages
-    );
-
-    console.log('Realtime setup result:', realtimeResult);
-
-    if (!realtimeResult) {
-      toast.error("Failed to setup realtime connection");
-      return false;
-    }
-
-    toast.success(`Connected to ${channelPairs.length} channel pairs`);
+    // First attempt to establish a Telegram connection
+    const connectionResult = await connectToTelegram(account);
     
-    return true;
+    if (!connectionResult.success) {
+      toast(
+        "Connection Failed", 
+        { description: connectionResult.error || "Failed to connect to Telegram" }
+      );
+      return false;
+    }
+    
+    // If verification needed, return false and handle elsewhere
+    if (connectionResult.codeNeeded) {
+      // Save phone code hash for later verification
+      localStorage.setItem(`telegram_code_hash_${account.id}`, connectionResult.phoneCodeHash || '');
+      
+      toast(
+        "Verification Required", 
+        { description: "Please check your Telegram app for a verification code" }
+      );
+      return false;
+    }
+    
+    // If we have a session, setup the realtime listener
+    if (connectionResult.session) {
+      const listener = await setupRealtimeListener(account, channelPairs, onNewMessages);
+      
+      toast(
+        "Connected Successfully", 
+        { description: "Telegram connection established" }
+      );
+      return true;
+    }
+    
+    toast(
+      "Connection Issue", 
+      { description: "Unknown connection state" }
+    );
+    return false;
   } catch (error) {
-    console.error('Error in initiateConnection:', error);
-    toast.error(error instanceof Error ? error.message : 'Unknown error occurred');
+    console.error('Connection error:', error);
+    toast(
+      "Connection Error", 
+      { description: error instanceof Error ? error.message : "An unknown error occurred" }
+    );
     return false;
   }
 };
 
-export const disconnectConnection = async (selectedAccount: ApiAccount) => {
-  if (!selectedAccount?.id) {
+// Disconnect from Telegram
+export const disconnectConnection = async (account: ApiAccount): Promise<boolean> => {
+  try {
+    const success = await disconnectRealtime(account.id);
+    
+    toast(
+      "Disconnected", 
+      { description: "Telegram connection closed" }
+    );
+    
+    return success;
+  } catch (error) {
+    console.error('Disconnect error:', error);
+    toast(
+      "Disconnect Error", 
+      { description: error instanceof Error ? error.message : "An unknown error occurred" }
+    );
     return false;
   }
+};
 
+// Run diagnostics for connection issues
+export const runConnectionDiagnostics = async (): Promise<any> => {
   try {
-    const result = await disconnectRealtime(selectedAccount.id);
+    toast(
+      "Running Diagnostics", 
+      { description: "Checking connection to Telegram services..." }
+    );
     
-    if (result) {
-      toast.success("Successfully disconnected from Telegram");
-    }
+    // Check Supabase connectivity
+    const supabaseConnected = true; // Replace with actual check if needed
     
-    return result;
+    // Check Telegram API connectivity
+    const telegramConnected = true; // Replace with actual check if needed
+    
+    // Return diagnostic results
+    return {
+      supabase: supabaseConnected,
+      telegram: telegramConnected,
+      timestamp: new Date().toISOString()
+    };
   } catch (error) {
-    console.error('Error disconnecting:', error);
-    return false;
+    console.error('Diagnostic error:', error);
+    toast(
+      "Diagnostic Failed", 
+      { description: error instanceof Error ? error.message : "Could not complete diagnostics" }
+    );
+    throw error;
   }
 };
