@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { runConnectivityChecks } from '@/services/telegram/networkConnectivity';
@@ -6,34 +7,16 @@ import DiagnosticResults from './DiagnosticResults';
 import DiagnosticActions from './DiagnosticActions';
 import CorsDetails from './CorsDetails';
 import EdgeFunctionTester from './EdgeFunctionTester';
-
-interface DiagnosticResultsType {
-  supabase: boolean;
-  telegram: boolean;
-  edgeFunction: {
-    deployed: boolean;
-    url: string;
-    error: string;
-    connector: {
-      available: boolean;
-      response: any;
-    };
-    realtime: {
-      available: boolean;
-      response: any;
-    };
-  };
-}
+import { DiagnosticResultData } from './types';
 
 const DiagnosticTool: React.FC = () => {
-  const [diagnosticResults, setDiagnosticResults] = useState<DiagnosticResultsType | null>(null);
+  const [diagnosticResults, setDiagnosticResults] = useState<DiagnosticResultData | null>(null);
   const [isChecking, setIsChecking] = useState(false);
   
   const runDiagnosticChecks = async () => {
     setIsChecking(true);
     try {
-      const projectId = process.env.NEXT_PUBLIC_SUPABASE_PROJECT_ID || '';
-      const results = await runConnectivityChecks(projectId);
+      const results = await runConnectivityChecks();
       setDiagnosticResults(results);
     } catch (error) {
       console.error("Error running diagnostic checks:", error);
@@ -48,7 +31,8 @@ const DiagnosticTool: React.FC = () => {
   
   return (
     <div className="space-y-4">
-      <StatusSummary results={diagnosticResults} isLoading={isChecking} />
+      {/* Using the correct properties for StatusSummary based on component definition */}
+      <StatusSummary results={diagnosticResults} />
       
       <Tabs defaultValue="details">
         <TabsList className="grid w-full grid-cols-3">
@@ -58,7 +42,8 @@ const DiagnosticTool: React.FC = () => {
         </TabsList>
         
         <TabsContent value="details" className="space-y-4">
-          <DiagnosticResults results={diagnosticResults} isLoading={isChecking} />
+          {/* Using the correct properties for DiagnosticResults based on component definition */}
+          <DiagnosticResults results={diagnosticResults} />
         </TabsContent>
         
         <TabsContent value="edge" className="space-y-4">

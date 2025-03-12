@@ -19,6 +19,13 @@ interface ChannelPairManagerProps {
   onNewMessages?: (messages: Message[]) => void;
 }
 
+// Define a proper interface for the listener state
+interface ListenerState {
+  stopListener?: () => void;
+  id?: any;
+  stop?: () => Promise<boolean>;
+}
+
 const ChannelPairManager: React.FC<ChannelPairManagerProps> = ({ 
   selectedAccount, 
   isConnected,
@@ -26,7 +33,8 @@ const ChannelPairManager: React.FC<ChannelPairManagerProps> = ({
   onNewMessages = () => {}
 }) => {
   const [isConnecting, setIsConnecting] = useState(false);
-  const [listenerState, setListenerState] = useState<{ stopListener?: () => void } | null>(null);
+  // Update the type of listenerState to match our new interface
+  const [listenerState, setListenerState] = useState<ListenerState | null>(null);
   
   const {
     channelPairs,
@@ -42,14 +50,25 @@ const ChannelPairManager: React.FC<ChannelPairManagerProps> = ({
   
   // Handle connection state change
   const handleConnected = (listener: any) => {
-    setListenerState(listener);
+    // Convert any listener object to our ListenerState type
+    const listenerObj: ListenerState = {
+      id: listener.id,
+      stopListener: listener.stopListener || listener.stop,
+      stop: listener.stop
+    };
+    setListenerState(listenerObj);
     setIsConnecting(false);
     onToggleConnection();
   };
   
   const handleDisconnected = () => {
-    if (listenerState && listenerState.stopListener) {
-      listenerState.stopListener();
+    if (listenerState) {
+      // Use stopListener if available, otherwise fall back to stop
+      if (listenerState.stopListener) {
+        listenerState.stopListener();
+      } else if (listenerState.stop) {
+        listenerState.stop();
+      }
       setListenerState(null);
     }
     onToggleConnection();
@@ -58,8 +77,12 @@ const ChannelPairManager: React.FC<ChannelPairManagerProps> = ({
   // Clean up listener on unmount
   useEffect(() => {
     return () => {
-      if (listenerState && listenerState.stopListener) {
-        listenerState.stopListener();
+      if (listenerState) {
+        if (listenerState.stopListener) {
+          listenerState.stopListener();
+        } else if (listenerState.stop) {
+          listenerState.stop();
+        }
       }
     };
   }, [listenerState]);
@@ -72,8 +95,12 @@ const ChannelPairManager: React.FC<ChannelPairManagerProps> = ({
       // If we're connected and save was successful, update the listener with new channel pairs
       if (success && isConnected && selectedAccount) {
         // Disconnect existing listener
-        if (listenerState && listenerState.stopListener) {
-          listenerState.stopListener();
+        if (listenerState) {
+          if (listenerState.stopListener) {
+            listenerState.stopListener();
+          } else if (listenerState.stop) {
+            listenerState.stop();
+          }
         }
         
         // Setup new listener with updated channel pairs
@@ -83,7 +110,13 @@ const ChannelPairManager: React.FC<ChannelPairManagerProps> = ({
           onNewMessages
         );
         
-        setListenerState(listener);
+        // Convert listener to our expected format
+        const listenerObj: ListenerState = {
+          id: listener.id,
+          stopListener: listener.stopListener || listener.stop,
+          stop: listener.stop
+        };
+        setListenerState(listenerObj);
         
         // Show success message explaining that the connection was updated
         toast({
