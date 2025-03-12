@@ -6,7 +6,7 @@ import { logInfo, logError } from '@/services/telegram';
 import { Message } from "@/types/dashboard";
 import { useVerificationState } from './connection/useVerificationState';
 import { useDiagnosticState } from './connection/useDiagnosticState';
-import { setupListener } from './connection/connectionOperations';
+import { setupListener, runConnectionDiagnostics } from './connection/connectionOperations';
 import { handleInitialConnection } from '@/services/telegram/connector';
 
 export const useConnectionManager = (
@@ -45,6 +45,10 @@ export const useConnectionManager = (
         logInfo('ConnectionButton', `Attempting to connect Telegram account: ${selectedAccount.nickname} (${selectedAccount.phoneNumber})`);
         
         const connectionResult = await handleInitialConnection(selectedAccount);
+        
+        if (!connectionResult.success) {
+          throw new Error(connectionResult.error || "Failed to connect to Telegram");
+        }
         
         if (connectionResult.codeNeeded) {
           logInfo('ConnectionButton', "Verification code needed, showing dialog");
@@ -135,19 +139,26 @@ export const useConnectionManager = (
   const handleVerificationSuccess = () => {
     handleVerificationComplete();
   };
+  
+  // Expose function to run diagnostics
+  const runDiagnostics = async () => {
+    try {
+      await runConnectionDiagnostics();
+      diagnosticState.setShowDiagnosticTool(true);
+    } catch (error) {
+      logError('ConnectionButton', 'Error running diagnostics:', error);
+    }
+  };
 
   return {
-    // Spread the verification state
+    // Verification state
     verificationState,
-    // Spread the diagnostic state
+    // Diagnostic state
     ...diagnosticState,
-    // Return other functions
+    // Functions
     handleToggleConnection,
     handleVerificationComplete,
     handleVerificationSuccess,
-    // For backward compatibility, also return these properties directly
-    showVerificationDialog: verificationState.showVerificationDialog,
-    setShowVerificationDialog: verificationState.setShowVerificationDialog,
-    tempConnectionState: verificationState.tempConnectionState
+    runDiagnostics
   };
 };

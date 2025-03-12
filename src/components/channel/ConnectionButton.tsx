@@ -6,6 +6,7 @@ import DiagnosticActions from './DiagnosticActions';
 import ConnectionErrorDisplay from './ConnectionErrorDisplay';
 import DiagnosticToolSection from './DiagnosticToolSection';
 import VerificationDialog from './VerificationDialog';
+import ConnectionToggleButton from './ConnectionToggleButton';
 import { useConnectionManager } from './hooks/useConnectionManager';
 import { ConnectionButtonProps } from './types';
 
@@ -23,7 +24,6 @@ export const ConnectionButton = ({
     verificationState,
     showDiagnosticTool,
     connectionError,
-    tempConnectionState,
     handleToggleConnection,
     handleVerificationComplete,
     runDiagnostics,
@@ -41,7 +41,14 @@ export const ConnectionButton = ({
     <div className="space-y-4">
       <ConnectionErrorDisplay error={connectionError} />
       
-      <div className="flex flex-col sm:flex-row gap-2 justify-between">
+      <div className="flex flex-col sm:flex-row gap-2 justify-between items-center">
+        <ConnectionToggleButton
+          isConnected={isConnected}
+          isConnecting={isConnecting}
+          isDisabled={isSaving || !selectedAccount}
+          onToggle={handleToggleConnection}
+        />
+        
         <DiagnosticActions
           showDiagnosticTool={showDiagnosticTool}
           runDiagnostics={runDiagnostics}

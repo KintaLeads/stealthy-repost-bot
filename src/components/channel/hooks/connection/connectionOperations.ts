@@ -32,7 +32,7 @@ export const setupListener = async (
       throw new Error('Verification code needed. Please verify your account first.');
     }
     
-    // Setup the realtime listener
+    // Setup the realtime listener - this will make actual API calls
     const listener = await setupRealtimeListener(
       account,
       channelPairs,
