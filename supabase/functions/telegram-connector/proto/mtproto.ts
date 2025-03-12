@@ -24,21 +24,14 @@ export class MTProto {
   
   constructor(options: MTProtoOptions) {
     console.log("==== MTPROTO INITIALIZATION ====");
-    console.log(`Constructor called with options: apiId=${options.apiId}, apiHash=${options.apiHash ? `${options.apiHash.substring(0, 3)}... (${options.apiHash.length} chars)` : 'undefined'}`);
     
-    // Validate API ID
+    // Strict validation of API ID
     if (!options.apiId || options.apiId === undefined || options.apiId === null) {
       console.error(`CRITICAL ERROR: API ID is invalid: "${options.apiId}"`);
       throw new Error(`API ID cannot be undefined or null, received: ${options.apiId}`);
     }
     
-    // Validate API Hash
-    if (!options.apiHash || options.apiHash === undefined || options.apiHash === null || options.apiHash.trim() === '') {
-      console.error(`CRITICAL ERROR: API Hash is invalid: "${options.apiHash}"`);
-      throw new Error(`API Hash cannot be undefined, null or empty, received: ${options.apiHash}`);
-    }
-    
-    // Convert apiId to number if it's a string
+    // Ensure API ID is a number 
     let numericApiId: number;
     if (typeof options.apiId === 'string') {
       console.log(`API ID is a string (${options.apiId}), converting to number`);
@@ -52,10 +45,16 @@ export class MTProto {
       numericApiId = options.apiId;
     }
     
-    // Final validation
+    // Additional validation for API ID
     if (isNaN(numericApiId) || numericApiId <= 0) {
       console.error(`Invalid API ID: ${numericApiId}`);
       throw new Error(`Invalid API ID: ${numericApiId}. Must be a positive number.`);
+    }
+    
+    // Strict validation of API Hash
+    if (!options.apiHash || options.apiHash === undefined || options.apiHash === null || options.apiHash.trim() === '') {
+      console.error(`CRITICAL ERROR: API Hash is invalid: "${options.apiHash}"`);
+      throw new Error(`API Hash cannot be undefined, null or empty, received: ${options.apiHash}`);
     }
     
     // Store validated values
@@ -92,6 +91,15 @@ export class MTProto {
       console.log(`Using apiId: ${this.apiId} (${typeof this.apiId})`);
       console.log(`Using apiHash: ${this.apiHash.substring(0, 3)}... (${typeof this.apiHash}, length: ${this.apiHash.length})`);
       console.log(`Using session: ${this.session ? 'Yes' : 'No'}`);
+      
+      // Final validation before creating the client
+      if (!this.apiId || isNaN(this.apiId) || this.apiId <= 0) {
+        throw new Error(`Invalid API ID before client creation: ${this.apiId}`);
+      }
+      
+      if (!this.apiHash || this.apiHash.trim() === '') {
+        throw new Error(`Invalid API Hash before client creation: ${this.apiHash}`);
+      }
       
       // Create TelegramClient instance with session if available
       console.log("Creating TelegramClient instance...");
