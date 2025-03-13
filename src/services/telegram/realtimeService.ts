@@ -5,8 +5,8 @@ import { Message } from '@/types/dashboard';
 import { toast } from 'sonner';
 import { logInfo, logError } from './debugger';
 
-// Get the Supabase project ID from the config file
-import config from '../../../supabase/config.toml';
+// Extract the project ID for Supabase
+const SUPABASE_PROJECT_ID = 'eswfrzdqxsaizkdswxfn';
 
 /**
  * Sets up a realtime listener for Telegram messages
@@ -38,9 +38,8 @@ export const setupRealtimeListener = async (
     
     logInfo(context, `Listening to ${sourceChannels.length} channels:`, sourceChannels);
     
-    // Get the project ID from the config
-    const projectId = config.project_id || 'eswfrzdqxsaizkdswxfn';
-    logInfo(context, `Using Supabase project ID: ${projectId}`);
+    // Use hardcoded project ID instead of importing from config
+    logInfo(context, `Using Supabase project ID: ${SUPABASE_PROJECT_ID}`);
     
     // Prepare the listener payload
     const listenerPayload = {
@@ -127,6 +126,30 @@ export const setupRealtimeListener = async (
     toast.error(`Failed to setup listener: ${error instanceof Error ? error.message : String(error)}`);
     
     throw error;
+  }
+};
+
+/**
+ * Disconnects a realtime listener for an account
+ */
+export const disconnectRealtime = async (accountId: string): Promise<boolean> => {
+  try {
+    const { data, error } = await supabase.functions.invoke('telegram-realtime', {
+      body: {
+        operation: 'stop',
+        accountId
+      }
+    });
+    
+    if (error) {
+      console.error('Error disconnecting realtime listener:', error);
+      return false;
+    }
+    
+    return data?.success === true;
+  } catch (error) {
+    console.error('Exception disconnecting realtime listener:', error);
+    return false;
   }
 };
 
