@@ -46,19 +46,55 @@ Deno.serve(async (req) => {
     // Parse the request body with detailed logging
     let requestBody;
     try {
-      const text = await req.text();
+      // Clone the request before reading the body to avoid stream already read errors
+      const clonedRequest = req.clone();
+      const text = await clonedRequest.text();
       console.log("📝 Raw request body:", text);
-      requestBody = JSON.parse(text);
-      console.log("🔍 Parsed request body:", {
-        ...requestBody,
-        apiHash: requestBody.apiHash ? '[REDACTED]' : undefined
-      });
+      
+      // Check if the body is empty
+      if (!text || text.trim() === '') {
+        console.error("❌ Empty request body received");
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: 'Empty request body',
+            details: 'The request body is empty. Please provide a valid JSON body.'
+          }),
+          {
+            status: 400,
+            headers: updatedCorsHeaders
+          }
+        );
+      }
+      
+      // Try to parse the JSON
+      try {
+        requestBody = JSON.parse(text);
+        console.log("🔍 Parsed request body:", {
+          ...requestBody,
+          apiHash: requestBody.apiHash ? '[REDACTED]' : undefined
+        });
+      } catch (jsonError) {
+        console.error("❌ JSON parse error:", jsonError);
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: 'Invalid JSON in request body',
+            details: String(jsonError),
+            receivedBody: text.substring(0, 100) + (text.length > 100 ? '...' : '')
+          }),
+          {
+            status: 400,
+            headers: updatedCorsHeaders
+          }
+        );
+      }
     } catch (parseError) {
       console.error("❌ Failed to parse request body:", parseError);
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'Invalid JSON in request body',
+          error: 'Failed to read request body',
           details: String(parseError)
         }),
         { 
@@ -68,15 +104,42 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Check if the operation field is present
+    if (!requestBody || !requestBody.operation) {
+      console.error("❌ Missing 'operation' field in request body");
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Missing required field',
+          details: "The 'operation' field is required"
+        }),
+        {
+          status: 400,
+          headers: updatedCorsHeaders
+        }
+      );
+    }
+
     // Log operation being attempted
-    console.log(`🎯 Attempting operation: ${requestBody?.operation || 'unknown'}`);
+    console.log(`🎯 Attempting operation: ${requestBody.operation}`);
     
     // Route the request
-    const response = await routeOperation(requestBody?.operation, requestBody);
+    const response = await routeOperation(
+      requestBody.operation,
+      {
+        apiId: requestBody.apiId,
+        apiHash: requestBody.apiHash,
+        phoneNumber: requestBody.phoneNumber,
+        accountId: requestBody.accountId || 'temp',
+        sessionString: requestBody.sessionString || ''
+      },
+      requestBody
+    );
     
     // Log completion
-    console.log(`✅ Operation completed: ${requestBody?.operation}`, {
-      duration: Date.now() - startTime,
+    const duration = Date.now() - startTime;
+    console.log(`✅ Operation completed: ${requestBody.operation}`, {
+      duration,
       status: response.status
     });
     

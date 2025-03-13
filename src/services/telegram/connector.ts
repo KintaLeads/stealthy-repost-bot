@@ -63,104 +63,145 @@ export const handleInitialConnection = async (
       description: "Please wait while we establish a connection...",
     });
     
-    const { data, error } = await supabase.functions.invoke('telegram-connector', {
-      body: connectionData,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(sessionString ? { 'X-Telegram-Session': sessionString } : {})
+    // Add retries for better reliability
+    let retries = 0;
+    const maxRetries = 2;
+    let lastError = null;
+    
+    while (retries <= maxRetries) {
+      try {
+        const { data, error } = await supabase.functions.invoke('telegram-connector', {
+          body: connectionData,
+          headers: {
+            'Content-Type': 'application/json',
+            ...(sessionString ? { 'X-Telegram-Session': sessionString } : {})
+          }
+        });
+        
+        // Track API call
+        trackApiCall('telegram-connector/connect', {
+          ...connectionData,
+          apiHash: '[REDACTED]'
+        }, data, error);
+        
+        if (error) {
+          logError(context, '❌ Edge function error:', error);
+          console.error('Full error object:', error);
+          
+          lastError = error;
+          
+          // Show toast with error if this is the last retry
+          if (retries === maxRetries) {
+            toast({
+              title: "Connection Failed",
+              description: error.message || 'Edge Function error',
+              variant: "destructive",
+            });
+            
+            throw new Error(error.message || 'Edge Function error: ' + error.name);
+          }
+        } else if (!data) {
+          logError(context, '❌ No data returned from Edge Function');
+          
+          lastError = new Error('No response from Edge Function');
+          
+          // Show toast with error if this is the last retry
+          if (retries === maxRetries) {
+            toast({
+              title: "Connection Failed",
+              description: "No response from Edge Function",
+              variant: "destructive",
+            });
+            
+            throw lastError;
+          }
+        } else {
+          // Successfully got data, process it
+          logInfo(context, '📥 Edge function response:', {
+            success: data.success,
+            codeNeeded: data.codeNeeded,
+            hasSession: !!data.session,
+            error: data.error
+          });
+          
+          if (!data.success) {
+            logError(context, '❌ Connection failed:', data.error);
+            
+            // Show toast with error
+            toast({
+              title: "Connection Failed",
+              description: data.error || 'Failed to connect to Telegram',
+              variant: "destructive",
+            });
+            
+            return {
+              success: false,
+              error: data.error || 'Failed to connect to Telegram',
+              details: data.details
+            };
+          }
+          
+          // Check if verification is needed
+          if (data.codeNeeded) {
+            logInfo(context, '📱 Verification code needed');
+            
+            // Show toast indicating verification needed
+            toast({
+              title: "Verification Required",
+              description: "Please enter the verification code sent to your Telegram app",
+            });
+            
+            return {
+              success: true,
+              codeNeeded: true,
+              phoneCodeHash: data.phoneCodeHash,
+              _testCode: data._testCode
+            };
+          }
+          
+          // Connection successful
+          logInfo(context, '✅ Connection successful, session received');
+          
+          // Show success toast
+          toast({
+            title: "Connected Successfully",
+            description: "Your Telegram account is now connected",
+          });
+          
+          return {
+            success: true,
+            codeNeeded: false,
+            session: data.session,
+            user: data.user
+          };
+        }
+      } catch (invokeError) {
+        logError(context, `❌ Error invoking edge function (attempt ${retries + 1}/${maxRetries + 1}):`, invokeError);
+        console.error(`Attempt ${retries + 1} error:`, invokeError);
+        
+        lastError = invokeError;
+        
+        // Only show toast on the last retry
+        if (retries === maxRetries) {
+          toast({
+            title: "Connection Error",
+            description: invokeError instanceof Error ? invokeError.message : 'Failed to call edge function',
+            variant: "destructive",
+          });
+        }
       }
-    });
-    
-    // Track API call
-    trackApiCall('telegram-connector/connect', {
-      ...connectionData,
-      apiHash: '[REDACTED]'
-    }, data, error);
-    
-    if (error) {
-      logError(context, '❌ Edge function error:', error);
-      console.error('Full error object:', error);
       
-      // Show toast with error
-      toast({
-        title: "Connection Failed",
-        description: error.message || 'Edge Function error',
-        variant: "destructive",
-      });
-      
-      throw new Error(error.message || 'Edge Function error: ' + error.name);
+      // Increment retry counter and wait before retrying
+      retries++;
+      if (retries <= maxRetries) {
+        const delay = 1000 * retries; // Exponential backoff: 1s, 2s
+        logInfo(context, `Retrying in ${delay}ms (attempt ${retries + 1}/${maxRetries + 1})`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
     }
     
-    if (!data) {
-      logError(context, '❌ No data returned from Edge Function');
-      
-      // Show toast with error
-      toast({
-        title: "Connection Failed",
-        description: "No response from Edge Function",
-        variant: "destructive",
-      });
-      
-      throw new Error('No response from Edge Function');
-    }
-    
-    logInfo(context, '📥 Edge function response:', {
-      success: data.success,
-      codeNeeded: data.codeNeeded,
-      hasSession: !!data.session,
-      error: data.error
-    });
-    
-    if (!data.success) {
-      logError(context, '❌ Connection failed:', data.error);
-      
-      // Show toast with error
-      toast({
-        title: "Connection Failed",
-        description: data.error || 'Failed to connect to Telegram',
-        variant: "destructive",
-      });
-      
-      return {
-        success: false,
-        error: data.error || 'Failed to connect to Telegram',
-        details: data.details
-      };
-    }
-    
-    // Check if verification is needed
-    if (data.codeNeeded) {
-      logInfo(context, '📱 Verification code needed');
-      
-      // Show toast indicating verification needed
-      toast({
-        title: "Verification Required",
-        description: "Please enter the verification code sent to your Telegram app",
-      });
-      
-      return {
-        success: true,
-        codeNeeded: true,
-        phoneCodeHash: data.phoneCodeHash,
-        _testCode: data._testCode
-      };
-    }
-    
-    // Connection successful
-    logInfo(context, '✅ Connection successful, session received');
-    
-    // Show success toast
-    toast({
-      title: "Connected Successfully",
-      description: "Your Telegram account is now connected",
-    });
-    
-    return {
-      success: true,
-      codeNeeded: false,
-      session: data.session,
-      user: data.user
-    };
+    // If we got here, all retries failed
+    throw lastError || new Error('Failed to connect after multiple attempts');
     
   } catch (error) {
     logError(context, '💥 Connection error:', error);
