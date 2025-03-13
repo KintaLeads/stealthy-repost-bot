@@ -1,4 +1,3 @@
-
 import { corsHeaders } from "../../_shared/cors.ts";
 import { createBadRequestResponse, createErrorResponse } from "./errorHandler.ts";
 
@@ -71,9 +70,8 @@ export function handleCorsRequest(): Response {
 // Parse request body with enhanced error handling
 export async function parseRequestBody(req: Request): Promise<{ success: boolean; body?: any; response?: Response }> {
   try {
-    // Clone the request to avoid stream already read errors
-    const clonedReq = req.clone();
-    const text = await clonedReq.text();
+    // Just read the request directly - no need to clone
+    const text = await req.text();
     console.log("Raw request body:", text);
     
     // Handle empty body case

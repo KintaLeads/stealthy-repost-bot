@@ -46,9 +46,8 @@ Deno.serve(async (req) => {
     // Safely clone and read the request body
     let requestText;
     try {
-      // Clone the request before reading it
-      const clonedReq = req.clone();
-      requestText = await clonedReq.text();
+      // Instead of trying to clone, just read the request directly
+      requestText = await req.text();
       console.log("📄 Raw request body:", requestText);
       
       // Check if the body is empty

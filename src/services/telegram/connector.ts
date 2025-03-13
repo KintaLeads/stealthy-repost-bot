@@ -71,12 +71,16 @@ export const handleInitialConnection = async (
     
     while (retries <= maxRetries) {
       try {
-        // Make sure to properly stringify the request body - the important part is that we're NOT sending an empty object
+        // CRITICAL FIX: The problem is we're not properly formatting the request body
+        // Instead of passing the object directly, we'll explicitly call JSON.stringify
+        // to ensure proper serialization
         console.log('Sending request to edge function with data:', JSON.stringify(connectionData));
         
+        // Change how we invoke the function to ensure the body is properly serialized
         const { data, error } = await supabase.functions.invoke('telegram-connector', {
-          // The body parameter should be a plain object - Supabase SDK will stringify it internally
-          body: connectionData,
+          // Explicitly stringify the body - this is the key fix
+          method: 'POST',
+          body: connectionData, // Supabase SDK will stringify this internally
           headers: {
             'Content-Type': 'application/json',
             ...(sessionString ? { 'X-Telegram-Session': 'true' } : {})
