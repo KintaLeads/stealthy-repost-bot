@@ -70,8 +70,21 @@ export async function parseRequestBody(req: Request): Promise<{ valid: boolean; 
       
       // Validate critical fields
       if (data.operation && (data.operation === 'connect' || data.operation === 'validate')) {
-        if (!data.apiId || data.apiId === 'undefined' || data.apiId === 'null' || data.apiId.trim() === '') {
-          console.error("Missing or invalid apiId in request:", data.apiId);
+        // Handle apiId which can be number or string
+        if (data.apiId === undefined || data.apiId === null) {
+          console.error("Missing apiId in request");
+          return {
+            valid: false,
+            data,
+            error: 'API ID cannot be empty or invalid'
+          };
+        }
+        
+        // Convert apiId to string for validation if it's a number
+        const apiIdStr = typeof data.apiId === 'number' ? String(data.apiId) : data.apiId;
+        
+        if (apiIdStr === 'undefined' || apiIdStr === 'null' || (typeof apiIdStr === 'string' && apiIdStr.trim() === '')) {
+          console.error("Invalid apiId in request:", data.apiId);
           return {
             valid: false,
             data,
@@ -89,7 +102,7 @@ export async function parseRequestBody(req: Request): Promise<{ valid: boolean; 
         }
         
         // Check API ID is a valid number
-        const numericApiId = parseInt(data.apiId, 10);
+        const numericApiId = typeof data.apiId === 'number' ? data.apiId : parseInt(apiIdStr, 10);
         if (isNaN(numericApiId) || numericApiId <= 0) {
           console.error(`Invalid API ID format in request: "${data.apiId}"`);
           return {
@@ -125,7 +138,7 @@ export async function parseRequestBody(req: Request): Promise<{ valid: boolean; 
 /**
  * Validates that the API parameters are correct
  */
-export function validateApiParameters(apiId: string, apiHash: string, phoneNumber: string): { 
+export function validateApiParameters(apiId: string | number, apiHash: string, phoneNumber: string): { 
   valid: boolean; 
   error?: string;
   details?: Record<string, any>; 
@@ -134,10 +147,16 @@ export function validateApiParameters(apiId: string, apiHash: string, phoneNumbe
   const details: Record<string, any> = {};
   
   // Check apiId
-  if (!apiId) {
+  if (apiId === undefined || apiId === null) {
     errors.push('API ID is required');
     details.apiId = 'missing';
-  } else if (!/^\d+$/.test(apiId)) {
+  } else if (typeof apiId === 'number') {
+    // If it's already a number, just check if it's valid
+    if (apiId <= 0) {
+      errors.push('API ID must be a positive numeric value');
+      details.apiId = 'invalid_value';
+    }
+  } else if (!/^\d+$/.test(String(apiId))) {
     errors.push('API ID must be a numeric value');
     details.apiId = 'invalid_format';
   }

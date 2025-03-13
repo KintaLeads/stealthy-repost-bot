@@ -10,7 +10,7 @@ export function validateApiId(apiId: any): number {
   console.log(`Validating API ID: "${apiId}" (${typeof apiId})`);
   
   // Strict validation of API ID
-  if (!apiId || apiId === undefined || apiId === null) {
+  if (apiId === undefined || apiId === null) {
     console.error(`CRITICAL ERROR: API ID is invalid: "${apiId}"`);
     throw new Error(`API ID cannot be undefined or null, received: ${apiId}`);
   }
@@ -26,6 +26,7 @@ export function validateApiId(apiId: any): number {
       throw new Error(`Invalid API ID: "${apiId}". Could not convert to number.`);
     }
   } else if (typeof apiId === 'number') {
+    console.log(`API ID is already a number (${apiId})`);
     numericApiId = apiId;
   } else {
     // Try to convert other types
@@ -40,10 +41,11 @@ export function validateApiId(apiId: any): number {
   
   // Additional validation for API ID
   if (isNaN(numericApiId) || numericApiId <= 0) {
-    console.error(`Invalid API ID: ${numericApiId}`);
+    console.error(`Invalid API ID after conversion: ${apiId} -> ${numericApiId}`);
     throw new Error(`Invalid API ID: ${numericApiId}. Must be a positive number.`);
   }
   
+  console.log(`API ID validated successfully: ${numericApiId}`);
   return numericApiId;
 }
 
