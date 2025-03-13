@@ -1,212 +1,155 @@
 
 import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
-import { ApiAccount, ChannelPair, MetricsData } from '@/types/channels';
+import { ApiAccount, ChannelPair } from '@/types/channels';
 import { Message } from '@/types/dashboard';
+import { toast } from 'sonner';
+import { logInfo, logError } from './debugger';
 
-// Maintain a reference to active listeners
-const activeListeners = new Map<string, { stop: () => Promise<boolean>, id: string }>();
-
-/**
- * Checks the status of a realtime listener for a given account
- */
-export async function checkRealtimeStatus(accountId: string): Promise<boolean> {
-  console.log('Checking realtime status for account:', accountId);
-  
-  try {
-    // Check if we have an active listener in memory
-    if (activeListeners.has(accountId)) {
-      console.log('Active listener found in memory');
-      return true;
-    }
-    
-    // If we don't have an active listener in memory, check with the edge function
-    const { data, error } = await supabase.functions.invoke(
-      'telegram-realtime',
-      {
-        body: {
-          operation: 'status',
-          accountId
-        }
-      }
-    );
-    
-    if (error) {
-      console.error('Status check failed:', error);
-      throw error;
-    }
-    
-    console.log('Status check response:', data);
-    return data?.connected || false;
-  } catch (error) {
-    console.error('Error checking realtime status:', error);
-    return false;
-  }
-}
+// Get the Supabase project ID from the config file
+import config from '../../../supabase/config.toml';
 
 /**
- * Disconnect an active realtime listener
+ * Sets up a realtime listener for Telegram messages
  */
-export async function disconnectRealtime(accountId: string): Promise<boolean> {
-  console.log('Disconnecting realtime listener for account:', accountId);
-  
-  try {
-    // First attempt to stop the listener we have in memory
-    if (activeListeners.has(accountId)) {
-      const listener = activeListeners.get(accountId);
-      if (listener?.stop) {
-        console.log('Stopping listener from memory');
-        await listener.stop();
-        activeListeners.delete(accountId);
-      }
-    }
-    
-    // Also notify the edge function to stop listening
-    const { data, error } = await supabase.functions.invoke(
-      'telegram-realtime',
-      {
-        body: {
-          operation: 'disconnect',
-          accountId
-        }
-      }
-    );
-    
-    if (error) {
-      console.error('Disconnect failed:', error);
-      throw error;
-    }
-    
-    console.log('Disconnect response:', data);
-    return true;
-  } catch (error) {
-    console.error('Error disconnecting realtime:', error);
-    toast.error('Failed to disconnect: ' + (error instanceof Error ? error.message : String(error)));
-    return false;
-  }
-}
-
-export async function setupRealtimeListener(
-  selectedAccount: ApiAccount,
+export const setupRealtimeListener = async (
+  account: ApiAccount,
   channelPairs: ChannelPair[],
-  onNewMessages?: (messages: Message[]) => void
-) {
-  console.log('Setting up realtime listener with account:', {
-    ...selectedAccount,
-    apiHash: '[REDACTED]'
-  });
+  onNewMessages: (messages: Message[]) => void
+) => {
+  const context = 'RealtimeService';
   
   try {
-    // First test the connection
-    console.log('Testing connection to telegram-realtime function...');
-    const { data: healthCheck, error: healthError } = await supabase.functions.invoke(
-      'telegram-realtime',
-      {
-        body: { operation: 'healthcheck' }
-      }
-    );
-
-    if (healthError) {
-      console.error('Health check failed:', healthError);
-      toast.error('Failed to connect to Telegram service');
-      throw new Error(`Health check failed: ${healthError.message}`);
-    }
-
-    console.log('Health check successful:', healthCheck);
-
-    // Extract source channels
+    logInfo(context, '🚀 Setting up realtime listener for account:', {
+      accountId: account.id,
+      nickname: account.nickname,
+      phoneNumber: account.phoneNumber
+    });
+    
+    logInfo(context, `Channel pairs configured: ${channelPairs.length}`);
+    
+    // Extract source channels for listening
     const sourceChannels = channelPairs
       .filter(pair => pair.sourceChannel && pair.sourceChannel.trim() !== '')
       .map(pair => pair.sourceChannel);
-
+      
     if (sourceChannels.length === 0) {
       throw new Error('No source channels configured');
     }
-
-    console.log('Attempting to connect to channels:', sourceChannels);
-
-    // Call the realtime function to start listening
-    const { data: response, error } = await supabase.functions.invoke(
-      'telegram-realtime',
-      {
-        body: {
-          operation: 'listen',
-          apiId: selectedAccount.apiKey, // Use apiKey instead of apiId
-          apiHash: selectedAccount.apiHash,
-          phoneNumber: selectedAccount.phoneNumber,
-          accountId: selectedAccount.id,
-          channelNames: sourceChannels
-        }
-      }
-    );
-
-    if (error) {
-      console.error('Failed to setup listener:', error);
-      toast.error(`Failed to connect: ${error.message}`);
-      throw error;
-    }
-
-    console.log('Realtime listener setup successful:', {
-      ...response,
-      sessionString: response.sessionString ? `[${response.sessionString.length} chars]` : undefined
+    
+    logInfo(context, `Listening to ${sourceChannels.length} channels:`, sourceChannels);
+    
+    // Get the project ID from the config
+    const projectId = config.project_id || 'eswfrzdqxsaizkdswxfn';
+    logInfo(context, `Using Supabase project ID: ${projectId}`);
+    
+    // Prepare the listener payload
+    const listenerPayload = {
+      operation: 'listen',
+      apiId: account.apiKey,
+      apiHash: account.apiHash,
+      phoneNumber: account.phoneNumber,
+      accountId: account.id,
+      sourceChannels,
+      debug: true
+    };
+    
+    logInfo(context, 'Calling telegram-realtime edge function with payload:', {
+      ...listenerPayload,
+      apiHash: '[REDACTED]'
     });
     
-    // Store the listener in our map
-    if (response.listenerId) {
-      activeListeners.set(selectedAccount.id, {
-        id: response.listenerId,
-        stop: async () => {
-          try {
-            await disconnectRealtime(selectedAccount.id);
-            return true;
-          } catch (error) {
-            console.error('Error stopping listener:', error);
-            return false;
-          }
-        }
-      });
-    }
-
-    return response;
-
-  } catch (error) {
-    console.error('Error in setupRealtimeListener:', error);
-    toast.error(error instanceof Error ? error.message : 'Failed to connect to Telegram');
-    throw error;
-  }
-}
-
-/**
- * Fetch realtime metrics from the edge function
- */
-export async function fetchRealtimeMetrics(accountId: string): Promise<MetricsData | null> {
-  console.log('Fetching realtime metrics for account:', accountId);
-  
-  try {
-    const { data, error } = await supabase.functions.invoke(
-      'telegram-realtime',
-      {
-        body: {
-          operation: 'metrics',
-          accountId
-        }
+    console.log('Before calling edge function - full payload:', {
+      ...listenerPayload,
+      apiHash: '[REDACTED FOR SECURITY]'
+    });
+    
+    // Make direct call to edge function
+    const { data, error } = await supabase.functions.invoke('telegram-realtime', {
+      body: listenerPayload,
+      headers: {
+        'Content-Type': 'application/json'
       }
-    );
+    });
+    
+    console.log('Edge function response:', { data, error });
     
     if (error) {
-      console.error('Failed to fetch metrics:', error);
-      return null;
+      logError(context, 'Edge function error:', error);
+      throw new Error(`Edge function error: ${error.message || error}`);
     }
     
-    console.log('Metrics response:', data);
-    
-    if (data && data.metrics) {
-      return data.metrics as MetricsData;
+    if (!data) {
+      logError(context, 'No data returned from edge function');
+      throw new Error('No data returned from edge function');
     }
     
-    return null;
+    logInfo(context, 'Edge function response:', data);
+    
+    // Create an id for the listener
+    const listenerId = `listener_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Create a stop function to clean up the listener
+    const stopListener = async () => {
+      logInfo(context, `Stopping listener ${listenerId}`);
+      
+      try {
+        const { data, error } = await supabase.functions.invoke('telegram-realtime', {
+          body: {
+            operation: 'stop',
+            accountId: account.id,
+            listenerId
+          }
+        });
+        
+        if (error) {
+          logError(context, 'Error stopping listener:', error);
+          return false;
+        }
+        
+        logInfo(context, 'Listener stopped successfully');
+        return true;
+      } catch (stopError) {
+        logError(context, 'Exception stopping listener:', stopError);
+        return false;
+      }
+    };
+    
+    // Return the listener interface
+    return {
+      id: listenerId,
+      stop: stopListener
+    };
+    
   } catch (error) {
-    console.error('Error fetching metrics:', error);
-    return null;
+    logError(context, 'Failed to setup realtime listener:', error);
+    console.error('Full error details:', error);
+    
+    toast.error(`Failed to setup listener: ${error instanceof Error ? error.message : String(error)}`);
+    
+    throw error;
   }
-}
+};
+
+/**
+ * Checks if there's an active realtime listener for an account
+ */
+export const checkRealtimeStatus = async (accountId: string): Promise<boolean> => {
+  try {
+    const { data, error } = await supabase.functions.invoke('telegram-realtime', {
+      body: {
+        operation: 'status',
+        accountId
+      }
+    });
+    
+    if (error) {
+      console.error('Error checking realtime status:', error);
+      return false;
+    }
+    
+    return data?.connected === true;
+  } catch (error) {
+    console.error('Exception checking realtime status:', error);
+    return false;
+  }
+};

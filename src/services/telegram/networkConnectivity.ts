@@ -70,10 +70,13 @@ export const runConnectivityChecks = async (projectId: string) => {
     // First, try to directly call the healthcheck on the connector
     try {
       logInfo(context, 'Testing telegram-connector with healthcheck operation');
+      console.log('Calling telegram-connector healthcheck...');
       
       const { data: connectorData, error: connectorError } = await supabase.functions.invoke('telegram-connector', {
         body: { operation: 'healthcheck' }
       });
+      
+      console.log('telegram-connector response:', { data: connectorData, error: connectorError });
       
       if (connectorError) {
         logError(context, 'telegram-connector healthcheck failed:', connectorError);
@@ -104,10 +107,13 @@ export const runConnectivityChecks = async (projectId: string) => {
     // Next, try to directly call the healthcheck on the realtime function
     try {
       logInfo(context, 'Testing telegram-realtime with healthcheck operation');
+      console.log('Calling telegram-realtime healthcheck...');
       
       const { data: realtimeData, error: realtimeError } = await supabase.functions.invoke('telegram-realtime', {
         body: { operation: 'healthcheck' }
       });
+      
+      console.log('telegram-realtime response:', { data: realtimeData, error: realtimeError });
       
       if (realtimeError) {
         logError(context, 'telegram-realtime healthcheck failed:', realtimeError);
