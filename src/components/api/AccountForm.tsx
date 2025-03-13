@@ -16,7 +16,7 @@ interface AccountFormProps {
   isSaving: boolean;
   isConnected?: boolean;
   isConnecting?: boolean;
-  onToggleConnection?: () => void;
+  onToggleConnection?: () => Promise<any>; // Updated to match AccountFormButtons prop type
 }
 
 const AccountForm: React.FC<AccountFormProps> = ({
