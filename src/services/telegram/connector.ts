@@ -45,19 +45,6 @@ export const handleInitialConnection = async (
     logInfo(context, '⚡ Calling telegram-connector edge function');
     console.log('Making direct call to telegram-connector edge function');
     
-    // Make sure we're using the project ID from the config
-    const projectId = 'eswfrzdqxsaizkdswxfn';
-    logInfo(context, `Using Supabase project ID: ${projectId}`);
-    
-    console.log('Request data:', {
-      operation: 'connect',
-      apiId: account.apiKey,
-      phoneNumber: account.phoneNumber,
-      accountId: account.id,
-      sessionPresent: !!sessionString,
-      debug: true
-    });
-    
     // Add a toast to show we're connecting
     toast({
       title: "Connecting to Telegram",
@@ -72,7 +59,7 @@ export const handleInitialConnection = async (
     while (retries <= maxRetries) {
       try {
         // Use direct fetch instead of supabase.functions.invoke which might be having issues
-        // This is a key fix to ensure we have complete control over the request format
+        const projectId = 'eswfrzdqxsaizkdswxfn';
         const requestUrl = `https://${projectId}.supabase.co/functions/v1/telegram-connector`;
         
         // Get the access token from session
@@ -80,8 +67,38 @@ export const handleInitialConnection = async (
         const accessToken = sessionData.session?.access_token || '';
         const anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVzd2ZyemRxeHNhaXprZHN3eGZuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA5ODM2ODQsImV4cCI6MjA1NjU1OTY4NH0.2onrHJHapQZbqi7RgsuK7A6G5xlJrNSgRv21_mUT7ik';
         
-        console.log(`Sending direct fetch to ${requestUrl} with data:`, JSON.stringify(connectionData));
+        console.log(`Sending direct fetch to ${requestUrl}`, {
+          apiId: account.apiKey,
+          phoneNumber: account.phoneNumber,
+          accountId: account.id,
+          sessionPresent: !!sessionString
+        });
         
+        // First try a test request to verify connectivity
+        if (retries === 0) {
+          const testResponse = await fetch(requestUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${accessToken}`,
+              'apikey': anonKey
+            },
+            body: JSON.stringify({
+              operation: 'connect',
+              debug: true,
+              testMode: true
+            })
+          });
+          
+          const testData = await testResponse.json();
+          console.log('Test connection response:', testData);
+          
+          if (!testResponse.ok) {
+            console.error('Test connection failed:', testData);
+          }
+        }
+        
+        // Make the actual request with the full data
         const response = await fetch(requestUrl, {
           method: 'POST',
           headers: {
@@ -93,8 +110,13 @@ export const handleInitialConnection = async (
           body: JSON.stringify(connectionData) // Explicitly stringify the body
         });
         
+        // Extra logging for debugging
+        console.log('Response status:', response.status);
+        console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+        
         // Convert response to JSON
         const data = await response.json();
+        console.log('Response data:', data);
         
         // Track API call
         trackApiCall('telegram-connector/connect', {

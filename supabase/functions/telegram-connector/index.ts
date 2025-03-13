@@ -43,73 +43,40 @@ Deno.serve(async (req) => {
     // Print request details
     console.log("📋 Request headers:", Object.fromEntries(req.headers.entries()));
     
-    // Make a full copy of the request for processing (important!)
+    // Make a full copy of the request for processing to avoid consuming the body
     const requestCopy = req.clone();
     
-    // Try to read the raw content of the request to diagnose issues
-    let requestText = '';
-    try {
-      requestText = await req.text();
-      console.log("📄 Raw request body:", requestText);
-      
-      // Check if the body is empty
-      if (!requestText || requestText.trim() === '') {
-        // If we're getting an empty body, try using a test payload for debugging
-        console.error("❌ Empty request body received - checking if this is a test request");
-        
-        // Create a mock response for empty requests to help diagnose client issues
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error: 'Empty request body',
-            details: 'The request body is empty. Please provide a valid JSON body.',
-            receivedHeaders: Object.fromEntries(req.headers.entries()),
-            troubleshooting: [
-              "Ensure Content-Type header is set to application/json",
-              "Make sure request body is explicitly stringified using JSON.stringify",
-              "Use direct fetch instead of supabase.functions.invoke for more control",
-              "Verify no middleware is removing or altering the request body"
-            ]
-          }),
-          {
-            status: 400,
-            headers: updatedCorsHeaders
-          }
-        );
-      }
-    } catch (readError) {
-      console.error("❌ Error reading request body:", readError);
+    // Perform basic request validation
+    if (req.method !== 'POST') {
+      console.error(`❌ Invalid HTTP method: ${req.method}. Only POST is supported.`);
       return new Response(
         JSON.stringify({
-          success: false, 
-          error: 'Failed to read request body',
-          details: String(readError),
-          readErrorType: readError.constructor.name
+          success: false,
+          error: 'Method not allowed. Use POST for operations.',
         }),
-        { 
-          status: 400,
+        {
+          status: 405,
           headers: updatedCorsHeaders
         }
       );
     }
     
-    // Parse the JSON body
-    let requestBody;
-    try {
-      requestBody = JSON.parse(requestText);
-      console.log("🔍 Parsed request body:", {
-        ...requestBody,
-        apiHash: requestBody.apiHash ? '[REDACTED]' : undefined,
-        sessionString: requestBody.sessionString ? `[${requestBody.sessionString.length} chars]` : undefined
-      });
-    } catch (parseError) {
-      console.error("❌ JSON parse error:", parseError);
+    // Parse and validate the request body
+    const { valid, data, error } = await parseRequestBody(requestCopy);
+    
+    // If parsing failed, return an error
+    if (!valid) {
+      console.error("❌ Invalid request body:", error);
       return new Response(
         JSON.stringify({
           success: false,
-          error: 'Invalid JSON in request body',
-          details: String(parseError),
-          receivedBody: requestText.substring(0, 100) + (requestText.length > 100 ? '...' : '')
+          error: error || 'Failed to parse request body',
+          receivedHeaders: Object.fromEntries(req.headers.entries()),
+          troubleshooting: [
+            "Ensure Content-Type header is set to application/json",
+            "Make sure request body is explicitly stringified using JSON.stringify",
+            "Verify no middleware is removing or altering the request body"
+          ]
         }),
         {
           status: 400,
@@ -118,8 +85,29 @@ Deno.serve(async (req) => {
       );
     }
     
-    // Validate the request has required fields
-    if (!requestBody || !requestBody.operation) {
+    // Debug mode response for testing connections
+    if (data.debug === true && data.testMode === true) {
+      console.log("✅ Debug mode test request, returning success");
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: 'Debug test connection successful',
+          receivedData: {
+            operation: data.operation,
+            apiIdPresent: !!data.apiId,
+            apiHashPresent: !!data.apiHash,
+            phoneNumberPresent: !!data.phoneNumber
+          }
+        }),
+        {
+          status: 200,
+          headers: updatedCorsHeaders
+        }
+      );
+    }
+    
+    // Validate that required fields are present
+    if (!data || !data.operation) {
       console.error("❌ Missing 'operation' field in request");
       return new Response(
         JSON.stringify({
@@ -135,50 +123,24 @@ Deno.serve(async (req) => {
     }
 
     // Log operation being attempted
-    console.log(`🎯 Attempting operation: ${requestBody.operation}`);
-    
-    // At this point the request is valid, let's test responding with a mock success
-    if (requestBody.operation === 'connect' && requestBody.debug) {
-      console.log("✅ Debug mode, returning test success response");
-      
-      // Just for now, return a debug success message to confirm request parsing works
-      return new Response(
-        JSON.stringify({
-          success: true,
-          message: 'Request successfully parsed',
-          operation: requestBody.operation,
-          debug: true,
-          receivedData: {
-            apiId: requestBody.apiId,
-            phoneNumber: requestBody.phoneNumber,
-            accountId: requestBody.accountId,
-            apiHashPresent: !!requestBody.apiHash,
-            sessionStringPresent: !!requestBody.sessionString
-          }
-        }),
-        {
-          status: 200,
-          headers: updatedCorsHeaders
-        }
-      );
-    }
+    console.log(`🎯 Attempting operation: ${data.operation}`);
     
     // Route the request to the appropriate handler
     const response = await routeOperation(
-      requestBody.operation,
+      data.operation,
       {
-        apiId: requestBody.apiId,
-        apiHash: requestBody.apiHash,
-        phoneNumber: requestBody.phoneNumber,
-        accountId: requestBody.accountId || 'temp',
-        sessionString: requestBody.sessionString || ''
+        apiId: data.apiId || '',
+        apiHash: data.apiHash || '',
+        phoneNumber: data.phoneNumber || '',
+        accountId: data.accountId || 'temp',
+        sessionString: data.sessionString || ''
       },
-      requestBody
+      data
     );
     
     // Log completion
     const duration = Date.now() - startTime;
-    console.log(`✅ Operation completed: ${requestBody.operation}`, {
+    console.log(`✅ Operation completed: ${data.operation}`, {
       duration,
       status: response.status
     });

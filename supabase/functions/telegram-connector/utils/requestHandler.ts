@@ -31,17 +31,31 @@ export function handleCorsRequest(): Response {
 
 /**
  * Parse and validate the request body
+ * @param req The original request
+ * @returns Object containing validity status and parsed data
  */
 export async function parseRequestBody(req: Request): Promise<{ valid: boolean; data: any; error?: string }> {
   try {
-    // Clone the request to avoid consuming it
-    const clonedReq = req.clone();
+    // Clone the request before reading the body
+    const reqClone = req.clone();
     
-    // Read the request text
-    const bodyText = await clonedReq.text();
+    // Try to read the request text
+    let bodyText = '';
+    try {
+      bodyText = await reqClone.text();
+      console.log(`Request body (${bodyText.length} chars):`, bodyText.substring(0, 100) + (bodyText.length > 100 ? '...' : ''));
+    } catch (readError) {
+      console.error("Error reading request body:", readError);
+      return {
+        valid: false,
+        data: null,
+        error: `Failed to read request body: ${readError instanceof Error ? readError.message : String(readError)}`
+      };
+    }
     
-    // Check if body is empty
+    // Check if the body is empty
     if (!bodyText || bodyText.trim() === '') {
+      console.error("Request body is empty or only whitespace");
       return {
         valid: false,
         data: null,
@@ -49,27 +63,28 @@ export async function parseRequestBody(req: Request): Promise<{ valid: boolean; 
       };
     }
     
-    // Try to parse as JSON
+    // Try to parse the body as JSON
     try {
       const data = JSON.parse(bodyText);
+      console.log("Successfully parsed JSON body, keys:", Object.keys(data));
       return {
         valid: true,
         data
       };
-    } catch (jsonError) {
-      console.error("Failed to parse request as JSON:", jsonError);
+    } catch (parseError) {
+      console.error("Failed to parse JSON:", parseError);
       return {
         valid: false,
         data: bodyText,
-        error: `Invalid JSON format: ${jsonError instanceof Error ? jsonError.message : String(jsonError)}`
+        error: `Invalid JSON format: ${parseError instanceof Error ? parseError.message : String(parseError)}`
       };
     }
   } catch (error) {
-    console.error("Error reading request body:", error);
+    console.error("Unexpected error in parseRequestBody:", error);
     return {
       valid: false,
       data: null,
-      error: `Failed to read request body: ${error instanceof Error ? error.message : String(error)}`
+      error: `Error processing request: ${error instanceof Error ? error.message : String(error)}`
     };
   }
 }
