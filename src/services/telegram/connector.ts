@@ -75,15 +75,20 @@ export const handleInitialConnection = async (
         // This is a key fix to ensure we have complete control over the request format
         const requestUrl = `https://${projectId}.supabase.co/functions/v1/telegram-connector`;
         
+        // Get the access token from session
+        const { data: sessionData } = await supabase.auth.getSession();
+        const accessToken = sessionData.session?.access_token || '';
+        const anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVzd2ZyemRxeHNhaXprZHN3eGZuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA5ODM2ODQsImV4cCI6MjA1NjU1OTY4NH0.2onrHJHapQZbqi7RgsuK7A6G5xlJrNSgRv21_mUT7ik';
+        
         console.log(`Sending direct fetch to ${requestUrl} with data:`, JSON.stringify(connectionData));
         
         const response = await fetch(requestUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${supabase.auth.getSession().then(session => session.data.session?.access_token)}`,
-            'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
-            ...(sessionString ? { 'X-Telegram-Session': 'true' } : {})
+            'Authorization': `Bearer ${accessToken}`,
+            'apikey': anonKey,
+            ...(sessionString ? { 'X-Telegram-Session': sessionString } : {})
           },
           body: JSON.stringify(connectionData) // Explicitly stringify the body
         });

@@ -43,7 +43,10 @@ Deno.serve(async (req) => {
     // Print request details
     console.log("📋 Request headers:", Object.fromEntries(req.headers.entries()));
     
-    // Always try to read the raw content of the request to diagnose issues
+    // Make a full copy of the request for processing (important!)
+    const requestCopy = req.clone();
+    
+    // Try to read the raw content of the request to diagnose issues
     let requestText = '';
     try {
       requestText = await req.text();
