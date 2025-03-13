@@ -43,21 +43,30 @@ Deno.serve(async (req) => {
     // Print request details
     console.log("📋 Request headers:", Object.fromEntries(req.headers.entries()));
     
-    // Safely clone and read the request body
-    let requestText;
+    // Always try to read the raw content of the request to diagnose issues
+    let requestText = '';
     try {
-      // Instead of trying to clone, just read the request directly
       requestText = await req.text();
       console.log("📄 Raw request body:", requestText);
       
       // Check if the body is empty
       if (!requestText || requestText.trim() === '') {
-        console.error("❌ Empty request body received");
+        // If we're getting an empty body, try using a test payload for debugging
+        console.error("❌ Empty request body received - checking if this is a test request");
+        
+        // Create a mock response for empty requests to help diagnose client issues
         return new Response(
           JSON.stringify({
             success: false,
             error: 'Empty request body',
-            details: 'The request body is empty. Please provide a valid JSON body.'
+            details: 'The request body is empty. Please provide a valid JSON body.',
+            receivedHeaders: Object.fromEntries(req.headers.entries()),
+            troubleshooting: [
+              "Ensure Content-Type header is set to application/json",
+              "Make sure request body is explicitly stringified using JSON.stringify",
+              "Use direct fetch instead of supabase.functions.invoke for more control",
+              "Verify no middleware is removing or altering the request body"
+            ]
           }),
           {
             status: 400,
@@ -71,7 +80,8 @@ Deno.serve(async (req) => {
         JSON.stringify({
           success: false, 
           error: 'Failed to read request body',
-          details: String(readError)
+          details: String(readError),
+          readErrorType: readError.constructor.name
         }),
         { 
           status: 400,
@@ -124,7 +134,33 @@ Deno.serve(async (req) => {
     // Log operation being attempted
     console.log(`🎯 Attempting operation: ${requestBody.operation}`);
     
-    // Route the request
+    // At this point the request is valid, let's test responding with a mock success
+    if (requestBody.operation === 'connect' && requestBody.debug) {
+      console.log("✅ Debug mode, returning test success response");
+      
+      // Just for now, return a debug success message to confirm request parsing works
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: 'Request successfully parsed',
+          operation: requestBody.operation,
+          debug: true,
+          receivedData: {
+            apiId: requestBody.apiId,
+            phoneNumber: requestBody.phoneNumber,
+            accountId: requestBody.accountId,
+            apiHashPresent: !!requestBody.apiHash,
+            sessionStringPresent: !!requestBody.sessionString
+          }
+        }),
+        {
+          status: 200,
+          headers: updatedCorsHeaders
+        }
+      );
+    }
+    
+    // Route the request to the appropriate handler
     const response = await routeOperation(
       requestBody.operation,
       {

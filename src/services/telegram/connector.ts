@@ -71,43 +71,47 @@ export const handleInitialConnection = async (
     
     while (retries <= maxRetries) {
       try {
-        // CRITICAL FIX: The problem is we're not properly formatting the request body
-        // Instead of passing the object directly, we'll explicitly call JSON.stringify
-        // to ensure proper serialization
-        console.log('Sending request to edge function with data:', JSON.stringify(connectionData));
+        // Use direct fetch instead of supabase.functions.invoke which might be having issues
+        // This is a key fix to ensure we have complete control over the request format
+        const requestUrl = `https://${projectId}.supabase.co/functions/v1/telegram-connector`;
         
-        // Change how we invoke the function to ensure the body is properly serialized
-        const { data, error } = await supabase.functions.invoke('telegram-connector', {
-          // Explicitly stringify the body - this is the key fix
+        console.log(`Sending direct fetch to ${requestUrl} with data:`, JSON.stringify(connectionData));
+        
+        const response = await fetch(requestUrl, {
           method: 'POST',
-          body: connectionData, // Supabase SDK will stringify this internally
           headers: {
             'Content-Type': 'application/json',
+            'Authorization': `Bearer ${supabase.auth.getSession().then(session => session.data.session?.access_token)}`,
+            'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
             ...(sessionString ? { 'X-Telegram-Session': 'true' } : {})
-          }
+          },
+          body: JSON.stringify(connectionData) // Explicitly stringify the body
         });
+        
+        // Convert response to JSON
+        const data = await response.json();
         
         // Track API call
         trackApiCall('telegram-connector/connect', {
           ...connectionData,
           apiHash: '[REDACTED]'
-        }, data, error);
+        }, data, response.ok ? null : new Error(`HTTP error ${response.status}`));
         
-        if (error) {
-          logError(context, '❌ Edge function error:', error);
-          console.error('Full error object:', error);
+        if (!response.ok) {
+          logError(context, `❌ Edge function error: HTTP ${response.status}`, data);
+          console.error('Full error response:', data);
           
-          lastError = error;
+          lastError = new Error(data.error || `HTTP error ${response.status}`);
           
           // Show toast with error if this is the last retry
           if (retries === maxRetries) {
             toast({
               title: "Connection Failed",
-              description: error.message || 'Edge Function error',
+              description: data.error || `HTTP error ${response.status}`,
               variant: "destructive",
             });
             
-            throw new Error(error.message || 'Edge Function error: ' + error.name);
+            throw lastError;
           }
         } else if (!data) {
           logError(context, '❌ No data returned from Edge Function');

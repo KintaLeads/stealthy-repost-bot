@@ -1,3 +1,4 @@
+
 import { corsHeaders } from "../../_shared/cors.ts";
 import { createBadRequestResponse, createErrorResponse } from "./errorHandler.ts";
 
@@ -53,9 +54,11 @@ export function debugStringifyRequestBody(body: any): string {
 // Updated corsHeaders with both standard and content-type
 export const updatedCorsHeaders = {
   ...corsHeaders,
+  'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-telegram-session',
-  'Access-Control-Expose-Headers': 'X-Telegram-Session'
+  'Access-Control-Expose-Headers': 'X-Telegram-Session',
+  'Content-Type': 'application/json'
 };
 
 // Handle CORS preflight requests
@@ -79,7 +82,7 @@ export async function parseRequestBody(req: Request): Promise<{ success: boolean
       console.error("Empty request body received");
       return { 
         success: false, 
-        response: createBadRequestResponse('Empty request body', updatedCorsHeaders) 
+        response: createBadRequestResponse('Empty request body - the request body must contain valid JSON', updatedCorsHeaders) 
       };
     }
     
