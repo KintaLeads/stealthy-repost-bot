@@ -4,6 +4,7 @@ import { ApiAccount, ChannelPair } from '@/types/channels';
 import { Message } from '@/types/dashboard';
 import { toast } from 'sonner';
 import { logInfo, logError } from './debugger';
+import { connectToTelegram } from './connector';
 
 // Extract the project ID for Supabase
 const SUPABASE_PROJECT_ID = 'eswfrzdqxsaizkdswxfn';
@@ -40,6 +41,35 @@ export const setupRealtimeListener = async (
     
     // Use hardcoded project ID instead of importing from config
     logInfo(context, `Using Supabase project ID: ${SUPABASE_PROJECT_ID}`);
+    
+    // First, ensure we're authenticated with Telegram
+    logInfo(context, 'Ensuring Telegram connection before setting up listener');
+    
+    const connectionResult = await connectToTelegram(account);
+    
+    if (!connectionResult.success) {
+      if (connectionResult.codeNeeded) {
+        // The user needs to enter a verification code
+        logInfo(context, 'Verification code needed - redirecting to verification flow');
+        
+        // Store the phone code hash for later use
+        if (connectionResult.phoneCodeHash) {
+          localStorage.setItem(`telegram_code_hash_${account.id}`, connectionResult.phoneCodeHash);
+        }
+        
+        toast.info('Please verify your Telegram account with the code sent to your device');
+        
+        // Return a special object indicating verification is needed
+        return {
+          id: 'verification_needed',
+          needsVerification: true,
+          phoneCodeHash: connectionResult.phoneCodeHash,
+          stop: () => Promise.resolve(true)
+        };
+      }
+      
+      throw new Error(`Failed to connect to Telegram: ${connectionResult.error}`);
+    }
     
     // Prepare the listener payload
     const listenerPayload = {
