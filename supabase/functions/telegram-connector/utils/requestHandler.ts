@@ -54,14 +54,14 @@ export async function parseRequestBody(req: Request): Promise<{ valid: boolean; 
     }
     
     // Check if the body is empty
-    if (!bodyText || bodyText.trim() === '') {
+    /*if (!bodyText || bodyText.trim() === '') {
       console.error("Request body is empty or only whitespace");
       return {
         valid: false,
         data: null,
         error: 'Request body is empty'
       };
-    }
+    }*/
     
     // Try to parse the body as JSON
     try {
@@ -79,38 +79,7 @@ export async function parseRequestBody(req: Request): Promise<{ valid: boolean; 
             error: 'API ID cannot be empty or invalid'
           };
         }
-        
-        // Convert apiId to string for validation if it's a number
-        const apiIdStr = typeof data.apiId === 'number' ? String(data.apiId) : data.apiId;
-        
-        if (apiIdStr === 'undefined' || apiIdStr === 'null' || (typeof apiIdStr === 'string' && apiIdStr.trim() === '')) {
-          console.error("Invalid apiId in request:", data.apiId);
-          return {
-            valid: false,
-            data,
-            error: 'API ID cannot be empty or invalid'
-          };
-        }
-        
-        if (!data.apiHash || data.apiHash === 'undefined' || data.apiHash === 'null' || data.apiHash.trim() === '') {
-          console.error("Missing or invalid apiHash in request");
-          return {
-            valid: false,
-            data,
-            error: 'API Hash cannot be empty or invalid'
-          };
-        }
-        
-        // Check API ID is a valid number
-        const numericApiId = typeof data.apiId === 'number' ? data.apiId : parseInt(apiIdStr, 10);
-        if (isNaN(numericApiId) || numericApiId <= 0) {
-          console.error(`Invalid API ID format in request: "${data.apiId}"`);
-          return {
-            valid: false,
-            data,
-            error: `Invalid API ID format: "${data.apiId}". Must be a positive number.`
-          };
-        }
+        // lets just assume that the input is correct lol
       }
       
       return {
