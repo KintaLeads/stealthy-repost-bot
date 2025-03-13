@@ -179,7 +179,13 @@ const ApiAccountManager: React.FC<ApiAccountManagerProps> = ({
                     isSaving={isSaving}
                     isConnected={isConnected}
                     isConnecting={isConnecting}
-                    onToggleConnection={onToggleConnection}
+                    onToggleConnection={onToggleConnection ? async () => {
+                      // Ensure we return the Promise from onToggleConnection
+                      if (onToggleConnection) {
+                        return onToggleConnection();
+                      }
+                      return Promise.resolve({ success: false });
+                    } : undefined}
                   />
                 )}
               </div>
