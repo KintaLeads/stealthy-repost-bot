@@ -1,3 +1,4 @@
+
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1'
 import { corsHeaders } from '../_shared/cors.ts';
 import { createTelegramClient } from "../telegram-connector/client/index.ts";
@@ -49,6 +50,12 @@ Deno.serve(async (req) => {
     try {
       const text = await req.text();
       console.log("📝 Raw request body:", text);
+      
+      // Check if the text is empty or null
+      if (!text || text.trim() === '') {
+        throw new Error('Empty request body');
+      }
+      
       requestBody = JSON.parse(text);
       console.log("🔍 Parsed request body:", {
         ...requestBody,
@@ -94,32 +101,8 @@ Deno.serve(async (req) => {
     const sessionString = req.headers.get('X-Telegram-Session') || '';
     console.log("Session header present:", !!sessionString);
     
-    // Get the request data
-    const requestBodyText = await req.text();
-    console.log("Raw request body:", requestBodyText);
-    
-    let requestData;
-    try {
-      requestData = JSON.parse(requestBodyText);
-      console.log("Parsed request data:", JSON.stringify(requestData, null, 2));
-    } catch (error) {
-      console.error('Error parsing JSON request:', error);
-      return new Response(
-        JSON.stringify({ 
-          success: false,
-          error: 'Invalid JSON in request body',
-          details: { 
-            errorType: 'ParseError',
-            message: error.message,
-            rawBody: requestBodyText.substring(0, 200) + (requestBodyText.length > 200 ? '...' : '')
-          }
-        }),
-        {
-          status: 400,
-          headers: updatedCorsHeaders
-        }
-      );
-    }
+    // Get the request data from the parsed body
+    const requestData = requestBody;
     
     if (!requestData) {
       console.error("Request data is null or undefined after parsing");
@@ -142,7 +125,7 @@ Deno.serve(async (req) => {
       apiHash, 
       phoneNumber, 
       accountId,
-      channelNames, 
+      sourceChannels, // Changed from channelNames to sourceChannels
       sessionString: bodySessionString 
     } = requestData;
     
@@ -198,7 +181,9 @@ Deno.serve(async (req) => {
       );
     }
     
-    console.log(`Channel names:`, channelNames || 'None provided');
+    // Log whether we have channel information
+    const channelNames = sourceChannels || [];
+    console.log(`Channel names:`, channelNames.length > 0 ? channelNames : 'None provided');
     console.log(`Session provided: ${effectiveSessionString ? 'Yes (length: ' + effectiveSessionString.length + ')' : 'No'}`);
 
     // Handle the different operations
@@ -309,7 +294,7 @@ Deno.serve(async (req) => {
           );
         }
 
-        // Validate required parameters
+        // Validate required parameters - using sourceChannels instead of channelNames
         if (!channelNames || !Array.isArray(channelNames) || channelNames.length === 0) {
           return new Response(
             JSON.stringify({
@@ -420,6 +405,7 @@ Deno.serve(async (req) => {
         }
       }
 
+      case 'stop':
       case 'disconnect': {
         try {
           // Check if we have an active listener for this account
@@ -528,7 +514,7 @@ Deno.serve(async (req) => {
             success: false,
             error: `Unknown operation: ${operation}`,
             details: {
-              supportedOperations: ['connect', 'listen', 'disconnect', 'status']
+              supportedOperations: ['connect', 'listen', 'disconnect', 'status', 'healthcheck']
             }
           }),
           {

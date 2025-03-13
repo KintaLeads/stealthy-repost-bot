@@ -48,7 +48,7 @@ export const setupRealtimeListener = async (
       apiHash: account.apiHash,
       phoneNumber: account.phoneNumber,
       accountId: account.id,
-      sourceChannels,
+      sourceChannels: sourceChannels, // Use sourceChannels instead of channelNames to match edge function
       debug: true
     };
     
@@ -62,7 +62,7 @@ export const setupRealtimeListener = async (
       apiHash: '[REDACTED FOR SECURITY]'
     });
     
-    // Make direct call to edge function
+    // Make direct call to edge function with proper headers
     const { data, error } = await supabase.functions.invoke('telegram-realtime', {
       body: listenerPayload,
       headers: {
