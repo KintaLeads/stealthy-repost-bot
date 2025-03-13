@@ -20,7 +20,8 @@ export const handleInitialConnection = async (
     // Check for existing session
     const sessionString = getStoredSession(account.id);
     logInfo(context, `📦 Session check - exists: ${!!sessionString}, length: ${sessionString?.length || 0}`);
-    
+
+    logInfo(context, `Using values ${account.apiKey}, ${account.apiHash}, ${account.phoneNumber}, ${account.id}`);
     // Explicitly build connection data as a separate object for clarity
     const connectionData = {
       operation: 'connect', 
