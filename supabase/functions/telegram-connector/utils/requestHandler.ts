@@ -1,3 +1,4 @@
+
 import { corsHeaders } from "../../_shared/cors.ts";
 import { createBadRequestResponse, createErrorResponse } from "./errorHandler.ts";
 
@@ -42,12 +43,19 @@ export function debugStringifyRequestBody(body: any): string {
     sanitizedBody.verificationCode = '[HIDDEN]';
   }
   
+  if (sanitizedBody.sessionString) {
+    const length = String(sanitizedBody.sessionString).length;
+    sanitizedBody.sessionString = `[HIDDEN:${length} chars]`;
+  }
+  
   return JSON.stringify(sanitizedBody, null, 2);
 }
 
 // Updated corsHeaders with both standard and content-type
 export const updatedCorsHeaders = {
   ...corsHeaders,
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-telegram-session',
   'Access-Control-Expose-Headers': 'X-Telegram-Session'
 };
 
@@ -60,29 +68,47 @@ export function handleCorsRequest(): Response {
   });
 }
 
-// Parse request body
+// Parse request body with enhanced error handling
 export async function parseRequestBody(req: Request): Promise<{ success: boolean; body?: any; response?: Response }> {
   try {
-    const text = await req.text();
+    // Clone the request to avoid stream already read errors
+    const clonedReq = req.clone();
+    const text = await clonedReq.text();
     console.log("Raw request body:", text);
     
     // Handle empty body case
-    if (!text.trim()) {
+    if (!text || text.trim() === '') {
+      console.error("Empty request body received");
       return { 
         success: false, 
         response: createBadRequestResponse('Empty request body', updatedCorsHeaders) 
       };
     }
     
-    const requestBody = JSON.parse(text);
-    console.log("Request body:", debugStringifyRequestBody(requestBody));
-    
-    return { success: true, body: requestBody };
-  } catch (parseError) {
-    console.error("⚠️ Failed to parse request body:", parseError);
+    // Try to parse the JSON
+    try {
+      const requestBody = JSON.parse(text);
+      console.log("Parsed request body:", debugStringifyRequestBody(requestBody));
+      
+      return { success: true, body: requestBody };
+    } catch (jsonError) {
+      console.error("JSON parse error:", jsonError);
+      return { 
+        success: false, 
+        response: createBadRequestResponse(
+          `Invalid JSON in request body: ${jsonError instanceof Error ? jsonError.message : String(jsonError)}`, 
+          updatedCorsHeaders
+        ) 
+      };
+    }
+  } catch (readError) {
+    console.error("Failed to read request body:", readError);
     return { 
       success: false, 
-      response: createBadRequestResponse('Invalid request format: Could not parse JSON body', updatedCorsHeaders) 
+      response: createBadRequestResponse(
+        `Failed to read request body: ${readError instanceof Error ? readError.message : String(readError)}`, 
+        updatedCorsHeaders
+      ) 
     };
   }
 }
@@ -100,9 +126,9 @@ export function validateApiParameters(apiId: string, apiHash: string, phoneNumbe
   console.log(`apiHash: "${trimmedApiHash ? trimmedApiHash.substring(0, 3) + '...' : ''}" (length: ${typeof trimmedApiHash === 'string' ? trimmedApiHash.length : 'N/A'})`);
   console.log(`phoneNumber: "${trimmedPhoneNumber}" (length: ${typeof trimmedPhoneNumber === 'string' ? trimmedPhoneNumber.length : 'N/A'})`);
   
-  // Basic parameter validation
-  if (trimmedApiId === 'undefined' || trimmedApiId === 'null' || trimmedApiId === '') {
-    console.error("⚠️ API ID is empty or invalid:", trimmedApiId);
+  // Basic parameter validation with detailed errors
+  if (!trimmedApiId || trimmedApiId === 'undefined' || trimmedApiId === 'null' || trimmedApiId === '') {
+    console.error("API ID is empty or invalid:", trimmedApiId);
     return {
       isValid: false,
       response: createBadRequestResponse(
@@ -112,8 +138,8 @@ export function validateApiParameters(apiId: string, apiHash: string, phoneNumbe
     };
   }
   
-  if (trimmedApiHash === 'undefined' || trimmedApiHash === 'null' || trimmedApiHash === '') {
-    console.error("⚠️ API Hash is empty or invalid");
+  if (!trimmedApiHash || trimmedApiHash === 'undefined' || trimmedApiHash === 'null' || trimmedApiHash === '') {
+    console.error("API Hash is empty or invalid");
     return {
       isValid: false,
       response: createBadRequestResponse(
@@ -123,10 +149,21 @@ export function validateApiParameters(apiId: string, apiHash: string, phoneNumbe
     };
   }
   
+  if (!trimmedPhoneNumber || trimmedPhoneNumber === 'undefined' || trimmedPhoneNumber === 'null' || trimmedPhoneNumber === '') {
+    console.error("Phone number is empty or invalid");
+    return {
+      isValid: false,
+      response: createBadRequestResponse(
+        `Invalid phone number. Please ensure a valid phoneNumber is provided.`,
+        updatedCorsHeaders
+      )
+    };
+  }
+  
   // Verify API ID is numeric
   const apiIdNum = Number(trimmedApiId);
   if (isNaN(apiIdNum) || apiIdNum <= 0) {
-    console.error("⚠️ API ID is not a valid positive number:", trimmedApiId);
+    console.error("API ID is not a valid positive number:", trimmedApiId);
     return {
       isValid: false,
       response: createBadRequestResponse(
@@ -138,7 +175,7 @@ export function validateApiParameters(apiId: string, apiHash: string, phoneNumbe
   
   // Verify API Hash has reasonable length (Telegram hashes are typically 32 chars)
   if (typeof trimmedApiHash === 'string' && trimmedApiHash.length < 5) {
-    console.error("⚠️ API Hash is suspiciously short:", trimmedApiHash.length, "characters");
+    console.error("API Hash is suspiciously short:", trimmedApiHash.length, "characters");
     return {
       isValid: false,
       response: createBadRequestResponse(
