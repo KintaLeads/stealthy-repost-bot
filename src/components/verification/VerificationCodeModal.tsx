@@ -7,6 +7,8 @@ import { Label } from '@/components/ui/label';
 import { verifyTelegramCode } from '@/services/telegram/verifier';
 import { useApiAccounts } from '@/hooks/useApiAccounts';
 import { toast } from 'sonner';
+import { ApiAccount as DashboardApiAccount } from '@/types/dashboard';
+import { ApiAccount as ChannelsApiAccount } from '@/types/channels';
 
 interface VerificationCodeModalProps {
   isOpen: boolean;
@@ -29,10 +31,10 @@ const VerificationCodeModal: React.FC<VerificationCodeModalProps> = ({
   
   // Get the account from the hooks
   const { accounts } = useApiAccounts(accountId, () => {});
-  const account = accounts.find(acc => acc.id === accountId);
+  const dashboardAccount = accounts.find(acc => acc.id === accountId);
   
   const handleVerify = async () => {
-    if (!account) {
+    if (!dashboardAccount) {
       setError('Account not found. Please try again.');
       return;
     }
@@ -52,8 +54,15 @@ const VerificationCodeModal: React.FC<VerificationCodeModalProps> = ({
         code: verificationCode
       });
       
+      // Convert dashboard account to channels account format
+      const channelsAccount: ChannelsApiAccount = {
+        ...dashboardAccount,
+        createdAt: new Date().toISOString(), // Add required field
+        userId: 'current-user' // Add required field
+      };
+      
       // Call the verification service
-      const success = await verifyTelegramCode(account, verificationCode, {
+      const success = await verifyTelegramCode(channelsAccount, verificationCode, {
         phoneCodeHash: phoneCodeHash
       });
       

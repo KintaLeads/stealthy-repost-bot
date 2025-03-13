@@ -14,7 +14,7 @@ interface AccountFormButtonsProps {
   isConnecting?: boolean;
   onSave: () => void;
   onCancel?: () => void;
-  onToggleConnection?: () => void;
+  onToggleConnection?: () => Promise<any>; // Changed to return Promise<any>
   onShowDebugger: () => void;
   showDebugger: boolean;
 }
