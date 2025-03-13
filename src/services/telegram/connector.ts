@@ -22,10 +22,17 @@ export const handleInitialConnection = async (
     logInfo(context, `📦 Session check - exists: ${!!sessionString}, length: ${sessionString?.length || 0}`);
 
     logInfo(context, `Using values ${account.apiKey}, ${account.apiHash}, ${account.phoneNumber}, ${account.id}`);
+    
+    // Parse apiKey to ensure it's a number
+    const apiId = parseInt(account.apiKey, 10);
+    if (isNaN(apiId)) {
+      throw new Error(`Invalid API ID: "${account.apiKey}" is not a valid number`);
+    }
+    
     // Explicitly build connection data as a separate object for clarity
     const connectionData = {
       operation: 'connect', 
-      apiId: account.apiKey,
+      apiId: apiId,  // Now sending as a number (integer)
       apiHash: account.apiHash,
       phoneNumber: account.phoneNumber,
       accountId: account.id || 'unknown',
