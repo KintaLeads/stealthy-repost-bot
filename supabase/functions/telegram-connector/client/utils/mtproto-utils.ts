@@ -1,3 +1,4 @@
+
 /**
  * Utility functions for MTProto client operations
  */
@@ -9,32 +10,33 @@ import { MTProto } from "../../proto/index.ts";
 export function initializeMTProto(apiId: string, apiHash: string, sessionString: string = ""): MTProto {
   try {
     console.log("=== INITIALIZING MTPROTO CLIENT ===");
-    console.log(`Calling MTProto with:
-      - API ID: "${apiId}" (${typeof apiId})
-      - API Hash: "${apiHash.substring(0, 3)}..." (length: ${apiHash.length})
-      - Session: ${sessionString ? 'provided' : 'none'}`);
     
-    // Final validation before creating client
-    if (!apiId || apiId.trim() === '') {
-      console.error("FATAL: Empty API ID before creating MTProto");
+    // Enhanced validation with descriptive messages
+    if (!apiId || apiId === "undefined" || apiId === "null" || apiId.trim() === '') {
+      console.error("FATAL: Empty API ID before creating MTProto:", apiId);
       throw new Error("API ID cannot be empty");
     }
     
-    if (!apiHash || apiHash.trim() === '') {
+    if (!apiHash || apiHash === "undefined" || apiHash === "null" || apiHash.trim() === '') {
       console.error("FATAL: Empty API Hash before creating MTProto");
       throw new Error("API Hash cannot be empty");
     }
     
-    // Convert apiId to number one more time
+    // Convert apiId to number and validate
     const numericApiId = parseInt(apiId, 10);
     if (isNaN(numericApiId) || numericApiId <= 0) {
-      console.error(`FATAL: Invalid API ID format: "${apiId}"`);
-      throw new Error(`Invalid API ID format: "${apiId}"`);
+      console.error(`FATAL: Invalid API ID format: "${apiId}" (parsed as ${numericApiId})`);
+      throw new Error(`Invalid API ID format: "${apiId}". Must be a positive number.`);
     }
     
+    console.log(`Initializing MTProto with:
+      - API ID: "${apiId}" (${typeof apiId}) -> ${numericApiId} (number)
+      - API Hash: "${apiHash.substring(0, 3)}..." (length: ${apiHash.length})
+      - Session: ${sessionString ? 'provided' : 'none'}`);
+    
     const client = new MTProto({
-      apiId: numericApiId, // Use the numeric version
-      apiHash: apiHash,
+      apiId: numericApiId, // Use the validated numeric version
+      apiHash: apiHash.trim(),
       storageOptions: {
         session: sessionString
       }

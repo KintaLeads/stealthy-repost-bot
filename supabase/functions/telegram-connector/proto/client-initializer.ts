@@ -15,31 +15,52 @@ export function initializeTelegramClient(
 ): { client: TelegramClient; stringSession: StringSession } {
   console.log("Creating TelegramClient instance...");
   
+  // Validate inputs before creating client
+  if (!apiId || apiId === "" || apiId === "undefined" || apiId === "null") {
+    console.error(`Invalid API ID: ${apiId} (${typeof apiId})`);
+    throw new Error(`API ID must be provided, got: ${apiId}`);
+  }
+  
+  if (!apiHash || apiHash === "" || apiHash === "undefined" || apiHash === "null") {
+    console.error(`Invalid API Hash (${typeof apiHash})`);
+    throw new Error(`API Hash must be provided`);
+  }
+  
   // Ensure apiId is a number
   const numericApiId = typeof apiId === 'string' ? parseInt(apiId, 10) : apiId;
   
-  // Validate numeric API ID
+  // Double-check numeric API ID
   if (isNaN(numericApiId) || numericApiId <= 0) {
-    console.error(`Invalid API ID: ${apiId} (${typeof apiId})`);
+    console.error(`Invalid API ID after conversion: ${apiId} -> ${numericApiId}`);
     throw new Error(`API ID must be a positive number, got: ${apiId}`);
   }
+  
+  console.log(`Initializing TelegramClient with:
+    - API ID: ${numericApiId} (parsed from "${apiId}")
+    - API Hash: ${apiHash.substring(0, 3)}... (length: ${apiHash.length})
+    - Session: ${session ? 'provided' : 'none'}`);
   
   // Initialize string session
   const stringSession = new StringSession(session);
   
-  // Create TelegramClient instance with numeric API ID
-  const client = new TelegramClient({
-    apiId: numericApiId,
-    apiHash: apiHash,
-    session: stringSession,
-    connectionRetries: 3,
-    useWSS: true,
-    requestRetries: 3,
-  });
-  
-  console.log(`Telegram client initialized successfully with apiId: ${numericApiId}`);
-  
-  return { client, stringSession };
+  try {
+    // Create TelegramClient instance with validated numeric API ID
+    const client = new TelegramClient({
+      apiId: numericApiId,
+      apiHash: apiHash,
+      session: stringSession,
+      connectionRetries: 3,
+      useWSS: true,
+      requestRetries: 3,
+    });
+    
+    console.log(`Telegram client initialized successfully with apiId: ${numericApiId}`);
+    
+    return { client, stringSession };
+  } catch (error) {
+    console.error("Error creating TelegramClient:", error);
+    throw new Error(`Failed to create TelegramClient: ${error instanceof Error ? error.message : String(error)}`);
+  }
 }
 
 /**

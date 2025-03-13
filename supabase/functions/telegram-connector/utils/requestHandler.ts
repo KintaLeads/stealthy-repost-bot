@@ -67,6 +67,39 @@ export async function parseRequestBody(req: Request): Promise<{ valid: boolean; 
     try {
       const data = JSON.parse(bodyText);
       console.log("Successfully parsed JSON body, keys:", Object.keys(data));
+      
+      // Validate critical fields
+      if (data.operation && (data.operation === 'connect' || data.operation === 'validate')) {
+        if (!data.apiId || data.apiId === 'undefined' || data.apiId === 'null' || data.apiId.trim() === '') {
+          console.error("Missing or invalid apiId in request:", data.apiId);
+          return {
+            valid: false,
+            data,
+            error: 'API ID cannot be empty or invalid'
+          };
+        }
+        
+        if (!data.apiHash || data.apiHash === 'undefined' || data.apiHash === 'null' || data.apiHash.trim() === '') {
+          console.error("Missing or invalid apiHash in request");
+          return {
+            valid: false,
+            data,
+            error: 'API Hash cannot be empty or invalid'
+          };
+        }
+        
+        // Check API ID is a valid number
+        const numericApiId = parseInt(data.apiId, 10);
+        if (isNaN(numericApiId) || numericApiId <= 0) {
+          console.error(`Invalid API ID format in request: "${data.apiId}"`);
+          return {
+            valid: false,
+            data,
+            error: `Invalid API ID format: "${data.apiId}". Must be a positive number.`
+          };
+        }
+      }
+      
       return {
         valid: true,
         data
