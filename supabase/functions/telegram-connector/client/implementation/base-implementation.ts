@@ -11,9 +11,12 @@ export abstract class BaseTelegramImplementation implements Partial<TelegramClie
   protected sessionString: string;
   protected validationClient: ValidationClient;
 
-  constructor(apiId: string, apiHash: string, phoneNumber: string, accountId: string, sessionString: string = "") {
+  constructor(apiId: string | number, apiHash: string, phoneNumber: string, accountId: string, sessionString: string = "") {
+    // Convert apiId to string if it's a number
+    const apiIdStr = String(apiId);
+    
     // Enhanced validation to catch issues early
-    if (!apiId || apiId === "undefined" || apiId === "null" || apiId.trim() === "") {
+    if (!apiIdStr || apiIdStr === "undefined" || apiIdStr === "null" || apiIdStr.trim() === "") {
       console.error("Invalid API ID provided in TelegramClientImplementation constructor:", apiId);
       throw new Error("API ID cannot be empty or undefined");
     }
@@ -24,7 +27,7 @@ export abstract class BaseTelegramImplementation implements Partial<TelegramClie
     }
     
     // Store the trimmed values to prevent whitespace issues
-    this.apiId = apiId.trim();
+    this.apiId = apiIdStr.trim();
     this.apiHash = apiHash.trim();
     this.phoneNumber = phoneNumber;
     this.accountId = accountId;

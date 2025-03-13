@@ -15,19 +15,22 @@ export function initializeTelegramClient(
 ): { client: TelegramClient; stringSession: StringSession } {
   console.log("Creating TelegramClient instance...");
   
+  // Ensure apiId is a string first for validation
+  const apiIdStr = String(apiId || "");
+  
   // Validate inputs before creating client
-  if (!apiId || apiId === "" || apiId === "undefined" || apiId === "null") {
+  if (!apiIdStr || apiIdStr === "" || apiIdStr === "undefined" || apiIdStr === "null" || apiIdStr.trim() === "") {
     console.error(`Invalid API ID: ${apiId} (${typeof apiId})`);
     throw new Error(`API ID must be provided, got: ${apiId}`);
   }
   
-  if (!apiHash || apiHash === "" || apiHash === "undefined" || apiHash === "null") {
+  if (!apiHash || apiHash === "" || apiHash === "undefined" || apiHash === "null" || apiHash.trim() === "") {
     console.error(`Invalid API Hash (${typeof apiHash})`);
     throw new Error(`API Hash must be provided`);
   }
   
-  // Ensure apiId is a number
-  const numericApiId = typeof apiId === 'string' ? parseInt(apiId, 10) : apiId;
+  // Parse string to number
+  const numericApiId = parseInt(apiIdStr, 10);
   
   // Double-check numeric API ID
   if (isNaN(numericApiId) || numericApiId <= 0) {

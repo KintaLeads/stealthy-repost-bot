@@ -14,20 +14,22 @@ export class TelegramClientFactory {
     
     const { apiId, apiHash, phoneNumber, accountId, sessionString = "" } = options;
     
+    // Convert apiId to string if needed and validate
+    const apiIdStr = String(apiId || "");
+    
     // Validate required parameters
-    if (!apiId || apiId === "undefined" || apiId === "null" ) {
+    if (!apiIdStr || apiIdStr === "undefined" || apiIdStr === "null" || apiIdStr.trim() === "") {
       console.error("Invalid API ID provided in client factory:", apiId);
       throw new Error("API ID cannot be empty or undefined");
     }
     
-    if (!apiHash || apiHash === "undefined" || apiHash === "null" ) {
+    if (!apiHash || apiHash === "undefined" || apiHash === "null" || apiHash.trim() === "") {
       console.error("Invalid API Hash provided in client factory");
       throw new Error("API Hash cannot be empty or undefined");
     }
-    // removed trim from validations lol
     
     return new TelegramCombinedImplementation(
-      apiId, 
+      apiIdStr, 
       apiHash, 
       phoneNumber, 
       accountId, 

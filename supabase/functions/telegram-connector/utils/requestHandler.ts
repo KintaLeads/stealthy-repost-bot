@@ -79,7 +79,12 @@ export async function parseRequestBody(req: Request): Promise<{ valid: boolean; 
             error: 'API ID cannot be empty or invalid'
           };
         }
-        // lets just assume that the input is correct lol
+        
+        // Convert apiId to string if it's a number to ensure consistent handling
+        if (typeof data.apiId === 'number') {
+          console.log(`Converting API ID from number to string: ${data.apiId}`);
+          data.apiId = String(data.apiId);
+        }
       }
       
       return {
@@ -115,17 +120,14 @@ export function validateApiParameters(apiId: string | number, apiHash: string, p
   const errors = [];
   const details: Record<string, any> = {};
   
+  // Ensure apiId is always a string for validation
+  const apiIdStr = String(apiId);
+  
   // Check apiId
-  if (apiId === undefined || apiId === null) {
+  if (!apiIdStr) {
     errors.push('API ID is required');
     details.apiId = 'missing';
-  } else if (typeof apiId === 'number') {
-    // If it's already a number, just check if it's valid
-    if (apiId <= 0) {
-      errors.push('API ID must be a positive numeric value');
-      details.apiId = 'invalid_value';
-    }
-  } else if (!/^\d+$/.test(String(apiId))) {
+  } else if (!/^\d+$/.test(apiIdStr)) {
     errors.push('API ID must be a numeric value');
     details.apiId = 'invalid_format';
   }

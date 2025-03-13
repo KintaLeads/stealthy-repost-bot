@@ -9,39 +9,26 @@
 export function validateApiId(apiId: any): number {
   console.log(`Validating API ID: "${apiId}" (${typeof apiId})`);
   
+  // First, convert to string if it's not already
+  const apiIdStr = String(apiId);
+  
   // Strict validation of API ID
-  if (apiId === undefined || apiId === null) {
+  if (!apiIdStr || apiIdStr === "undefined" || apiIdStr === "null" || apiIdStr.trim() === "") {
     console.error(`CRITICAL ERROR: API ID is invalid: "${apiId}"`);
     throw new Error(`API ID cannot be undefined or null, received: ${apiId}`);
   }
   
-  // Ensure API ID is a number 
-  let numericApiId: number;
-  if (typeof apiId === 'string') {
-    console.log(`API ID is a string (${apiId}), converting to number`);
-    numericApiId = parseInt(apiId, 10);
-    
-    if (isNaN(numericApiId)) {
-      console.error(`Failed to parse API ID string "${apiId}" to number`);
-      throw new Error(`Invalid API ID: "${apiId}". Could not convert to number.`);
-    }
-  } else if (typeof apiId === 'number') {
-    console.log(`API ID is already a number (${apiId})`);
-    numericApiId = apiId;
-  } else {
-    // Try to convert other types
-    console.log(`API ID is not a string or number, attempting conversion`);
-    const converted = Number(apiId);
-    if (isNaN(converted)) {
-      console.error(`Failed to convert API ID to number: ${apiId}`);
-      throw new Error(`Invalid API ID: Could not convert to number.`);
-    }
-    numericApiId = converted;
+  // Parse the string to a number
+  const numericApiId = parseInt(apiIdStr, 10);
+  
+  if (isNaN(numericApiId)) {
+    console.error(`Failed to parse API ID string "${apiIdStr}" to number`);
+    throw new Error(`Invalid API ID: "${apiIdStr}". Could not convert to number.`);
   }
   
   // Additional validation for API ID
-  if (isNaN(numericApiId) || numericApiId <= 0) {
-    console.error(`Invalid API ID after conversion: ${apiId} -> ${numericApiId}`);
+  if (numericApiId <= 0) {
+    console.error(`Invalid API ID after conversion: ${apiIdStr} -> ${numericApiId}`);
     throw new Error(`Invalid API ID: ${numericApiId}. Must be a positive number.`);
   }
   
@@ -55,11 +42,14 @@ export function validateApiId(apiId: any): number {
 export function validateApiHash(apiHash: any): string {
   console.log(`Validating API Hash (length: ${apiHash?.length || 0})`);
   
+  // Convert to string if not already
+  const apiHashStr = String(apiHash || "");
+  
   // Strict validation of API Hash
-  if (!apiHash || apiHash === undefined || apiHash === null || apiHash.trim() === '') {
+  if (!apiHashStr || apiHashStr === "undefined" || apiHashStr === "null" || apiHashStr.trim() === '') {
     console.error(`CRITICAL ERROR: API Hash is invalid: "${apiHash}"`);
     throw new Error(`API Hash cannot be undefined, null or empty, received: ${apiHash}`);
   }
   
-  return apiHash.trim();
+  return apiHashStr.trim();
 }
