@@ -21,6 +21,7 @@ export const handleInitialConnection = async (
     const sessionString = getStoredSession(account.id);
     logInfo(context, `📦 Session check - exists: ${!!sessionString}, length: ${sessionString?.length || 0}`);
     
+    // Explicitly build connection data as a separate object for clarity
     const connectionData = {
       operation: 'connect', 
       apiId: account.apiKey,
@@ -70,11 +71,12 @@ export const handleInitialConnection = async (
     
     while (retries <= maxRetries) {
       try {
+        // Make sure to properly stringify the request body
         const { data, error } = await supabase.functions.invoke('telegram-connector', {
-          body: connectionData,
+          body: connectionData, // Supabase SDK will stringify this automatically
           headers: {
             'Content-Type': 'application/json',
-            ...(sessionString ? { 'X-Telegram-Session': sessionString } : {})
+            ...(sessionString ? { 'X-Telegram-Session': 'true' } : {})
           }
         });
         
