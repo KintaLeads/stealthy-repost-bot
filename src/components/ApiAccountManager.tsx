@@ -14,7 +14,7 @@ interface ApiAccountManagerProps {
   selectedAccountId: string | null;
   isConnected?: boolean;
   isConnecting?: boolean;
-  onToggleConnection?: () => void;
+  onToggleConnection?: () => Promise<any>; // Updated to return Promise<any>
 }
 
 const ApiAccountManager: React.FC<ApiAccountManagerProps> = ({ 

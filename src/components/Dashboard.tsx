@@ -38,16 +38,20 @@ const Dashboard: React.FC<DashboardProps> = ({
     console.log("Selected account:", account);
   };
   
-  const handleToggleConnection = () => {
+  const handleToggleConnection = async (): Promise<any> => {
     if (!isConnected) {
       setIsConnecting(true);
-      // Set connecting state to true temporarily, it will be reset by the parent component
-      setTimeout(() => {
-        onToggleConnection();
-        setIsConnecting(false);
-      }, 300);
+      // Return a promise that resolves after toggling the connection
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          onToggleConnection();
+          setIsConnecting(false);
+          resolve({ success: true });
+        }, 300);
+      });
     } else {
       onToggleConnection();
+      return Promise.resolve({ success: true });
     }
   };
   

@@ -8,7 +8,7 @@ interface AccountManagementProps {
   selectedAccountId: string | null;
   isConnected: boolean;
   isConnecting?: boolean;
-  onToggleConnection: () => void;
+  onToggleConnection: () => Promise<any>; // Updated to return Promise<any>
 }
 
 const AccountManagement: React.FC<AccountManagementProps> = ({
