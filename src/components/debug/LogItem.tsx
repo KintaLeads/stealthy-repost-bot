@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Info, AlertTriangle, AlertCircle } from 'lucide-react';
+import { Info, AlertTriangle, AlertCircle, Bug } from 'lucide-react';
 import { LogEntry } from './types';
 
 interface LogItemProps {
@@ -9,11 +9,12 @@ interface LogItemProps {
 
 const LogItem: React.FC<LogItemProps> = ({ log }) => {
   // Function to get icon for log level
-  const getLogIcon = (level: 'info' | 'warn' | 'error') => {
+  const getLogIcon = (level: 'info' | 'warn' | 'error' | 'debug') => {
     switch (level) {
       case 'info': return <Info className="h-4 w-4 text-blue-500" />;
       case 'warn': return <AlertTriangle className="h-4 w-4 text-yellow-500" />;
       case 'error': return <AlertCircle className="h-4 w-4 text-red-500" />;
+      case 'debug': return <Bug className="h-4 w-4 text-purple-500" />;
     }
   };
 
@@ -36,6 +37,7 @@ const LogItem: React.FC<LogItemProps> = ({ log }) => {
     <div className={`p-2 rounded-md ${
       log.level === 'error' ? 'bg-red-100 dark:bg-red-950/20' : 
       log.level === 'warn' ? 'bg-yellow-100 dark:bg-yellow-950/20' : 
+      log.level === 'debug' ? 'bg-purple-100 dark:bg-purple-950/20' :
       'bg-muted/30'
     }`}>
       <div className="flex items-start gap-2">
@@ -45,6 +47,7 @@ const LogItem: React.FC<LogItemProps> = ({ log }) => {
             <span className={`text-xs font-medium ${
               log.level === 'error' ? 'text-red-800 dark:text-red-300' : 
               log.level === 'warn' ? 'text-yellow-800 dark:text-yellow-300' : 
+              log.level === 'debug' ? 'text-purple-800 dark:text-purple-300' :
               'text-muted-foreground'
             }`}>
               {log.level.toUpperCase()}

@@ -4,7 +4,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/componen
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { X } from 'lucide-react';
-import { consoleLogger } from '@/services/telegram/connectionService';
+import { consoleLogger } from '@/services/telegram/debugger';
 import { LogEntry } from './types';
 import LogList from './LogList';
 import ConsoleToolbar from './ConsoleToolbar';
@@ -14,12 +14,13 @@ import { toast } from 'sonner';
 const ConsoleViewer: React.FC = () => {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [isOpen, setIsOpen] = useState(true);
-  const [filter, setFilter] = useState<'all' | 'info' | 'warn' | 'error'>('all');
+  const [filter, setFilter] = useState<'all' | 'info' | 'warn' | 'error' | 'debug'>('all');
   const [autoRefresh, setAutoRefresh] = useState(true);
 
   // Refresh logs from the consoleLogger
   const refreshLogs = () => {
-    setLogs(consoleLogger.getLogs());
+    // Cast to ensure type compatibility after our updates
+    setLogs(consoleLogger.getLogs() as LogEntry[]);
   };
 
   // Effect to auto-refresh logs
@@ -117,11 +118,12 @@ const ConsoleViewer: React.FC = () => {
       
       <Tabs defaultValue="all" className="w-full">
         <div className="px-6 pb-2">
-          <TabsList className="grid grid-cols-5 mb-2">
+          <TabsList className="grid grid-cols-6 mb-2">
             <TabsTrigger value="all" onClick={() => setFilter('all')}>All</TabsTrigger>
             <TabsTrigger value="info" onClick={() => setFilter('info')}>Info</TabsTrigger>
             <TabsTrigger value="warn" onClick={() => setFilter('warn')}>Warnings</TabsTrigger>
             <TabsTrigger value="error" onClick={() => setFilter('error')}>Errors</TabsTrigger>
+            <TabsTrigger value="debug" onClick={() => setFilter('debug')}>Debug</TabsTrigger>
             <TabsTrigger value="payload">API Payload</TabsTrigger>
           </TabsList>
         </div>
@@ -140,6 +142,10 @@ const ConsoleViewer: React.FC = () => {
           </TabsContent>
           
           <TabsContent value="error" className="m-0">
+            <LogList logs={filteredLogs} />
+          </TabsContent>
+          
+          <TabsContent value="debug" className="m-0">
             <LogList logs={filteredLogs} />
           </TabsContent>
           

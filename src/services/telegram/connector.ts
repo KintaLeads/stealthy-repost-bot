@@ -1,7 +1,7 @@
 
 import { ApiAccount } from '@/types/channels';
 import { supabase } from '@/integrations/supabase/client';
-import { logInfo, logError, trackApiCall } from './debugger';
+import { logInfo, logError, trackApiCall, consoleLogger } from './debugger'; // Added consoleLogger import
 import { getStoredSession } from './session/sessionManager';
 import { ConnectionResult } from './types';
 import { toast } from '@/components/ui/use-toast';

@@ -4,7 +4,7 @@
  */
 
 export interface LogEntry {
-  level: 'info' | 'warn' | 'error';
+  level: 'info' | 'warn' | 'error' | 'debug'; // Added 'debug' to match debugger.ts
   timestamp: Date;
   message: string;
   data?: any;
