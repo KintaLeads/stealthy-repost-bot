@@ -1,8 +1,8 @@
 
 import { ApiAccount } from '@/types/channels';
 import { supabase } from '@/integrations/supabase/client';
-import { logInfo, logError, trackApiCall, consoleLogger } from './debugger'; // Added consoleLogger import
-import { getStoredSession } from './session/sessionManager';
+import { logInfo, logError, trackApiCall, consoleLogger } from './debugger';
+import { getStoredSession, storeSession } from './session/sessionManager';
 import { ConnectionResult } from './types';
 import { toast } from '@/components/ui/use-toast';
 
@@ -242,6 +242,11 @@ export const handleInitialConnection = async (
           if (data.codeNeeded) {
             logInfo(context, '📱 Verification code needed');
             
+            // Store phone code hash for verification
+            if (data.phoneCodeHash) {
+              localStorage.setItem(`telegram_code_hash_${account.id}`, data.phoneCodeHash);
+            }
+            
             // Show toast indicating verification needed
             toast({
               title: "Verification Required",
@@ -258,6 +263,12 @@ export const handleInitialConnection = async (
           
           // Connection successful
           logInfo(context, '✅ Connection successful, session received');
+          
+          // Store the session if provided
+          if (data.session) {
+            storeSession(account.id, data.session);
+            logInfo(context, `📦 Session stored for account ${account.id}`);
+          }
           
           // Show success toast
           toast({
