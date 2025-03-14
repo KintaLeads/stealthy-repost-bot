@@ -19,7 +19,7 @@ export function initializeTelegramClient(
   console.log(`[CLIENT-INITIALIZER] Arguments received:
     - apiId: ${apiId} (${typeof apiId})
     - apiHash: ${apiHash?.substring(0, 3)}... (${typeof apiHash}, length: ${apiHash?.length})
-    - session: ${session ? 'provided' : 'none'} (${typeof session})`);
+    - session: ${session ? `length: ${session.length}` : 'empty string'} (${typeof session})`);
   
   // Validate inputs before creating client
   if (apiId === undefined || apiId === null) {
@@ -44,7 +44,7 @@ export function initializeTelegramClient(
   console.log(`Initializing TelegramClient with:
     - API ID: ${numericApiId} (parsed from "${apiId}")
     - API Hash: ${apiHash.substring(0, 3)}... (length: ${apiHash.length})
-    - Session: ${session ? 'provided' : 'none'}`);
+    - Session: ${session ? `length: ${session.length}` : 'empty string'}`);
   
   try {
     // Ensure session is a valid string (empty string if falsy)

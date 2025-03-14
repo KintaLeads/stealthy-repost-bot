@@ -30,9 +30,10 @@ export async function handleCodeVerification(
       const sessionString = client.getSession();
       console.log(`Session after verification (length: ${sessionString?.length || 0})`);
       
+      // Make sure we're returning a string, even if empty
       return {
         success: true,
-        session: sessionString,
+        session: sessionString || "",
         user: verificationResult.user
       };
     } else {
@@ -59,11 +60,14 @@ export function buildVerificationSuccessResponse(
   authState: string,
   user: any
 ): Response {
+  // Ensure session is a string, never undefined or null
+  const sessionString = session || "";
+  
   return new Response(
     JSON.stringify({
       success: true,
       message: "Authentication completed successfully",
-      session: session,
+      session: sessionString,
       authState: authState,
       user: user
     }),
@@ -71,7 +75,7 @@ export function buildVerificationSuccessResponse(
       headers: { 
         ...corsHeaders, 
         "Content-Type": "application/json",
-        "X-Telegram-Session": session,
+        "X-Telegram-Session": sessionString,
         "Access-Control-Expose-Headers": "X-Telegram-Session"
       } 
     }

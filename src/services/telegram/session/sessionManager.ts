@@ -8,17 +8,17 @@ export const getSessionKey = (accountId: string): string => {
   return `${SESSION_KEY_PREFIX}${accountId}`;
 };
 
-export const getStoredSession = (accountId: string): string | null => {
+export const getStoredSession = (accountId: string): string => {
   try {
     const key = getSessionKey(accountId);
     const session = localStorage.getItem(key);
     logInfo("SessionManager", `Session ${session ? 'found' : 'not found'} for account ${accountId}, length: ${session?.length || 0}`);
     
-    // Always return a string or null, never undefined
-    return session;
+    // Always return a string, never null or undefined
+    return session || "";
   } catch (error) {
     logError("SessionManager", "Error getting stored session:", error);
-    return null;
+    return "";
   }
 };
 

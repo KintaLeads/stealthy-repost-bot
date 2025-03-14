@@ -34,13 +34,14 @@ export async function handleInitialConnection(
     }
     
     // If we have a session, connection was successful
-    if (connectResult.session) {
-      return buildAuthenticatedResponse(
-        connectResult.session,
-        client.getAuthState() || "unknown",
-        connectResult.user
-      );
-    }
+    // Ensure we always have a string, even if empty
+    const sessionString = connectResult.session || "";
+    
+    return buildAuthenticatedResponse(
+      sessionString,
+      client.getAuthState() || "unknown",
+      connectResult.user
+    );
     
     // Fallback for unexpected result
     return buildConnectionErrorResponse(
@@ -94,11 +95,14 @@ export function buildAuthenticatedResponse(
   authState: string,
   user: any
 ): Response {
+  // Ensure session is a string, never undefined or null
+  const sessionString = session || "";
+  
   return new Response(
     JSON.stringify({
       success: true,
       message: "Already authenticated",
-      session: session,
+      session: sessionString,
       authState: authState,
       user: user
     }),
@@ -106,7 +110,7 @@ export function buildAuthenticatedResponse(
       headers: { 
         ...corsHeaders, 
         "Content-Type": "application/json",
-        "X-Telegram-Session": session,
+        "X-Telegram-Session": sessionString,
         "Access-Control-Expose-Headers": "X-Telegram-Session"
       } 
     }
