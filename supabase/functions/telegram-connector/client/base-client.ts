@@ -17,6 +17,13 @@ export abstract class BaseClient {
   protected authState: AuthState = "unauthorized";
   
   constructor(apiId: string | number, apiHash: string, phoneNumber: string, accountId: string, sessionString: string = "") {
+    console.log(`[BASE-CLIENT] Constructor received:
+    - apiId: ${apiId} (${typeof apiId})
+    - apiHash: ${apiHash ? apiHash.substring(0, 3) + '...' : 'undefined'} (${typeof apiHash})
+    - phoneNumber: ${phoneNumber ? phoneNumber.substring(0, 4) + '****' : 'none'} (${typeof phoneNumber})
+    - accountId: ${accountId} (${typeof accountId})
+    - sessionString: ${sessionString ? 'provided' : 'none'} (${typeof sessionString})`);
+    
     // Convert apiId to string if needed
     const apiIdStr = String(apiId || "");
     
@@ -39,7 +46,7 @@ export abstract class BaseClient {
     this.accountId = config.accountId;
     this.sessionString = config.sessionString;
     
-    console.log(`BaseClient initialized with:
+    console.log(`[BASE-CLIENT] Initialized with:
       - API ID: "${this.apiId}" (${typeof this.apiId}, length: ${this.apiId.length})
       - API Hash: "${this.apiHash.substring(0, 3)}..." (${typeof this.apiHash}, length: ${this.apiHash.length})
       - Phone Number: "${this.phoneNumber ? this.phoneNumber.substring(0, 4) + '****' : 'none'}"
@@ -58,11 +65,18 @@ export abstract class BaseClient {
    */
   protected initMTProto(): MTProto {
     // Convert apiId to numeric value before initializing
+    console.log(`[BASE-CLIENT] initMTProto: Converting apiId "${this.apiId}" (${typeof this.apiId}) to number`);
+    
     const numericApiId = parseInt(this.apiId, 10);
     if (isNaN(numericApiId) || numericApiId <= 0) {
-      console.error(`Invalid API ID when initializing MTProto: ${this.apiId}`);
+      console.error(`[BASE-CLIENT] Invalid API ID when initializing MTProto: ${this.apiId} (${typeof this.apiId})`);
       throw new Error(`API ID must be a valid positive number, got: ${this.apiId}`);
     }
+    
+    console.log(`[BASE-CLIENT] Calling initializeMTProto with:
+      - apiId: ${numericApiId} (${typeof numericApiId})
+      - apiHash: ${this.apiHash.substring(0, 3)}... (${typeof this.apiHash})
+      - sessionString: ${this.sessionString ? 'provided' : 'none'} (${typeof this.sessionString})`);
     
     this.client = initializeMTProto(numericApiId, this.apiHash, this.sessionString);
     return this.client;

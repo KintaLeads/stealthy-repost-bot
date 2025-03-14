@@ -24,20 +24,39 @@ export class MTProtoClient implements MTProtoInterface {
   
   constructor(options: MTProtoOptions) {
     console.log("==== MTPROTO INITIALIZATION ====");
+    console.log(`[MTPROTO-CLIENT] Constructor received:
+      - apiId: ${options.apiId} (${typeof options.apiId})
+      - apiHash: ${options.apiHash ? options.apiHash.substring(0, 3) + '...' : 'undefined'} (${typeof options.apiHash})
+      - session: ${options.storageOptions.session ? 'provided' : 'none'} (${typeof options.storageOptions.session})`);
     
     // Convert API ID to string first, then validate and convert to number
     const apiIdStr = String(options.apiId || "");
     
     // Validate and convert API ID to number
-    this.apiId = validateApiId(apiIdStr);
+    try {
+      this.apiId = validateApiId(apiIdStr);
+      console.log(`[MTPROTO-CLIENT] apiId validated: ${this.apiId} (${typeof this.apiId})`);
+    } catch (error) {
+      console.error(`[MTPROTO-CLIENT] API ID validation failed: ${error.message}`);
+      throw error;
+    }
     
     // Validate and store API Hash
-    this.apiHash = validateApiHash(options.apiHash);
+    try {
+      this.apiHash = validateApiHash(options.apiHash);
+      console.log(`[MTPROTO-CLIENT] apiHash validated: ${this.apiHash.substring(0, 3)}... (${typeof this.apiHash})`);
+    } catch (error) {
+      console.error(`[MTPROTO-CLIENT] API Hash validation failed: ${error.message}`);
+      throw error;
+    }
     
     // Store session
     this.session = options.storageOptions.session || "";
     
-    console.log(`MTProto initialized with API ID: ${this.apiId} and API Hash: ${this.apiHash.substring(0, 3)}... (length: ${this.apiHash.length})`);
+    console.log(`[MTPROTO-CLIENT] MTProto initialized with:
+      - API ID: ${this.apiId} (${typeof this.apiId})
+      - API Hash: ${this.apiHash.substring(0, 3)}... (length: ${this.apiHash.length})
+      - Session: ${this.session ? 'provided' : 'none'}`);
     
     // Initialize the client
     this.initClient();
@@ -52,16 +71,24 @@ export class MTProtoClient implements MTProtoInterface {
       
       // Final validation before creating the client
       if (!this.apiId || isNaN(this.apiId) || this.apiId <= 0) {
+        console.error(`[MTPROTO-CLIENT] Invalid API ID before client creation: ${this.apiId} (${typeof this.apiId})`);
         throw new Error(`Invalid API ID before client creation: ${this.apiId}`);
       }
       
       if (!this.apiHash || this.apiHash.trim() === '') {
+        console.error(`[MTPROTO-CLIENT] Invalid API Hash before client creation: ${this.apiHash} (${typeof this.apiHash})`);
         throw new Error(`Invalid API Hash before client creation: ${this.apiHash}`);
       }
       
+      // Log right before client initialization
+      console.log(`[MTPROTO-CLIENT] Calling initializeTelegramClient with:
+        - apiId: ${this.apiId} (${typeof this.apiId})
+        - apiHash: ${this.apiHash.substring(0, 3)}... (${typeof this.apiHash})
+        - session: ${this.session ? 'provided' : 'none'} (${typeof this.session})`);
+      
       // Initialize client using the client initializer
       const { client, stringSession } = initializeTelegramClient(
-        this.apiId,
+        this.apiId,  // This should be a number at this point
         this.apiHash,
         this.session
       );
@@ -69,10 +96,10 @@ export class MTProtoClient implements MTProtoInterface {
       this.client = client;
       this.stringSession = stringSession;
       
-      console.log("Telegram client initialized successfully");
+      console.log("[MTPROTO-CLIENT] Telegram client initialized successfully");
     } catch (error) {
-      console.error("Error initializing Telegram client:", error);
-      console.error("Stack trace:", error instanceof Error ? error.stack : "No stack trace");
+      console.error("[MTPROTO-CLIENT] Error initializing Telegram client:", error);
+      console.error("[MTPROTO-CLIENT] Stack trace:", error instanceof Error ? error.stack : "No stack trace");
       throw error;
     }
   }

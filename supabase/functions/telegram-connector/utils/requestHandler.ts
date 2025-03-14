@@ -1,3 +1,4 @@
+
 /**
  * Request handling utilities for the Telegram connector functions
  */
@@ -52,35 +53,40 @@ export async function parseRequestBody(req: Request): Promise<{ valid: boolean; 
       };
     }
     
-    // Check if the body is empty
-    /*if (!bodyText || bodyText.trim() === '') {
-      console.error("Request body is empty or only whitespace");
-      return {
-        valid: false,
-        data: null,
-        error: 'Request body is empty'
-      };
-    }*/
-    
     // Try to parse the body as JSON
     try {
       const data = JSON.parse(bodyText);
-      console.log("Successfully parsed JSON body, keys:", Object.keys(data));
+      console.log("[REQUEST-HANDLER] Successfully parsed JSON body, keys:", Object.keys(data));
+      
+      // Log the entire request payload with types for debugging
+      console.log("[REQUEST-HANDLER] Full request payload with types:");
+      if (data.apiId !== undefined) {
+        console.log(`- apiId: ${data.apiId} (${typeof data.apiId})`);
+      }
+      if (data.apiHash !== undefined) {
+        console.log(`- apiHash: ${data.apiHash.substring(0, 3)}... (${typeof data.apiHash}, length: ${data.apiHash.length})`);
+      }
+      if (data.phoneNumber !== undefined) {
+        console.log(`- phoneNumber: ${data.phoneNumber.substring(0, 4)}**** (${typeof data.phoneNumber})`);
+      }
+      if (data.accountId !== undefined) {
+        console.log(`- accountId: ${data.accountId} (${typeof data.accountId})`);
+      }
+      if (data.operation !== undefined) {
+        console.log(`- operation: ${data.operation} (${typeof data.operation})`);
+      }
       
       // Validate critical fields
       if (data.operation && (data.operation === 'connect' || data.operation === 'validate')) {
         // Handle apiId which can be number or string
         if (data.apiId === undefined || data.apiId === null) {
-          console.error("Missing apiId in request");
+          console.error("[REQUEST-HANDLER] Missing apiId in request");
           return {
             valid: false,
             data,
             error: 'API ID cannot be empty or invalid'
           };
         }
-        
-        // If apiId is a number, keep it as a number - don't convert to string
-        // Later validation functions will handle the conversion appropriately
       }
       
       return {
@@ -88,7 +94,7 @@ export async function parseRequestBody(req: Request): Promise<{ valid: boolean; 
         data
       };
     } catch (parseError) {
-      console.error("Failed to parse JSON:", parseError);
+      console.error("[REQUEST-HANDLER] Failed to parse JSON:", parseError);
       return {
         valid: false,
         data: bodyText,
@@ -96,7 +102,7 @@ export async function parseRequestBody(req: Request): Promise<{ valid: boolean; 
       };
     }
   } catch (error) {
-    console.error("Unexpected error in parseRequestBody:", error);
+    console.error("[REQUEST-HANDLER] Unexpected error in parseRequestBody:", error);
     return {
       valid: false,
       data: null,
@@ -115,6 +121,11 @@ export function validateApiParameters(apiId: string | number, apiHash: string, p
 } {
   const errors = [];
   const details: Record<string, any> = {};
+  
+  console.log("[REQUEST-HANDLER] validateApiParameters received:");
+  console.log(`- apiId: ${apiId} (${typeof apiId})`);
+  console.log(`- apiHash: ${apiHash?.substring(0, 3)}... (${typeof apiHash}, length: ${apiHash?.length})`);
+  console.log(`- phoneNumber: ${phoneNumber?.substring(0, 4)}**** (${typeof phoneNumber})`);
   
   // Ensure apiId is always a string for validation
   const apiIdStr = String(apiId);

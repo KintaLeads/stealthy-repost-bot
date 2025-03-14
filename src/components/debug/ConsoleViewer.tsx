@@ -8,6 +8,7 @@ import { consoleLogger } from '@/services/telegram/connectionService';
 import { LogEntry } from './types';
 import LogList from './LogList';
 import ConsoleToolbar from './ConsoleToolbar';
+import ApiPayloadTracker from './ApiPayloadTracker';
 import { toast } from 'sonner';
 
 const ConsoleViewer: React.FC = () => {
@@ -116,11 +117,12 @@ const ConsoleViewer: React.FC = () => {
       
       <Tabs defaultValue="all" className="w-full">
         <div className="px-6 pb-2">
-          <TabsList className="grid grid-cols-4 mb-2">
+          <TabsList className="grid grid-cols-5 mb-2">
             <TabsTrigger value="all" onClick={() => setFilter('all')}>All</TabsTrigger>
             <TabsTrigger value="info" onClick={() => setFilter('info')}>Info</TabsTrigger>
             <TabsTrigger value="warn" onClick={() => setFilter('warn')}>Warnings</TabsTrigger>
             <TabsTrigger value="error" onClick={() => setFilter('error')}>Errors</TabsTrigger>
+            <TabsTrigger value="payload">API Payload</TabsTrigger>
           </TabsList>
         </div>
         
@@ -139,6 +141,10 @@ const ConsoleViewer: React.FC = () => {
           
           <TabsContent value="error" className="m-0">
             <LogList logs={filteredLogs} />
+          </TabsContent>
+          
+          <TabsContent value="payload" className="m-0">
+            <ApiPayloadTracker />
           </TabsContent>
         </CardContent>
       </Tabs>

@@ -1,3 +1,4 @@
+
 // Authentication implementation for Telegram client
 import { BaseTelegramImplementation } from "./base-implementation.ts";
 import { AuthClient } from "../auth-client.ts";
@@ -6,19 +7,38 @@ import { AuthState } from "../types.ts";
 export class AuthImplementation extends BaseTelegramImplementation {
   private authClient: AuthClient | null = null;
   
-  constructor(apiId: string, apiHash: string, phoneNumber: string, accountId: string, sessionString: string = "") {
+  constructor(apiId: string | number, apiHash: string, phoneNumber: string, accountId: string, sessionString: string = "") {
     super(apiId, apiHash, phoneNumber, accountId, sessionString);
-    console.log("Creating AuthImplementation");
+    console.log(`[AUTH-IMPLEMENTATION] Creating AuthImplementation with:
+      - apiId: ${apiId} (${typeof apiId})
+      - apiHash: ${apiHash?.substring(0, 3)}... (${typeof apiHash})
+      - phoneNumber: ${phoneNumber?.substring(0, 4)}**** (${typeof phoneNumber})
+      - accountId: ${accountId} (${typeof accountId})
+      - sessionString: ${sessionString ? 'provided' : 'none'} (${typeof sessionString})`);
   }
   
   // Method to get auth client (lazy loading)
   async getAuthClient(): Promise<AuthClient> {
     if (!this.authClient) {
+      console.log(`[AUTH-IMPLEMENTATION] Creating new AuthClient instance`);
+      
       // Validate credentials again before creating the client
-      if (!this.apiId || !this.apiHash) {
-        console.error("Cannot create AuthClient: Missing API credentials");
-        throw new Error("API ID and Hash must be provided to create AuthClient");
+      if (!this.apiId) {
+        console.error("[AUTH-IMPLEMENTATION] Cannot create AuthClient: Missing API ID");
+        throw new Error("API ID must be provided to create AuthClient");
       }
+      
+      if (!this.apiHash) {
+        console.error("[AUTH-IMPLEMENTATION] Cannot create AuthClient: Missing API Hash");
+        throw new Error("API Hash must be provided to create AuthClient");
+      }
+      
+      console.log(`[AUTH-IMPLEMENTATION] Creating AuthClient with:
+        - apiId: ${this.apiId} (${typeof this.apiId})
+        - apiHash: ${this.apiHash.substring(0, 3)}... (${typeof this.apiHash})
+        - phoneNumber: ${this.phoneNumber?.substring(0, 4)}**** (${typeof this.phoneNumber})
+        - accountId: ${this.accountId} (${typeof this.accountId})
+        - sessionString: ${this.sessionString ? 'provided' : 'none'} (${typeof this.sessionString})`);
       
       this.authClient = new AuthClient(
         this.apiId, 
@@ -39,8 +59,18 @@ export class AuthImplementation extends BaseTelegramImplementation {
   
   // Method to connect to Telegram
   async connect(): Promise<{ success: boolean; codeNeeded?: boolean; phoneCodeHash?: string; error?: string; session?: string; _testCode?: string; user?: any }> {
-    const authClient = await this.getAuthClient();
-    return authClient.startAuthentication();
+    console.log(`[AUTH-IMPLEMENTATION] Connect method called`);
+    try {
+      const authClient = await this.getAuthClient();
+      console.log(`[AUTH-IMPLEMENTATION] Got AuthClient instance, calling startAuthentication()`);
+      return authClient.startAuthentication();
+    } catch (error) {
+      console.error(`[AUTH-IMPLEMENTATION] Exception during authentication:`, error);
+      return {
+        success: false,
+        error: `Exception during authentication: ${error instanceof Error ? error.message : String(error)}`
+      };
+    }
   }
   
   // Method to verify code
@@ -69,9 +99,9 @@ export class AuthImplementation extends BaseTelegramImplementation {
       // Disconnect validation client (handled by parent)
       await this.validationClient.disconnect();
       
-      console.log("AuthImplementation disconnected");
+      console.log("[AUTH-IMPLEMENTATION] AuthImplementation disconnected");
     } catch (error) {
-      console.error("Error disconnecting AuthImplementation:", error);
+      console.error("[AUTH-IMPLEMENTATION] Error disconnecting AuthImplementation:", error);
     }
   }
 }

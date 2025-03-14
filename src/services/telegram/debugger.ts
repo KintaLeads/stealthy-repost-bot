@@ -11,6 +11,22 @@ export class ConsoleDebugger {
     data?: any
   }> = [];
   
+  private apiPayloads: Array<{
+    timestamp: Date,
+    filePath: string, 
+    functionName: string,
+    stage: string,
+    apiId: {
+      value: any,
+      type: string
+    },
+    apiHash: {
+      value: string,
+      type: string
+    },
+    otherData?: any
+  }> = [];
+  
   private originalConsoleMethods: {
     log: typeof console.log;
     warn: typeof console.warn;
@@ -99,10 +115,15 @@ export class ConsoleDebugger {
   
   public clearLogs() {
     this.logs = [];
+    this.apiPayloads = [];
   }
   
   public getErrorLogs() {
     return this.logs.filter(log => log.level === 'error');
+  }
+  
+  public getApiPayloads() {
+    return [...this.apiPayloads];
   }
   
   public logWithContext(level: 'info' | 'warn' | 'error', context: string, message: string, data?: any) {
@@ -140,6 +161,45 @@ export class ConsoleDebugger {
       });
     }
   }
+  
+  /**
+   * Track API credentials as they move through the system
+   */
+  public trackApiCredentials(
+    filePath: string,
+    functionName: string,
+    stage: string,
+    apiId: any,
+    apiHash: any,
+    otherData?: any
+  ) {
+    // Create a payload entry with types and values
+    const payloadEntry = {
+      timestamp: new Date(),
+      filePath,
+      functionName,
+      stage,
+      apiId: {
+        value: apiId instanceof Error ? apiId.message : apiId,
+        type: typeof apiId
+      },
+      apiHash: {
+        value: typeof apiHash === 'string' ? (apiHash.length > 6 ? `${apiHash.substring(0, 6)}...` : apiHash) : String(apiHash),
+        type: typeof apiHash
+      },
+      otherData
+    };
+    
+    // Log the credentials for immediate visibility
+    console.log(`[API CREDENTIALS TRACKER] ${filePath} - ${functionName} - ${stage}`, {
+      apiId: payloadEntry.apiId,
+      apiHash: payloadEntry.apiHash,
+      otherData
+    });
+    
+    // Add to our tracked payloads
+    this.apiPayloads.push(payloadEntry);
+  }
 }
 
 // Initialize the console debugger
@@ -156,3 +216,5 @@ export const logError = (context: string, message: string, data?: any) =>
   consoleLogger.logWithContext('error', context, message, data);
 
 export const trackApiCall = consoleLogger.trackApiCall.bind(consoleLogger);
+
+export const trackApiCredentials = consoleLogger.trackApiCredentials.bind(consoleLogger);
