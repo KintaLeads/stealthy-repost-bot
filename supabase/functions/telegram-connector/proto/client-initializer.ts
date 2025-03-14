@@ -2,8 +2,8 @@
 /**
  * Handles Telegram client initialization
  */
-import { TelegramClient } from "https://esm.sh/telegram@2.19.10";
-import { StringSession } from "https://esm.sh/telegram@2.19.10/sessions";
+import { TelegramClient } from "telegram";
+import { StringSession } from "telegram/sessions";
 
 /**
  * Initialize a new Telegram client instance
@@ -48,7 +48,6 @@ export function initializeTelegramClient(
   
   try {
     // Create a StringSession with the given session string (if any)
-    // If session is empty or falsy, it will create a new, empty StringSession
     const stringSession = new StringSession(session || "");
     
     console.log(`Created StringSession successfully.
