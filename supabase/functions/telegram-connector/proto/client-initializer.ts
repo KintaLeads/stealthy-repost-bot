@@ -77,7 +77,16 @@ export function initializeTelegramClient(
       })
     );
     
-    const client = new TelegramClient(clientOptions);
+    const client = new TelegramClient(
+      stringSession,     // Session
+      numericApiId,      // API ID as number
+      apiHash,           // API Hash
+      {                  // Options
+        connectionRetries: 3,
+        useWSS: true,
+        requestRetries: 3,
+      }
+    );
     
     console.log(`Telegram client initialized successfully with apiId: ${numericApiId}`);
     

@@ -7,22 +7,6 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { RefreshCw } from 'lucide-react';
 
-interface ApiPayloadEntry {
-  timestamp: Date;
-  filePath: string;
-  functionName: string;
-  stage: string;
-  apiId: {
-    value: any;
-    type: string;
-  };
-  apiHash: {
-    value: string;
-    type: string;
-  };
-  otherData?: any;
-}
-
 const ApiPayloadTracker: React.FC = () => {
   const [refresh, setRefresh] = React.useState(0);
   const payloads = consoleLogger.getApiPayloads();
@@ -69,8 +53,8 @@ const ApiPayloadTracker: React.FC = () => {
   );
 };
 
-const PayloadCard: React.FC<{ payload: ApiPayloadEntry; index: number }> = ({ payload, index }) => {
-  const { timestamp, filePath, functionName, stage, apiId, apiHash, otherData } = payload;
+const PayloadCard: React.FC<{ payload: any; index: number }> = ({ payload, index }) => {
+  const { timestamp, filePath, functionName, stage, apiId, apiHash, phoneNumber, otherData } = payload;
   
   // Format time
   const formattedTime = new Date(timestamp).toLocaleTimeString();
@@ -78,6 +62,7 @@ const PayloadCard: React.FC<{ payload: ApiPayloadEntry; index: number }> = ({ pa
   // Determine badges based on types
   const apiIdTypeBadge = getBadgeVariant(apiId.type);
   const apiHashTypeBadge = getBadgeVariant(apiHash.type);
+  const phoneNumberTypeBadge = getBadgeVariant(phoneNumber?.type || 'undefined');
   
   // Format file path for better display
   const shortFilePath = getShortFileName(filePath);
@@ -103,7 +88,7 @@ const PayloadCard: React.FC<{ payload: ApiPayloadEntry; index: number }> = ({ pa
           <div className="text-muted-foreground text-[10px]">{functionName}</div>
         </div>
         
-        <div className="grid grid-cols-2 gap-1 mt-2">
+        <div className="grid grid-cols-3 gap-1 mt-2">
           <div>
             <div className="flex gap-1 items-center">
               <span>API ID:</span>
@@ -125,6 +110,18 @@ const PayloadCard: React.FC<{ payload: ApiPayloadEntry; index: number }> = ({ pa
             </div>
             <div className="bg-muted/50 rounded px-1 py-0.5 mt-0.5 font-mono text-[10px] break-all">
               {apiHash.value}
+            </div>
+          </div>
+          
+          <div>
+            <div className="flex gap-1 items-center">
+              <span>Phone:</span>
+              <Badge variant={phoneNumberTypeBadge} className="text-[10px] h-4">
+                {phoneNumber?.type || 'undefined'}
+              </Badge>
+            </div>
+            <div className="bg-muted/50 rounded px-1 py-0.5 mt-0.5 font-mono text-[10px] break-all">
+              {phoneNumber?.value || 'missing'}
             </div>
           </div>
         </div>
@@ -167,7 +164,7 @@ const getBadgeVariant = (type: string): "default" | "secondary" | "destructive" 
 const getStageBadgeVariant = (stage: string): "default" | "secondary" | "destructive" | "outline" => {
   if (stage.includes('start')) return 'secondary';
   if (stage.includes('validated')) return 'default';
-  if (stage.includes('error') || stage.includes('failed')) return 'destructive';
+  if (stage.includes('error')) return 'destructive';
   if (stage.includes('before')) return 'outline';
   if (stage.includes('after')) return 'default';
   return 'outline';

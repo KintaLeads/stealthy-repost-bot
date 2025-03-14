@@ -21,13 +21,33 @@ export const handleInitialConnection = async (
     const sessionString = getStoredSession(account.id);
     logInfo(context, `📦 Session check - exists: ${!!sessionString}, length: ${sessionString?.length || 0}`);
 
-    logInfo(context, `Using values ${account.apiKey}, ${account.apiHash}, ${account.phoneNumber}, ${account.id}`);
+    // Log the account data for debugging
+    consoleLogger.trackApiPayload(
+      'services/telegram/connector.ts',
+      'handleInitialConnection',
+      'start-connection',
+      account.apiKey,
+      account.apiHash,
+      account.phoneNumber,
+      { accountId: account.id, sessionExists: !!sessionString }
+    );
     
     // Parse apiKey to ensure it's a number
     const apiId = parseInt(account.apiKey, 10);
     if (isNaN(apiId)) {
       throw new Error(`Invalid API ID: "${account.apiKey}" is not a valid number`);
     }
+    
+    // Log after conversion
+    consoleLogger.trackApiPayload(
+      'services/telegram/connector.ts',
+      'handleInitialConnection',
+      'after-conversion',
+      apiId,
+      account.apiHash,
+      account.phoneNumber,
+      { accountId: account.id, originalApiKey: account.apiKey }
+    );
     
     // Explicitly build connection data as a separate object for clarity
     const connectionData = {
@@ -59,6 +79,20 @@ export const handleInitialConnection = async (
       description: "Please wait while we establish a connection...",
     });
     
+    // Track the constructed payload
+    consoleLogger.trackApiPayload(
+      'services/telegram/connector.ts',
+      'handleInitialConnection',
+      'before-api-call',
+      connectionData.apiId,
+      connectionData.apiHash,
+      connectionData.phoneNumber,
+      { 
+        operation: connectionData.operation,
+        accountId: connectionData.accountId
+      }
+    );
+    
     // Add retries for better reliability
     let retries = 0;
     const maxRetries = 2;
@@ -76,9 +110,9 @@ export const handleInitialConnection = async (
         const anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVzd2ZyemRxeHNhaXprZHN3eGZuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA5ODM2ODQsImV4cCI6MjA1NjU1OTY4NH0.2onrHJHapQZbqi7RgsuK7A6G5xlJrNSgRv21_mUT7ik';
         
         console.log(`Sending direct fetch to ${requestUrl}`, {
-          apiId: account.apiKey,
-          phoneNumber: account.phoneNumber,
-          accountId: account.id,
+          apiId: connectionData.apiId,
+          phoneNumber: connectionData.phoneNumber,
+          accountId: connectionData.accountId,
           sessionPresent: !!sessionString
         });
         
@@ -105,6 +139,21 @@ export const handleInitialConnection = async (
             console.error('Test connection failed:', testData);
           }
         }
+        
+        // Track the finalized payload right before sending
+        consoleLogger.trackApiPayload(
+          'services/telegram/connector.ts',
+          'handleInitialConnection',
+          'sending-request',
+          connectionData.apiId,
+          connectionData.apiHash,
+          connectionData.phoneNumber,
+          { 
+            endpoint: requestUrl,
+            attempt: retries + 1,
+            totalAttempts: maxRetries + 1
+          }
+        );
         
         // Make the actual request with the full data
         const response = await fetch(requestUrl, {

@@ -125,11 +125,38 @@ Deno.serve(async (req) => {
     // Log operation being attempted
     console.log(`🎯 Attempting operation: ${data.operation}`);
     
+    // Log API credential details
+    if (data.apiId !== undefined) {
+      debugCheckValue('apiId', data.apiId);
+    }
+    
+    if (data.apiHash !== undefined) {
+      console.log('apiHash exists:', {
+        type: typeof data.apiHash,
+        length: data.apiHash?.length,
+        isEmpty: data.apiHash === '',
+        isUndefined: data.apiHash === undefined,
+        isNull: data.apiHash === null,
+        snippet: data.apiHash?.substring(0, 5) + '...'
+      });
+    }
+    
+    if (data.phoneNumber !== undefined) {
+      console.log('phoneNumber exists:', {
+        type: typeof data.phoneNumber,
+        length: data.phoneNumber?.length,
+        isEmpty: data.phoneNumber === '',
+        isUndefined: data.phoneNumber === undefined,
+        isNull: data.phoneNumber === null,
+        snippet: data.phoneNumber?.substring(0, 4) + '****'
+      });
+    }
+    
     // Route the request to the appropriate handler
     const response = await routeOperation(
       data.operation,
       {
-        apiId: data.apiId || '',
+        apiId: data.apiId,
         apiHash: data.apiHash || '',
         phoneNumber: data.phoneNumber || '',
         accountId: data.accountId || 'temp',
