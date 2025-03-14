@@ -44,4 +44,3 @@ export async function checkAuthentication(client: MTProto): Promise<boolean> {
     return false;
   }
 }
-

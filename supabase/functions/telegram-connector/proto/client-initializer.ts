@@ -46,10 +46,11 @@ export function initializeTelegramClient(
     - API Hash: ${apiHash.substring(0, 3)}... (length: ${apiHash.length})
     - Session: ${session ? 'provided' : 'none'}`);
   
-  // Initialize string session
-  const stringSession = new StringSession(session);
-  
   try {
+    // Initialize string session - ensure it's a properly created StringSession object
+    const stringSession = new StringSession(session || "");
+    console.log(`[CLIENT-INITIALIZER] Created StringSession instance (using ${session ? 'provided session string' : 'empty session'})`);
+    
     // Create TelegramClient instance with validated numeric API ID
     console.log(`[CLIENT-INITIALIZER] About to create TelegramClient:
       - apiId: ${numericApiId} (type: ${typeof numericApiId})
@@ -67,12 +68,14 @@ export function initializeTelegramClient(
         apiId: numericApiId,
         apiIdType: typeof numericApiId,
         apiHashPrefix: apiHash.substring(0, 3),
-        apiHashType: typeof apiHash
+        apiHashType: typeof apiHash,
+        sessionType: stringSession.constructor.name
       })
     );
     
+    // Explicitly pass a StringSession instance as the first parameter
     const client = new TelegramClient(
-      stringSession,     // Session
+      stringSession,     // Session - must be a StringSession instance
       numericApiId,      // API ID as number
       apiHash,           // API Hash
       clientOptions      // Options
@@ -83,6 +86,11 @@ export function initializeTelegramClient(
     return { client, stringSession };
   } catch (error) {
     console.error("Error creating TelegramClient:", error);
+    if (error instanceof Error) {
+      console.error("Error name:", error.name);
+      console.error("Error message:", error.message);
+      console.error("Error stack:", error.stack);
+    }
     throw new Error(`Failed to create TelegramClient: ${error instanceof Error ? error.message : String(error)}`);
   }
 }

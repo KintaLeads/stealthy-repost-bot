@@ -9,8 +9,13 @@ export class AuthImplementation extends BaseTelegramImplementation {
   
   constructor(apiId: string | number, apiHash: string, phoneNumber: string, accountId: string, sessionString: string = "") {
     super(apiId, apiHash, phoneNumber, accountId, sessionString);
+    
+    // Parse apiId to number if it's a string
+    const numericApiId = typeof apiId === 'number' ? apiId : parseInt(String(apiId), 10);
+    
     console.log(`[AUTH-IMPLEMENTATION] Creating AuthImplementation with:
-      - apiId: ${apiId} (${typeof apiId})
+      - apiId (original): ${apiId} (${typeof apiId})
+      - apiId (numeric): ${numericApiId} (${typeof numericApiId})
       - apiHash: ${apiHash?.substring(0, 3)}... (${typeof apiHash})
       - phoneNumber: ${phoneNumber?.substring(0, 4)}**** (${typeof phoneNumber})
       - accountId: ${accountId} (${typeof accountId})
@@ -38,15 +43,22 @@ export class AuthImplementation extends BaseTelegramImplementation {
         throw new Error("Phone Number must be provided to create AuthClient");
       }
       
+      // Convert API ID to numeric
+      const numericApiId = parseInt(this.apiId, 10);
+      if (isNaN(numericApiId) || numericApiId <= 0) {
+        console.error("[AUTH-IMPLEMENTATION] Invalid API ID:", this.apiId);
+        throw new Error(`API ID must be a valid number, got: ${this.apiId}`);
+      }
+      
       console.log(`[AUTH-IMPLEMENTATION] Creating AuthClient with:
-        - apiId: ${this.apiId} (${typeof this.apiId})
+        - apiId (numeric): ${numericApiId} (${typeof numericApiId})
         - apiHash: ${this.apiHash.substring(0, 3)}... (${typeof this.apiHash})
         - phoneNumber: ${this.phoneNumber?.substring(0, 4)}**** (${typeof this.phoneNumber})
         - accountId: ${this.accountId} (${typeof this.accountId})
         - sessionString: ${this.sessionString ? 'provided' : 'none'} (${typeof this.sessionString})`);
       
       this.authClient = new AuthClient(
-        this.apiId, 
+        numericApiId, // Pass as number
         this.apiHash, 
         this.phoneNumber, 
         this.accountId, 
