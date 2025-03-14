@@ -47,32 +47,30 @@ export function initializeTelegramClient(
     - Session: ${session ? 'provided' : 'none'}`);
   
   try {
-    // Initialize StringSession correctly - using empty string if no session provided
+    // Create StringSession - ALWAYS create a new StringSession instance, 
+    // even if the session string is empty
     const cleanSessionString = session || "";
+    
+    // First create a valid StringSession instance
     const stringSession = new StringSession(cleanSessionString);
+    
+    // Verify that stringSession is a valid StringSession instance
+    if (!(stringSession instanceof StringSession)) {
+      console.error("Failed to create a valid StringSession instance:", stringSession);
+      throw new Error("Failed to create a valid StringSession instance");
+    }
     
     console.log(`[CLIENT-INITIALIZER] Created StringSession instance:
       - Session string length: ${cleanSessionString.length}
       - Session instance type: ${stringSession.constructor.name}
       - Is StringSession instance: ${stringSession instanceof StringSession}`);
     
-    // Create TelegramClient instance with validated numeric API ID
-    console.log(`[CLIENT-INITIALIZER] About to create TelegramClient:
-      - apiId: ${numericApiId} (type: ${typeof numericApiId})
-      - apiHash: ${apiHash.substring(0, 3)}... (type: ${typeof apiHash})
-      - session: Instance of ${stringSession.constructor.name}`);
-      
     // IMPORTANT: Always create new object here to avoid reference issues
     const clientOptions = {
       connectionRetries: 3,
       useWSS: true,
       requestRetries: 3,
     };
-    
-    // Verify stringSession is a valid instance before proceeding
-    if (!(stringSession instanceof StringSession)) {
-      throw new Error(`Failed to create a proper StringSession instance`);
-    }
     
     console.log(`[CLIENT-INITIALIZER] Final client options:`, 
       JSON.stringify({
@@ -84,9 +82,10 @@ export function initializeTelegramClient(
       })
     );
     
-    // Explicitly pass the StringSession instance as the first parameter
+    // Create TelegramClient with the verified StringSession instance
+    // Note: TelegramClient constructor MUST receive an INSTANCE of a StringSession, not a string
     const client = new TelegramClient(
-      stringSession,     // Session - must be a StringSession instance
+      stringSession,     // StringSession instance (not a string)
       numericApiId,      // API ID as number
       apiHash,           // API Hash
       clientOptions      // Options
