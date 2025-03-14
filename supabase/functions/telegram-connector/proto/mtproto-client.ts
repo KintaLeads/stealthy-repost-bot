@@ -1,4 +1,3 @@
-
 /**
  * MTProto client implementation for Telegram API
  * Using GramJS for Deno
@@ -27,7 +26,7 @@ export class MTProtoClient implements MTProtoInterface {
     console.log(`[MTPROTO-CLIENT] Constructor received:
       - apiId: ${options.apiId} (${typeof options.apiId})
       - apiHash: ${options.apiHash ? options.apiHash.substring(0, 3) + '...' : 'undefined'} (${typeof options.apiHash})
-      - session: ${options.storageOptions.session ? 'provided' : 'none'} (${typeof options.storageOptions.session})`);
+      - session: ${options.storageOptions.session ? `length: ${options.storageOptions.session.length}` : 'empty string'} (${typeof options.storageOptions.session})`);
     
     // Convert API ID to string first, then validate and convert to number
     const apiIdStr = String(options.apiId || "");
@@ -50,13 +49,13 @@ export class MTProtoClient implements MTProtoInterface {
       throw error;
     }
     
-    // Store session
+    // Store session - ensure it's a string, never undefined or null
     this.session = options.storageOptions.session || "";
     
     console.log(`[MTPROTO-CLIENT] MTProto initialized with:
       - API ID: ${this.apiId} (${typeof this.apiId})
       - API Hash: ${this.apiHash.substring(0, 3)}... (length: ${this.apiHash.length})
-      - Session: ${this.session ? 'provided' : 'none'}`);
+      - Session: ${this.session ? `length: ${this.session.length}` : 'empty string'}`);
     
     // Initialize the client
     this.initClient();
@@ -84,7 +83,7 @@ export class MTProtoClient implements MTProtoInterface {
       console.log(`[MTPROTO-CLIENT] Calling initializeTelegramClient with:
         - apiId: ${this.apiId} (${typeof this.apiId})
         - apiHash: ${this.apiHash.substring(0, 3)}... (${typeof this.apiHash})
-        - session: ${this.session ? 'provided' : 'none'} (${typeof this.session})`);
+        - session: ${this.session ? `length: ${this.session.length}` : 'empty string'} (${typeof this.session})`);
       
       // Initialize client using the client initializer
       const { client, stringSession } = initializeTelegramClient(
@@ -97,6 +96,10 @@ export class MTProtoClient implements MTProtoInterface {
       this.stringSession = stringSession;
       
       console.log("[MTPROTO-CLIENT] Telegram client initialized successfully");
+      
+      // Debug the type of stringSession to verify it's correct
+      console.log(`[MTPROTO-CLIENT] StringSession type: ${this.stringSession ? this.stringSession.constructor.name : 'null'}`);
+      console.log(`[MTPROTO-CLIENT] Is stringSession an instance of StringSession: ${this.stringSession instanceof StringSession}`);
     } catch (error) {
       console.error("[MTPROTO-CLIENT] Error initializing Telegram client:", error);
       console.error("[MTPROTO-CLIENT] Stack trace:", error instanceof Error ? error.stack : "No stack trace");
@@ -112,7 +115,25 @@ export class MTProtoClient implements MTProtoInterface {
       throw new Error("Client not initialized");
     }
     
-    return exportClientSession(this.stringSession);
+    try {
+      // Explicitly verify stringSession is valid before exporting
+      if (!(this.stringSession instanceof StringSession)) {
+        console.error("[MTPROTO-CLIENT] Invalid StringSession object:", this.stringSession);
+        throw new Error("Invalid StringSession object during export");
+      }
+      
+      // Log the session export attempt
+      console.log(`[MTPROTO-CLIENT] Exporting session from ${this.stringSession.constructor.name}`);
+      
+      // Export session using the stringSession instance
+      const exportedSession = await exportClientSession(this.stringSession);
+      console.log(`[MTPROTO-CLIENT] Exported session successfully, length: ${exportedSession.length}`);
+      
+      return exportedSession;
+    } catch (error) {
+      console.error("[MTPROTO-CLIENT] Error exporting session:", error);
+      throw error;
+    }
   }
   
   /**

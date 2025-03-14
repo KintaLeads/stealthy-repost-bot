@@ -33,7 +33,8 @@ export async function exportSession(client: MTProto): Promise<string> {
       console.error("Error message:", error.message);
       console.error("Error stack:", error.stack);
     }
-    throw new Error(`Failed to save session: ${error instanceof Error ? error.message : String(error)}`);
+    // Return empty string on error, don't propagate the error
+    return "";
   }
 }
 

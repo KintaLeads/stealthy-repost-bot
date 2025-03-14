@@ -117,7 +117,13 @@ export async function exportClientSession(
     }
     
     console.log("Exporting session, StringSession type:", stringSession.constructor.name);
-    return stringSession.save();
+    
+    // Save the session to a string
+    const sessionString = stringSession.save();
+    console.log(`Session exported successfully, length: ${sessionString.length}`);
+    
+    // Return the exported session string
+    return sessionString;
   } catch (error) {
     console.error("Error exporting session:", error);
     throw error;
