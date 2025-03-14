@@ -2,6 +2,8 @@
 {
   "imports": {
     "std/": "https://deno.land/std@0.170.0/",
-    "telegram/": "https://deno.land/x/telegram@v0.1.1/"
+    "telegram/": "https://deno.land/x/telegram@v0.1.1/",
+    "telegram": "https://esm.sh/telegram@2.19.10",
+    "telegram/sessions": "https://esm.sh/telegram@2.19.10/sessions"
   }
 }
