@@ -1,8 +1,6 @@
-
 // Base client class with common functionality for MTProto
 import { MTProto } from "../proto/index.ts";
 import { AuthState } from "./types.ts";
-import { AuthenticationResult } from "./types/auth-types.ts";
 import { ClientConfig, validateClientConfig } from "./config/client-config.ts";
 import { initializeMTProto, callMTProtoMethod } from "./utils/mtproto-utils.ts";
 import { exportSession, checkAuthentication } from "./utils/session-manager.ts";
@@ -44,7 +42,7 @@ export abstract class BaseClient {
     this.apiHash = config.apiHash;
     this.phoneNumber = config.phoneNumber;
     this.accountId = config.accountId;
-    this.sessionString = config.sessionString;
+    this.sessionString = config.sessionString || ""; // Always ensure string
     
     console.log(`[BASE-CLIENT] Initialized with:
       - API ID: "${this.apiId}" (${typeof this.apiId}, length: ${this.apiId.length})
@@ -73,13 +71,13 @@ export abstract class BaseClient {
       throw new Error(`API ID must be a valid positive number, got: ${this.apiId}`);
     }
     
-    // Clean session string - ensure it's a string (empty string if falsy)
+    // Clean session string - ensure it's a string, never undefined or null
     const cleanSessionString = this.sessionString ? this.sessionString.trim() : "";
     
     console.log(`[BASE-CLIENT] Calling initializeMTProto with:
       - apiId: ${numericApiId} (${typeof numericApiId})
       - apiHash: ${this.apiHash.substring(0, 3)}... (${typeof this.apiHash})
-      - sessionString: ${cleanSessionString ? `length: ${cleanSessionString.length}` : 'empty string'}`);
+      - sessionString: ${cleanSessionString ? `length: ${cleanSessionString.length}` : 'empty string'} (${typeof cleanSessionString})`);
     
     this.client = initializeMTProto(numericApiId, this.apiHash, cleanSessionString);
     return this.client;

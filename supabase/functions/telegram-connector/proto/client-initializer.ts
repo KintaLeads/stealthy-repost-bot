@@ -47,53 +47,25 @@ export function initializeTelegramClient(
     - Session: ${session ? `length: ${session.length}` : 'empty string'}`);
   
   try {
-    // ✅ CRITICAL FIX: Ensure that a valid session string is used (empty string if falsy)
-    const cleanSessionString = session || "";
+    // Create a StringSession with the given session string (if any)
+    // If session is empty or falsy, it will create a new, empty StringSession
+    const stringSession = new StringSession(session || "");
     
-    // Create a new StringSession with the explicit import
-    console.log("Creating StringSession with explicit import from telegram/sessions");
+    console.log(`Created StringSession successfully.
+      - Session string length: ${(session || "").length}
+      - StringSession type: ${typeof stringSession}
+      - StringSession constructor: ${stringSession.constructor.name}`);
     
-    // ✅ CRITICAL FIX: Create StringSession explicitly with proper import
-    const stringSession = new StringSession(cleanSessionString);
-    
-    // Verify that stringSession is a valid StringSession instance
-    console.log(`Created StringSession: ${stringSession ? "success" : "failed"}`);
-    console.log(`StringSession type: ${stringSession ? typeof stringSession : "undefined"}`);
-    console.log(`StringSession constructor: ${stringSession ? stringSession.constructor.name : "undefined"}`);
-    
-    if (!stringSession || typeof stringSession !== 'object') {
-      console.error("Failed to create a valid StringSession instance:", stringSession);
-      throw new Error("Failed to create a valid StringSession instance");
-    }
-    
-    console.log(`[CLIENT-INITIALIZER] Created StringSession instance:
-      - Session string length: ${cleanSessionString.length}
-      - Session instance type: ${stringSession.constructor.name}`);
-    
-    // IMPORTANT: Always create new object here to avoid reference issues
-    const clientOptions = {
-      connectionRetries: 3,
-      useWSS: true,
-      requestRetries: 3,
-    };
-    
-    console.log(`[CLIENT-INITIALIZER] Final client options:`, 
-      JSON.stringify({
-        apiId: numericApiId,
-        apiIdType: typeof numericApiId,
-        apiHashPrefix: apiHash.substring(0, 3),
-        apiHashType: typeof apiHash,
-        sessionType: stringSession.constructor.name
-      })
-    );
-    
-    // ✅ Create TelegramClient with the verified StringSession instance
-    console.log("Creating TelegramClient with StringSession...");
+    // Create TelegramClient with the StringSession instance
     const client = new TelegramClient(
-      stringSession,     // StringSession instance (not a string)
+      stringSession,     // StringSession instance
       numericApiId,      // API ID as number
       apiHash,           // API Hash
-      clientOptions      // Options
+      {                  // Options
+        connectionRetries: 3,
+        useWSS: true,
+        requestRetries: 3
+      }
     );
     
     console.log(`Telegram client initialized successfully with apiId: ${numericApiId}`);
@@ -124,7 +96,7 @@ export async function exportClientSession(
     
     console.log("Exporting session, StringSession type:", stringSession.constructor.name);
     
-    // ✅ Save the session to a string - this returns a string representation
+    // Save the session to a string
     const sessionString = stringSession.save();
     console.log(`Session exported successfully, length: ${sessionString.length}`);
     
