@@ -1,4 +1,37 @@
-// ... keep existing code (imports and other utility functions)
+
+/**
+ * Debugging utilities for Telegram services
+ */
+
+// Define log entry types
+export interface LogEntry {
+  timestamp: Date;
+  level: 'info' | 'warn' | 'error' | 'debug';
+  source: string;
+  message: string;
+  data?: any;
+}
+
+// Define API payload tracking entry
+export interface ApiPayloadEntry {
+  timestamp: Date;
+  filePath: string;
+  functionName: string;
+  stage: string;
+  apiId: {
+    value: any;
+    type: string;
+  };
+  apiHash: {
+    value: string;
+    type: string;
+  };
+  phoneNumber: {
+    value: string;
+    type: string;
+  };
+  otherData?: any;
+}
 
 class ConsoleDebugger {
   private logs: LogEntry[] = [];
@@ -10,7 +43,51 @@ class ConsoleDebugger {
     this.interceptConsole();
   }
 
-  // ... keep existing code (logger methods and console interception)
+  // Intercept console methods to capture logs
+  private interceptConsole(): void {
+    const originalConsole = { ...console };
+    
+    console.log = (...args: any[]) => {
+      originalConsole.log(...args);
+      this.addLog('info', 'console', args.map(arg => String(arg)).join(' '));
+    };
+    
+    console.warn = (...args: any[]) => {
+      originalConsole.warn(...args);
+      this.addLog('warn', 'console', args.map(arg => String(arg)).join(' '));
+    };
+    
+    console.error = (...args: any[]) => {
+      originalConsole.error(...args);
+      this.addLog('error', 'console', args.map(arg => String(arg)).join(' '));
+    };
+  }
+  
+  // Add a log entry
+  private addLog(level: LogEntry['level'], source: string, message: string, data?: any): void {
+    this.logs.unshift({
+      timestamp: new Date(),
+      level,
+      source,
+      message,
+      data
+    });
+    
+    // Trim logs if over limit
+    if (this.logs.length > this.maxLogs) {
+      this.logs = this.logs.slice(0, this.maxLogs);
+    }
+  }
+  
+  // Get all logs
+  getLogs(): LogEntry[] {
+    return this.logs;
+  }
+  
+  // Clear logs
+  clearLogs(): void {
+    this.logs = [];
+  }
 
   /**
    * Track API credential usage
@@ -59,30 +136,79 @@ class ConsoleDebugger {
     return this.apiPayloads;
   }
 
-  // ... keep existing code (other methods)
+  // Helper methods for logging
+  logInfo(source: string, message: string, data?: any): void {
+    this.addLog('info', source, message, data);
+  }
+  
+  logWarning(source: string, message: string, data?: any): void {
+    this.addLog('warn', source, message, data);
+  }
+  
+  logError(source: string, message: string, data?: any): void {
+    this.addLog('error', source, message, data);
+  }
+  
+  logDebug(source: string, message: string, data?: any): void {
+    this.addLog('debug', source, message, data);
+  }
 }
 
-export interface ApiPayloadEntry {
-  timestamp: Date;
-  filePath: string;
-  functionName: string;
-  stage: string;
-  apiId: {
-    value: any;
-    type: string;
-  };
-  apiHash: {
-    value: string;
-    type: string;
-  };
-  phoneNumber: {
-    value: string;
-    type: string;
-  };
-  otherData?: any;
-}
+// Create a singleton instance
+export const consoleLogger = new ConsoleDebugger();
 
-// ... keep existing code (export the logger instance)
+// Export convenience methods
+export const logInfo = (source: string, message: string, data?: any) => {
+  consoleLogger.logInfo(source, message, data);
+};
+
+export const logWarning = (source: string, message: string, data?: any) => {
+  consoleLogger.logWarning(source, message, data);
+};
+
+export const logError = (source: string, message: string, data?: any) => {
+  consoleLogger.logError(source, message, data);
+};
+
+export const logDebug = (source: string, message: string, data?: any) => {
+  consoleLogger.logDebug(source, message, data);
+};
+
+/**
+ * Track API credentials for debugging
+ */
+export function trackApiCredentials(
+  filePath: string,
+  functionName: string,
+  stage: string,
+  apiId: any,
+  apiHash: string,
+  phoneNumber?: string | any,
+  otherData?: any
+): void {
+  try {
+    // Handle case where phoneNumber might be in otherData
+    let phoneNumberValue = phoneNumber;
+    
+    // If phoneNumber is an object, it might be the otherData parameter
+    if (typeof phoneNumber === 'object' && phoneNumber !== null) {
+      otherData = phoneNumber; // Move it to otherData
+      phoneNumberValue = otherData.phoneNumber || undefined; // Extract phone number if available
+    }
+    
+    consoleLogger.trackApiPayload(
+      filePath,
+      functionName,
+      stage,
+      apiId,
+      apiHash,
+      phoneNumberValue,
+      otherData
+    );
+  } catch (error) {
+    console.error('Error tracking API credentials:', error);
+  }
+}
 
 /**
  * Track API call for debugging
@@ -124,5 +250,3 @@ export function trackApiCall(
     logError('ApiTracker', 'Error tracking API call', trackingError);
   }
 }
-
-// ... keep existing code (other exports)

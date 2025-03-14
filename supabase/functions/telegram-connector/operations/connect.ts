@@ -19,17 +19,27 @@ export async function handleConnect(
   console.log("🔄 Connect operation started with options:", {
     hasVerificationCode: !!options.verificationCode,
     debug: !!options.debug,
-    sessionPresent: !!headers['X-Telegram-Session']
+    sessionPresent: !!headers['X-Telegram-Session'],
+    phoneNumber: client.phoneNumber ? client.phoneNumber.substring(0, 4) + "****" : "[MISSING]"
   });
   
   try {
     // Validate client setup
     if (!validateClientSetup(client, options.debug || false)) {
-      console.error("❌ Invalid client setup");
+      console.error("❌ Invalid client setup", {
+        hasApiId: !!client.apiId,
+        hasApiHash: !!client.apiHash,
+        hasPhoneNumber: !!client.phoneNumber
+      });
       return new Response(
         JSON.stringify({
           success: false,
-          error: "Invalid client setup"
+          error: "Invalid client setup",
+          details: {
+            apiId: client.apiId ? "present" : "missing",
+            apiHash: client.apiHash ? "present" : "missing",
+            phoneNumber: client.phoneNumber ? "present" : "missing"
+          }
         }),
         { 
           headers: { ...corsHeaders, "Content-Type": "application/json" },

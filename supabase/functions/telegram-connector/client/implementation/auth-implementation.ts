@@ -33,6 +33,11 @@ export class AuthImplementation extends BaseTelegramImplementation {
         throw new Error("API Hash must be provided to create AuthClient");
       }
       
+      if (!this.phoneNumber) {
+        console.error("[AUTH-IMPLEMENTATION] Cannot create AuthClient: Missing Phone Number");
+        throw new Error("Phone Number must be provided to create AuthClient");
+      }
+      
       console.log(`[AUTH-IMPLEMENTATION] Creating AuthClient with:
         - apiId: ${this.apiId} (${typeof this.apiId})
         - apiHash: ${this.apiHash.substring(0, 3)}... (${typeof this.apiHash})
@@ -58,7 +63,7 @@ export class AuthImplementation extends BaseTelegramImplementation {
   }
   
   // Method to connect to Telegram
-  async connect(): Promise<{ success: boolean; codeNeeded?: boolean; phoneCodeHash?: string; error?: string; session?: string; _testCode?: string; user?: any }> {
+  async connect(): Promise<{ success: boolean; codeNeeded?: boolean; phoneCodeHash?: string; error?: string; session?: string; _testCode?: string; user?: any; details?: any }> {
     console.log(`[AUTH-IMPLEMENTATION] Connect method called`);
     try {
       const authClient = await this.getAuthClient();
@@ -68,7 +73,8 @@ export class AuthImplementation extends BaseTelegramImplementation {
       console.error(`[AUTH-IMPLEMENTATION] Exception during authentication:`, error);
       return {
         success: false,
-        error: `Exception during authentication: ${error instanceof Error ? error.message : String(error)}`
+        error: `Exception during authentication: ${error instanceof Error ? error.message : String(error)}`,
+        details: error instanceof Error ? { name: error.name, stack: error.stack } : { error: String(error) }
       };
     }
   }

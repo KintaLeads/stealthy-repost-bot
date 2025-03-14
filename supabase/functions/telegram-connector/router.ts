@@ -81,7 +81,8 @@ export async function routeOperation(
     try {
       client = createTelegramClient({
         ...clientParams,
-        apiId: numericApiId // Pass numeric apiId to client factory
+        apiId: numericApiId, // Pass numeric apiId to client factory
+        phoneNumber: clientParams.phoneNumber // Ensure phone number is passed
       });
     } catch (clientError) {
       console.error("⚠️ Error initializing Telegram client:", clientError);
