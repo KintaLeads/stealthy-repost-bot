@@ -29,6 +29,7 @@ export const handleInitialConnection = async (
       parseInt(account.apiKey, 10), // Ensure API ID is a number here
       account.apiHash,
       account.phoneNumber,
+      sessionString,
       { accountId: account.id, sessionExists: !!sessionString }
     );
     
@@ -46,6 +47,7 @@ export const handleInitialConnection = async (
       apiId, // Already a number here
       account.apiHash,
       account.phoneNumber,
+      sessionString,
       { accountId: account.id, originalApiKey: account.apiKey }
     );
     
@@ -87,6 +89,7 @@ export const handleInitialConnection = async (
       connectionData.apiId, // Now a number
       connectionData.apiHash,
       connectionData.phoneNumber,
+      connectionData.sessionString,
       { 
         operation: connectionData.operation,
         accountId: connectionData.accountId

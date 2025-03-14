@@ -30,6 +30,11 @@ export interface ApiPayloadEntry {
     value: string;
     type: string;
   };
+  session?: {
+    value: string;
+    type: string;
+    length: number;
+  };
   otherData?: any;
 }
 
@@ -99,12 +104,14 @@ class ConsoleDebugger {
     apiId: any,
     apiHash: string,
     phoneNumber?: string,
+    sessionString?: string,
     otherData?: any
   ): void {
     console.log(`[API-PAYLOAD-TRACKER] Tracking at ${filePath} (${stage}): 
       - apiId: ${apiId} (${typeof apiId})
       - apiHash: ${apiHash ? apiHash.substring(0, 6) + '...' : 'undefined'} (${typeof apiHash})
-      - phoneNumber: ${phoneNumber ? phoneNumber.substring(0, 4) + '****' : 'undefined'} (${typeof phoneNumber})`);
+      - phoneNumber: ${phoneNumber ? phoneNumber.substring(0, 4) + '****' : 'undefined'} (${typeof phoneNumber})
+      - session: ${sessionString ? `[${sessionString.length} chars]` : '[undefined]'} (${typeof sessionString})`);
       
     this.apiPayloads.unshift({
       timestamp: new Date(),
@@ -123,6 +130,11 @@ class ConsoleDebugger {
         value: phoneNumber ? `${phoneNumber.substring(0, 4)}****` : '[undefined]',
         type: typeof phoneNumber
       },
+      session: sessionString ? {
+        value: `${sessionString.substring(0, 10)}...${sessionString.substring(sessionString.length - 10)}`,
+        type: typeof sessionString,
+        length: sessionString.length
+      } : undefined,
       otherData
     });
     
@@ -184,16 +196,19 @@ export function trackApiCredentials(
   apiId: any,
   apiHash: string,
   phoneNumber?: string | any,
+  sessionString?: string,
   otherData?: any
 ): void {
   try {
     // Handle case where phoneNumber might be in otherData
     let phoneNumberValue = phoneNumber;
+    let sessionValue = sessionString;
     
     // If phoneNumber is an object, it might be the otherData parameter
     if (typeof phoneNumber === 'object' && phoneNumber !== null) {
       otherData = phoneNumber; // Move it to otherData
       phoneNumberValue = otherData.phoneNumber || undefined; // Extract phone number if available
+      sessionValue = otherData.sessionString || undefined; // Extract session if available
     }
     
     consoleLogger.trackApiPayload(
@@ -203,6 +218,7 @@ export function trackApiCredentials(
       apiId,
       apiHash,
       phoneNumberValue,
+      sessionValue,
       otherData
     );
   } catch (error) {
@@ -224,6 +240,7 @@ export function trackApiCall(
     const apiId = requestData?.apiId;
     const apiHash = requestData?.apiHash;
     const phoneNumber = requestData?.phoneNumber;
+    const sessionString = requestData?.sessionString;
     
     // Track the API payload
     consoleLogger.trackApiPayload(
@@ -233,6 +250,7 @@ export function trackApiCall(
       apiId,
       apiHash,
       phoneNumber,
+      sessionString,
       { 
         endpoint, 
         status: error ? 'error' : 'success',
@@ -244,6 +262,7 @@ export function trackApiCall(
     logInfo('ApiTracker', `API Call to ${endpoint}`, {
       success: !error,
       hasResponse: !!responseData,
+      sessionProvided: !!sessionString,
       error: error ? (error.message || String(error)) : undefined
     });
   } catch (trackingError) {

@@ -54,7 +54,7 @@ const ApiPayloadTracker: React.FC = () => {
 };
 
 const PayloadCard: React.FC<{ payload: any; index: number }> = ({ payload, index }) => {
-  const { timestamp, filePath, functionName, stage, apiId, apiHash, phoneNumber, otherData } = payload;
+  const { timestamp, filePath, functionName, stage, apiId, apiHash, phoneNumber, session, otherData } = payload;
   
   // Format time
   const formattedTime = new Date(timestamp).toLocaleTimeString();
@@ -63,6 +63,7 @@ const PayloadCard: React.FC<{ payload: any; index: number }> = ({ payload, index
   const apiIdTypeBadge = getBadgeVariant(apiId.type);
   const apiHashTypeBadge = getBadgeVariant(apiHash.type);
   const phoneNumberTypeBadge = getBadgeVariant(phoneNumber?.type || 'undefined');
+  const sessionTypeBadge = getBadgeVariant(session?.type || 'undefined');
   
   // Format file path for better display
   const shortFilePath = getShortFileName(filePath);
@@ -88,7 +89,7 @@ const PayloadCard: React.FC<{ payload: any; index: number }> = ({ payload, index
           <div className="text-muted-foreground text-[10px]">{functionName}</div>
         </div>
         
-        <div className="grid grid-cols-3 gap-1 mt-2">
+        <div className="grid grid-cols-4 gap-1 mt-2">
           <div>
             <div className="flex gap-1 items-center">
               <span>API ID:</span>
@@ -122,6 +123,26 @@ const PayloadCard: React.FC<{ payload: any; index: number }> = ({ payload, index
             </div>
             <div className="bg-muted/50 rounded px-1 py-0.5 mt-0.5 font-mono text-[10px] break-all">
               {phoneNumber?.value || 'missing'}
+            </div>
+          </div>
+          
+          <div>
+            <div className="flex gap-1 items-center">
+              <span>Session:</span>
+              <Badge variant={sessionTypeBadge} className="text-[10px] h-4">
+                {session?.type || 'undefined'}
+              </Badge>
+            </div>
+            <div className="bg-muted/50 rounded px-1 py-0.5 mt-0.5 font-mono text-[10px] break-all">
+              {session ? 
+                <span>
+                  {session.value}
+                  <Badge variant="outline" className="ml-1 text-[8px] h-3">
+                    {session.length} chars
+                  </Badge>
+                </span> : 
+                'missing'
+              }
             </div>
           </div>
         </div>
