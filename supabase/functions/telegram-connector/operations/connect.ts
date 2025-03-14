@@ -13,9 +13,24 @@ export async function handleConnect(
   options: { 
     verificationCode?: string; 
     debug?: boolean;
+    testMode?: boolean;
   } = {}
 ): Promise<Response> {
   logOperationStart("connect");
+  
+  // If this is just a test mode request, return success
+  if (options.testMode === true) {
+    console.log("🧪 Test mode detected, returning success response");
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: "Test connection successful",
+        test: true
+      }), 
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+  
   console.log("🔄 Connect operation started with options:", {
     hasVerificationCode: !!options.verificationCode,
     debug: !!options.debug,

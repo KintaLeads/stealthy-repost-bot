@@ -19,7 +19,7 @@ export function initializeTelegramClient(
   console.log(`[CLIENT-INITIALIZER] Arguments received:
     - apiId: ${apiId} (${typeof apiId})
     - apiHash: ${apiHash?.substring(0, 3)}... (${typeof apiHash}, length: ${apiHash?.length})
-    - session: ${session ? 'provided' : 'none'}`);
+    - session: ${session ? 'provided' : 'none'} (${typeof session})`);
   
   // Validate inputs before creating client
   if (apiId === undefined || apiId === null) {
@@ -47,11 +47,10 @@ export function initializeTelegramClient(
     - Session: ${session ? 'provided' : 'none'}`);
   
   try {
-    // Create StringSession - ALWAYS create a new StringSession instance, 
-    // even if the session string is empty
+    // Ensure session is a valid string (empty string if falsy)
     const cleanSessionString = session || "";
     
-    // First create a valid StringSession instance
+    // Create a new StringSession instance with the session string
     const stringSession = new StringSession(cleanSessionString);
     
     // Verify that stringSession is a valid StringSession instance

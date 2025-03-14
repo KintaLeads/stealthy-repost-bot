@@ -25,9 +25,14 @@ export async function handleCodeVerification(
     
     if (verificationResult.success) {
       console.log("Code verification successful");
+      
+      // Get a new session string to return
+      const sessionString = client.getSession();
+      console.log(`Session after verification (length: ${sessionString?.length || 0})`);
+      
       return {
         success: true,
-        session: client.getSession(),
+        session: sessionString,
         user: verificationResult.user
       };
     } else {

@@ -13,6 +13,8 @@ export const getStoredSession = (accountId: string): string | null => {
     const key = getSessionKey(accountId);
     const session = localStorage.getItem(key);
     logInfo("SessionManager", `Session ${session ? 'found' : 'not found'} for account ${accountId}, length: ${session?.length || 0}`);
+    
+    // Always return a string or null, never undefined
     return session;
   } catch (error) {
     logError("SessionManager", "Error getting stored session:", error);

@@ -29,12 +29,27 @@ export async function routeOperation(
     apiIdType: typeof clientParams.apiId,
     hasApiHash: !!clientParams.apiHash,
     hasPhoneNumber: !!clientParams.phoneNumber,
+    hasSession: !!clientParams.sessionString,
+    sessionLength: clientParams.sessionString?.length || 0
   });
 
   try {
     // Check if healthcheck is being requested (special case that doesn't need client)
     if (operation === 'healthcheck') {
       return handleHealthcheck(updatedCorsHeaders);
+    }
+    
+    // Handle test mode separately
+    if (operation === 'connect' && requestData.testMode === true) {
+      console.log("🧪 Test mode request detected");
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: "Test connection successful",
+          test: true
+        }), 
+        { headers: { ...updatedCorsHeaders, "Content-Type": "application/json" } }
+      );
     }
     
     // Validate client parameters before creating client
@@ -66,6 +81,9 @@ export async function routeOperation(
       );
     }
     
+    // Ensure session is a string
+    const sessionString = clientParams.sessionString || "";
+    
     // Log the validated parameters
     console.log("✅ Validated client parameters:", {
       apiId: numericApiId,
@@ -73,6 +91,7 @@ export async function routeOperation(
       apiHashLength: clientParams.apiHash?.length,
       phoneNumber: clientParams.phoneNumber.substring(0, 4) + "****",
       accountId: clientParams.accountId,
+      sessionLength: sessionString.length
     });
 
     // Create the client with validated credentials
@@ -82,7 +101,8 @@ export async function routeOperation(
       client = createTelegramClient({
         ...clientParams,
         apiId: numericApiId, // Always pass as a number
-        phoneNumber: clientParams.phoneNumber
+        phoneNumber: clientParams.phoneNumber,
+        sessionString: sessionString // Ensure session is passed properly
       });
     } catch (clientError) {
       console.error("⚠️ Error initializing Telegram client:", clientError);

@@ -89,7 +89,7 @@ export const handleInitialConnection = async (
       connectionData.apiId, // Now a number
       connectionData.apiHash,
       connectionData.phoneNumber,
-      connectionData.sessionString, // Include the session string
+      connectionData.sessionString || "", // Include the session string with empty string fallback
       { 
         operation: connectionData.operation,
         accountId: connectionData.accountId

@@ -1,3 +1,4 @@
+
 /**
  * Debugging utilities for Telegram services
  */
@@ -102,16 +103,19 @@ class ConsoleDebugger {
     stage: string,
     apiId: any,
     apiHash: string,
-    phoneNumber?: string,
-    sessionString?: string,
+    phoneNumber: string,
+    sessionString: string = "",
     otherData?: any
   ): void {
     console.log(`[API-PAYLOAD-TRACKER] Tracking at ${filePath} (${stage}): 
       - apiId: ${apiId} (${typeof apiId})
       - apiHash: ${apiHash ? apiHash.substring(0, 6) + '...' : 'undefined'} (${typeof apiHash})
       - phoneNumber: ${phoneNumber ? phoneNumber.substring(0, 4) + '****' : 'undefined'} (${typeof phoneNumber})
-      - session: ${sessionString ? `[${sessionString.length} chars]` : '[undefined]'} (${typeof sessionString})`);
+      - session: ${sessionString ? `[${sessionString.length} chars]` : '[none]'} (${typeof sessionString})`);
       
+    // Ensure sessionString is a string (empty string if missing)
+    const safeSessionString = typeof sessionString === 'string' ? sessionString : "";
+    
     this.apiPayloads.unshift({
       timestamp: new Date(),
       filePath,
@@ -129,14 +133,12 @@ class ConsoleDebugger {
         value: phoneNumber ? `${phoneNumber.substring(0, 4)}****` : '[undefined]',
         type: typeof phoneNumber
       },
-      session: sessionString ? {
-        value: `${sessionString.substring(0, 10)}...${sessionString.substring(Math.max(0, sessionString.length - 10))}`,
-        type: typeof sessionString,
-        length: sessionString.length
-      } : {
-        value: 'missing',
-        type: 'undefined',
-        length: 0
+      session: {
+        value: safeSessionString ? 
+          `${safeSessionString.substring(0, 10)}...${safeSessionString.substring(Math.max(0, safeSessionString.length - 10))}` : 
+          '[none]',
+        type: typeof safeSessionString,
+        length: safeSessionString.length
       },
       otherData
     });
@@ -199,7 +201,7 @@ export function trackApiCredentials(
   apiId: any,
   apiHash: string,
   phoneNumber?: string | any,
-  sessionString?: string,
+  sessionString: string = "",
   otherData?: any
 ): void {
   try {
@@ -211,7 +213,7 @@ export function trackApiCredentials(
     if (typeof phoneNumber === 'object' && phoneNumber !== null) {
       otherData = phoneNumber; // Move it to otherData
       phoneNumberValue = otherData.phoneNumber || undefined; // Extract phone number if available
-      sessionValue = otherData.sessionString || undefined; // Extract session if available
+      sessionValue = otherData.sessionString || ""; // Extract session if available
     }
     
     consoleLogger.trackApiPayload(
