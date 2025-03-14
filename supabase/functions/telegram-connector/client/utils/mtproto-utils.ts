@@ -1,3 +1,4 @@
+
 /**
  * Utility functions for MTProto client operations
  */
@@ -61,7 +62,8 @@ export function initializeMTProto(apiId: string | number, apiHash: string, sessi
         apiIdType: typeof mtprotoOptions.apiId,
         apiHashPrefix: mtprotoOptions.apiHash.substring(0, 3),
         apiHashLength: mtprotoOptions.apiHash.length,
-        apiHashType: typeof mtprotoOptions.apiHash
+        apiHashType: typeof mtprotoOptions.apiHash,
+        sessionProvided: !!sessionString
       })
     );
     

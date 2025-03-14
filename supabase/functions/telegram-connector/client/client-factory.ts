@@ -38,8 +38,7 @@ export class TelegramClientFactory {
     
     // Log the final values after validation
     console.log(`[CLIENT-FACTORY] Creating TelegramCombinedImplementation with:
-      - apiId (string): ${String(apiId)} (${typeof apiId})
-      - apiId (number): ${numericApiId} (${typeof numericApiId})
+      - apiId (numeric): ${numericApiId} (${typeof numericApiId})
       - apiHash: ${apiHash.substring(0, 3)}... (${typeof apiHash})
       - phoneNumber: ${phoneNumber ? phoneNumber.substring(0, 4) + '****' : 'none'} (${typeof phoneNumber})
       - accountId: ${accountId} (${typeof accountId})
