@@ -26,7 +26,7 @@ export const handleInitialConnection = async (
       'services/telegram/connector.ts',
       'handleInitialConnection',
       'start-connection',
-      account.apiKey,
+      parseInt(account.apiKey, 10), // Ensure API ID is a number here
       account.apiHash,
       account.phoneNumber,
       { accountId: account.id, sessionExists: !!sessionString }
@@ -43,7 +43,7 @@ export const handleInitialConnection = async (
       'services/telegram/connector.ts',
       'handleInitialConnection',
       'after-conversion',
-      apiId,
+      apiId, // Already a number here
       account.apiHash,
       account.phoneNumber,
       { accountId: account.id, originalApiKey: account.apiKey }
@@ -84,7 +84,7 @@ export const handleInitialConnection = async (
       'services/telegram/connector.ts',
       'handleInitialConnection',
       'before-api-call',
-      connectionData.apiId,
+      connectionData.apiId, // Now a number
       connectionData.apiHash,
       connectionData.phoneNumber,
       { 
@@ -110,7 +110,7 @@ export const handleInitialConnection = async (
         const anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVzd2ZyemRxeHNhaXprZHN3eGZuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA5ODM2ODQsImV4cCI6MjA1NjU1OTY4NH0.2onrHJHapQZbqi7RgsuK7A6G5xlJrNSgRv21_mUT7ik';
         
         console.log(`Sending direct fetch to ${requestUrl}`, {
-          apiId: connectionData.apiId,
+          apiId: connectionData.apiId, // Now a number
           phoneNumber: connectionData.phoneNumber,
           accountId: connectionData.accountId,
           sessionPresent: !!sessionString
@@ -145,7 +145,7 @@ export const handleInitialConnection = async (
           'services/telegram/connector.ts',
           'handleInitialConnection',
           'sending-request',
-          connectionData.apiId,
+          connectionData.apiId, // Now a number
           connectionData.apiHash,
           connectionData.phoneNumber,
           { 

@@ -15,9 +15,6 @@ export function initializeTelegramClient(
 ): { client: TelegramClient; stringSession: StringSession } {
   console.log("Creating TelegramClient instance...");
   
-  // Ensure apiId is a string first for validation
-  const apiIdStr = String(apiId || "");
-  
   // Log the values being passed in
   console.log(`[CLIENT-INITIALIZER] Arguments received:
     - apiId: ${apiId} (${typeof apiId})
@@ -25,7 +22,7 @@ export function initializeTelegramClient(
     - session: ${session ? 'provided' : 'none'}`);
   
   // Validate inputs before creating client
-  if (!apiIdStr || apiIdStr === "" || apiIdStr === "undefined" || apiIdStr === "null" || apiIdStr.trim() === "") {
+  if (apiId === undefined || apiId === null) {
     console.error(`Invalid API ID: ${apiId} (${typeof apiId})`);
     throw new Error(`API ID must be provided, got: ${apiId}`);
   }
@@ -35,8 +32,8 @@ export function initializeTelegramClient(
     throw new Error(`API Hash must be provided`);
   }
   
-  // Parse string to number
-  const numericApiId = parseInt(apiIdStr, 10);
+  // Parse string to number if needed
+  const numericApiId = typeof apiId === 'number' ? apiId : parseInt(String(apiId), 10);
   
   // Double-check numeric API ID
   if (isNaN(numericApiId) || numericApiId <= 0) {

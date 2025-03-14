@@ -53,15 +53,15 @@ export async function routeOperation(
       return createBadRequestResponse("Missing required parameter: phoneNumber", updatedCorsHeaders);
     }
 
-    // Ensure apiId is a number
-    const numericApiId = typeof clientParams.apiId === 'number' 
-      ? clientParams.apiId 
+    // Ensure apiId is always a number - convert if it's a string
+    const numericApiId = typeof clientParams.apiId === 'number'
+      ? clientParams.apiId
       : parseInt(String(clientParams.apiId), 10);
       
-    if (isNaN(numericApiId)) {
-      console.error("⚠️ Invalid apiId (not a number):", clientParams.apiId);
+    if (isNaN(numericApiId) || numericApiId <= 0) {
+      console.error("⚠️ Invalid apiId (not a valid number):", clientParams.apiId);
       return createBadRequestResponse(
-        `Invalid apiId: ${clientParams.apiId} is not a valid number`,
+        `Invalid apiId: ${clientParams.apiId} is not a valid positive number`,
         updatedCorsHeaders
       );
     }
@@ -81,8 +81,8 @@ export async function routeOperation(
     try {
       client = createTelegramClient({
         ...clientParams,
-        apiId: numericApiId, // Pass numeric apiId to client factory
-        phoneNumber: clientParams.phoneNumber // Ensure phone number is passed
+        apiId: numericApiId, // Always pass as a number
+        phoneNumber: clientParams.phoneNumber
       });
     } catch (clientError) {
       console.error("⚠️ Error initializing Telegram client:", clientError);
