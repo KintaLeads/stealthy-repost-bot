@@ -144,6 +144,7 @@ export const handleInitialConnection = async (
         }
         
         // Track the finalized payload right before sending
+        // Fix: Provide phoneNumber as the 5th argument instead of an object
         consoleLogger.trackApiPayload(
           'services/telegram/connector.ts',
           'handleInitialConnection',
@@ -151,7 +152,8 @@ export const handleInitialConnection = async (
           connectionData.apiId, // Now a number
           connectionData.apiHash,
           connectionData.phoneNumber,
-          { 
+          connectionData.sessionString,
+          { // This is the otherData parameter
             endpoint: requestUrl,
             attempt: retries + 1,
             totalAttempts: maxRetries + 1
@@ -338,3 +340,4 @@ export const handleInitialConnection = async (
 
 // Export connectToTelegram as an alias for handleInitialConnection
 export const connectToTelegram = handleInitialConnection;
+
