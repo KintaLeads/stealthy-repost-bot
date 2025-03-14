@@ -1,4 +1,3 @@
-
 /**
  * Request handling utilities for the Telegram connector functions
  */
@@ -80,11 +79,8 @@ export async function parseRequestBody(req: Request): Promise<{ valid: boolean; 
           };
         }
         
-        // Convert apiId to string if it's a number to ensure consistent handling
-        if (typeof data.apiId === 'number') {
-          console.log(`Converting API ID from number to string: ${data.apiId}`);
-          data.apiId = String(data.apiId);
-        }
+        // If apiId is a number, keep it as a number - don't convert to string
+        // Later validation functions will handle the conversion appropriately
       }
       
       return {

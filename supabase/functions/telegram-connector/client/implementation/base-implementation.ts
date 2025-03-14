@@ -37,7 +37,7 @@ export abstract class BaseTelegramImplementation implements Partial<TelegramClie
     console.log(`API ID: ${this.apiId}, API Hash: ${this.apiHash.substring(0, 3)}..., Phone: ${this.phoneNumber ? this.phoneNumber.substring(0, 4) + '****' : 'Not provided'}`);
     
     // Add numeric validation for API ID
-    const numApiId = Number(this.apiId);
+    const numApiId = parseInt(this.apiId, 10);
     if (isNaN(numApiId) || numApiId <= 0) {
       console.error(`API ID is not a valid number: ${this.apiId}`);
       throw new Error(`API ID must be a positive number, got: ${this.apiId}`);

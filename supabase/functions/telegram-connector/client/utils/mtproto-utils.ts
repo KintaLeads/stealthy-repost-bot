@@ -7,12 +7,15 @@ import { MTProto } from "../../proto/index.ts";
 /**
  * Initialize an MTProto client with provided credentials
  */
-export function initializeMTProto(apiId: string, apiHash: string, sessionString: string = ""): MTProto {
+export function initializeMTProto(apiId: string | number, apiHash: string, sessionString: string = ""): MTProto {
   try {
     console.log("=== INITIALIZING MTPROTO CLIENT ===");
     
+    // Convert apiId to string for validation if it's not already
+    const apiIdStr = String(apiId || "");
+    
     // Enhanced validation with descriptive messages
-    if (!apiId || apiId === "undefined" || apiId === "null" || apiId.trim() === '') {
+    if (!apiIdStr || apiIdStr === "undefined" || apiIdStr === "null" || apiIdStr.trim() === '') {
       console.error("FATAL: Empty API ID before creating MTProto:", apiId);
       throw new Error("API ID cannot be empty");
     }
@@ -23,7 +26,7 @@ export function initializeMTProto(apiId: string, apiHash: string, sessionString:
     }
     
     // Convert apiId to number and validate
-    const numericApiId = parseInt(apiId, 10);
+    const numericApiId = parseInt(apiIdStr, 10);
     if (isNaN(numericApiId) || numericApiId <= 0) {
       console.error(`FATAL: Invalid API ID format: "${apiId}" (parsed as ${numericApiId})`);
       throw new Error(`Invalid API ID format: "${apiId}". Must be a positive number.`);

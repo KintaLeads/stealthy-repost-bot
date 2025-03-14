@@ -16,11 +16,14 @@ export abstract class BaseClient {
   protected client: MTProto | null = null;
   protected authState: AuthState = "unauthorized";
   
-  constructor(apiId: string, apiHash: string, phoneNumber: string, accountId: string, sessionString: string = "") {
+  constructor(apiId: string | number, apiHash: string, phoneNumber: string, accountId: string, sessionString: string = "") {
+    // Convert apiId to string if needed
+    const apiIdStr = String(apiId || "");
+    
     // Create and validate the configuration
     const config: ClientConfig = {
-      apiId: apiId.trim(),
-      apiHash: apiHash.trim(),
+      apiId: apiIdStr.trim(),
+      apiHash: apiHash ? apiHash.trim() : '',
       phoneNumber: phoneNumber ? phoneNumber.trim() : '',
       accountId,
       sessionString: sessionString ? sessionString.trim() : ''
@@ -54,7 +57,14 @@ export abstract class BaseClient {
    * @returns The initialized client
    */
   protected initMTProto(): MTProto {
-    this.client = initializeMTProto(this.apiId, this.apiHash, this.sessionString);
+    // Convert apiId to numeric value before initializing
+    const numericApiId = parseInt(this.apiId, 10);
+    if (isNaN(numericApiId) || numericApiId <= 0) {
+      console.error(`Invalid API ID when initializing MTProto: ${this.apiId}`);
+      throw new Error(`API ID must be a valid positive number, got: ${this.apiId}`);
+    }
+    
+    this.client = initializeMTProto(numericApiId, this.apiHash, this.sessionString);
     return this.client;
   }
   

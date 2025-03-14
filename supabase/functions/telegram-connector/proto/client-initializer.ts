@@ -49,7 +49,7 @@ export function initializeTelegramClient(
   try {
     // Create TelegramClient instance with validated numeric API ID
     const client = new TelegramClient({
-      apiId: numericApiId,
+      apiId: numericApiId,  // Make sure to use the numeric version here
       apiHash: apiHash,
       session: stringSession,
       connectionRetries: 3,

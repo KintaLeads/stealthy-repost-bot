@@ -25,8 +25,11 @@ export class MTProtoClient implements MTProtoInterface {
   constructor(options: MTProtoOptions) {
     console.log("==== MTPROTO INITIALIZATION ====");
     
+    // Convert API ID to string first, then validate and convert to number
+    const apiIdStr = String(options.apiId || "");
+    
     // Validate and convert API ID to number
-    this.apiId = validateApiId(options.apiId);
+    this.apiId = validateApiId(apiIdStr);
     
     // Validate and store API Hash
     this.apiHash = validateApiHash(options.apiHash);

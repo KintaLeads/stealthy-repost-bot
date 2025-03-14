@@ -28,6 +28,13 @@ export class TelegramClientFactory {
       throw new Error("API Hash cannot be empty or undefined");
     }
     
+    // Convert API ID to a number before creating the implementation
+    const numericApiId = parseInt(apiIdStr, 10);
+    if (isNaN(numericApiId) || numericApiId <= 0) {
+      console.error(`Invalid API ID format in factory: "${apiId}" (parsed as ${numericApiId})`);
+      throw new Error(`API ID must be a positive number, got: ${apiId}`);
+    }
+    
     return new TelegramCombinedImplementation(
       apiIdStr, 
       apiHash, 
