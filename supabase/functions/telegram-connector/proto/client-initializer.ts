@@ -50,7 +50,8 @@ export function initializeTelegramClient(
     // Ensure session is a valid string (empty string if falsy)
     const cleanSessionString = session || "";
     
-    // Create a new StringSession instance with the session string
+    // IMPORTANT FIX: Create a new StringSession instance with the session string
+    // This is where we properly create a StringSession object instead of passing a string
     const stringSession = new StringSession(cleanSessionString);
     
     // Verify that stringSession is a valid StringSession instance

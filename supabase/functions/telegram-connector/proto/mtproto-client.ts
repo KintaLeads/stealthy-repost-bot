@@ -1,3 +1,4 @@
+
 /**
  * MTProto client implementation for Telegram API
  * Using GramJS for Deno
@@ -85,7 +86,7 @@ export class MTProtoClient implements MTProtoInterface {
         - apiHash: ${this.apiHash.substring(0, 3)}... (${typeof this.apiHash})
         - session: ${this.session ? `length: ${this.session.length}` : 'empty string'} (${typeof this.session})`);
       
-      // Initialize client using the client initializer
+      // IMPORTANT FIX: Initialize client using the client initializer with proper session handling
       const { client, stringSession } = initializeTelegramClient(
         this.apiId,  // This should be a number at this point
         this.apiHash,
