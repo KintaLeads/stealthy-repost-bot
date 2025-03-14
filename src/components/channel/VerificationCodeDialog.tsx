@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -37,7 +36,7 @@ const VerificationCodeDialog: React.FC<VerificationCodeDialogProps> = ({
       setIsVerifying(false);
       setCodeHelper("Enter the verification code sent to your Telegram app");
       
-      // Store phone code hash in localStorage if provided
+      // ✅ Store phone code hash in localStorage if provided
       if (account && connectionResult?.phoneCodeHash) {
         localStorage.setItem(`telegram_code_hash_${account.id}`, connectionResult.phoneCodeHash);
       }
@@ -64,6 +63,7 @@ const VerificationCodeDialog: React.FC<VerificationCodeDialogProps> = ({
       setIsVerifying(true);
       setError(null);
       
+      // ✅ Call verify function with properly formatted data
       const success = await verifyTelegramCode(account, code.trim(), {
         phoneCodeHash: connectionResult?.phoneCodeHash,
         debug: true
@@ -120,8 +120,15 @@ const VerificationCodeDialog: React.FC<VerificationCodeDialogProps> = ({
             <Input
               placeholder="Enter verification code"
               value={code}
-              onChange={handleCodeChange}
-              onKeyDown={handleKeyDown}
+              onChange={(e) => {
+                setCode(e.target.value);
+                if (error) setError(null);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !isVerifying) {
+                  handleVerify();
+                }
+              }}
               autoFocus
               maxLength={6}
               className="mb-4"

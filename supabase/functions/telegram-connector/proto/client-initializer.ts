@@ -47,11 +47,11 @@ export function initializeTelegramClient(
     - Session: ${session ? `length: ${session.length}` : 'empty string'}`);
   
   try {
-    // Ensure session is a valid string (empty string if falsy)
+    // ✅ Ensure that a valid session string is used (empty string if falsy)
     const cleanSessionString = session || "";
     
-    // IMPORTANT FIX: Create a new StringSession instance with the session string
-    // This is where we properly create a StringSession object instead of passing a string
+    // ✅ CRITICAL FIX: Always create a new StringSession object with the session string
+    // The TelegramClient constructor requires a StringSession object, not a string
     const stringSession = new StringSession(cleanSessionString);
     
     // Verify that stringSession is a valid StringSession instance
@@ -82,7 +82,7 @@ export function initializeTelegramClient(
       })
     );
     
-    // Create TelegramClient with the verified StringSession instance
+    // ✅ Create TelegramClient with the verified StringSession instance
     // Note: TelegramClient constructor MUST receive an INSTANCE of a StringSession, not a string
     const client = new TelegramClient(
       stringSession,     // StringSession instance (not a string)
@@ -119,7 +119,7 @@ export async function exportClientSession(
     
     console.log("Exporting session, StringSession type:", stringSession.constructor.name);
     
-    // Save the session to a string
+    // ✅ Save the session to a string - this returns a string representation
     const sessionString = stringSession.save();
     console.log(`Session exported successfully, length: ${sessionString.length}`);
     

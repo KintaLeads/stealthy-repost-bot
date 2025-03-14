@@ -14,7 +14,7 @@ export const getStoredSession = (accountId: string): string => {
     const session = localStorage.getItem(key);
     logInfo("SessionManager", `Session ${session ? 'found' : 'not found'} for account ${accountId}, length: ${session?.length || 0}`);
     
-    // Always return a string, never null or undefined
+    // ✅ Always return a string, never null or undefined
     return session || "";
   } catch (error) {
     logError("SessionManager", "Error getting stored session:", error);
@@ -29,7 +29,7 @@ export const storeSession = (accountId: string, sessionString: string): void => 
       return;
     }
     
-    // Make sure the session string is trimmed
+    // ✅ Make sure the session string is trimmed
     const cleanSession = sessionString.trim();
     if (!cleanSession) {
       logError("SessionManager", "Attempted to store empty session after trimming");
