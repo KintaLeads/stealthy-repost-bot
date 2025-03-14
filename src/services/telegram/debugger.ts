@@ -1,4 +1,3 @@
-
 /**
  * Debugging utilities for Telegram services
  */
@@ -131,10 +130,14 @@ class ConsoleDebugger {
         type: typeof phoneNumber
       },
       session: sessionString ? {
-        value: `${sessionString.substring(0, 10)}...${sessionString.substring(sessionString.length - 10)}`,
+        value: `${sessionString.substring(0, 10)}...${sessionString.substring(Math.max(0, sessionString.length - 10))}`,
         type: typeof sessionString,
         length: sessionString.length
-      } : undefined,
+      } : {
+        value: 'missing',
+        type: 'undefined',
+        length: 0
+      },
       otherData
     });
     
@@ -240,7 +243,7 @@ export function trackApiCall(
     const apiId = requestData?.apiId;
     const apiHash = requestData?.apiHash;
     const phoneNumber = requestData?.phoneNumber;
-    const sessionString = requestData?.sessionString;
+    const sessionString = requestData?.sessionString || "";
     
     // Track the API payload
     consoleLogger.trackApiPayload(

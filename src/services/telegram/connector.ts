@@ -29,7 +29,7 @@ export const handleInitialConnection = async (
       parseInt(account.apiKey, 10), // Ensure API ID is a number here
       account.apiHash,
       account.phoneNumber,
-      sessionString,
+      sessionString || "", // Ensure empty string instead of undefined
       { accountId: account.id, sessionExists: !!sessionString }
     );
     
@@ -47,7 +47,7 @@ export const handleInitialConnection = async (
       apiId, // Already a number here
       account.apiHash,
       account.phoneNumber,
-      sessionString,
+      sessionString || "", // Ensure empty string instead of undefined
       { accountId: account.id, originalApiKey: account.apiKey }
     );
     
@@ -89,7 +89,7 @@ export const handleInitialConnection = async (
       connectionData.apiId, // Now a number
       connectionData.apiHash,
       connectionData.phoneNumber,
-      connectionData.sessionString,
+      connectionData.sessionString, // Include the session string
       { 
         operation: connectionData.operation,
         accountId: connectionData.accountId
@@ -144,16 +144,16 @@ export const handleInitialConnection = async (
         }
         
         // Track the finalized payload right before sending
-        // Fix: Provide phoneNumber as the 5th argument instead of an object
+        // Ensure correct parameter order
         consoleLogger.trackApiPayload(
           'services/telegram/connector.ts',
           'handleInitialConnection',
           'sending-request',
-          connectionData.apiId, // Now a number
-          connectionData.apiHash,
-          connectionData.phoneNumber,
-          connectionData.sessionString,
-          { // This is the otherData parameter
+          connectionData.apiId, // API ID
+          connectionData.apiHash, // API Hash
+          connectionData.phoneNumber, // Phone number
+          connectionData.sessionString || "", // Session string (never undefined)
+          { // Other data
             endpoint: requestUrl,
             attempt: retries + 1,
             totalAttempts: maxRetries + 1
@@ -340,4 +340,3 @@ export const handleInitialConnection = async (
 
 // Export connectToTelegram as an alias for handleInitialConnection
 export const connectToTelegram = handleInitialConnection;
-
