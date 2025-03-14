@@ -1,3 +1,4 @@
+
 import { ApiAccount } from "@/types/channels";
 import { logInfo, logError } from '../debugger';
 
@@ -11,7 +12,7 @@ export const getStoredSession = (accountId: string): string | null => {
   try {
     const key = getSessionKey(accountId);
     const session = localStorage.getItem(key);
-    logInfo("SessionManager", `Session ${session ? 'found' : 'not found'} for account ${accountId}`);
+    logInfo("SessionManager", `Session ${session ? 'found' : 'not found'} for account ${accountId}, length: ${session?.length || 0}`);
     return session;
   } catch (error) {
     logError("SessionManager", "Error getting stored session:", error);
@@ -25,9 +26,17 @@ export const storeSession = (accountId: string, sessionString: string): void => 
       logError("SessionManager", "Attempted to store empty session");
       return;
     }
+    
+    // Make sure the session string is trimmed
+    const cleanSession = sessionString.trim();
+    if (!cleanSession) {
+      logError("SessionManager", "Attempted to store empty session after trimming");
+      return;
+    }
+    
     const key = getSessionKey(accountId);
-    localStorage.setItem(key, sessionString);
-    logInfo("SessionManager", `Session stored for account ${accountId}`);
+    localStorage.setItem(key, cleanSession);
+    logInfo("SessionManager", `Session stored for account ${accountId}, length: ${cleanSession.length}`);
   } catch (error) {
     logError("SessionManager", "Error storing session:", error);
   }

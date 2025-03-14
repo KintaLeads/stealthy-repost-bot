@@ -15,7 +15,7 @@ export function initializeMTProto(apiId: string | number, apiHash: string, sessi
     console.log(`[MTPROTO-UTILS] initializeMTProto received:
       - apiId: ${apiId} (${typeof apiId})
       - apiHash: ${apiHash?.substring(0, 3)}... (${typeof apiHash}, length: ${apiHash?.length})
-      - sessionString: ${sessionString ? 'provided' : 'none'}`);
+      - sessionString: ${sessionString ? 'provided' : 'none'} (length: ${sessionString ? sessionString.length : 0})`);
     
     // Enhanced validation with descriptive messages
     if (apiId === undefined || apiId === null) {
@@ -38,20 +38,23 @@ export function initializeMTProto(apiId: string | number, apiHash: string, sessi
     console.log(`[MTPROTO-UTILS] After validation, using:
       - API ID: "${apiId}" (${typeof apiId}) -> ${numericApiId} (number)
       - API Hash: "${apiHash.substring(0, 3)}..." (length: ${apiHash.length})
-      - Session: ${sessionString ? 'provided' : 'none'}`);
+      - Session: ${sessionString ? `provided (length: ${sessionString.length})` : 'none'}`);
+    
+    // Clean session string if provided to ensure it's valid
+    const cleanSessionString = sessionString ? sessionString.trim() : "";
     
     // Add detailed logging right before creating the MTProto instance
     console.log(`[MTPROTO-UTILS] Creating MTProto with:
       - apiId: ${numericApiId} (${typeof numericApiId})
       - apiHash: ${apiHash} (${typeof apiHash})
-      - session: ${sessionString ? 'has session' : 'no session'}`);
+      - session: ${cleanSessionString ? `has session (length: ${cleanSessionString.length})` : 'no session'}`);
     
     // IMPORTANT: Create a new object here to avoid reference issues
     const mtprotoOptions = {
       apiId: numericApiId, // Always use the numeric version
       apiHash: apiHash.trim(),
       storageOptions: {
-        session: sessionString
+        session: cleanSessionString
       }
     };
     
@@ -63,7 +66,8 @@ export function initializeMTProto(apiId: string | number, apiHash: string, sessi
         apiHashPrefix: mtprotoOptions.apiHash.substring(0, 3),
         apiHashLength: mtprotoOptions.apiHash.length,
         apiHashType: typeof mtprotoOptions.apiHash,
-        sessionProvided: !!sessionString
+        sessionProvided: !!cleanSessionString,
+        sessionLength: cleanSessionString.length
       })
     );
     

@@ -15,11 +15,24 @@ export async function exportSession(client: MTProto): Promise<string> {
   
   try {
     // Get the current session string
+    console.log("Attempting to export session from client...");
     const sessionString = await client.exportSession();
     console.log("Session saved successfully (length: " + sessionString.length + ")");
+    
+    // Verify the session is valid
+    if (!sessionString || typeof sessionString !== 'string') {
+      console.warn("Warning: Exported session is invalid or empty");
+      return "";
+    }
+    
     return sessionString;
   } catch (error) {
     console.error("Error saving session:", error);
+    if (error instanceof Error) {
+      console.error("Error name:", error.name);
+      console.error("Error message:", error.message);
+      console.error("Error stack:", error.stack);
+    }
     throw new Error(`Failed to save session: ${error instanceof Error ? error.message : String(error)}`);
   }
 }

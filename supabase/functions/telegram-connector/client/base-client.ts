@@ -22,7 +22,7 @@ export abstract class BaseClient {
     - apiHash: ${apiHash ? apiHash.substring(0, 3) + '...' : 'undefined'} (${typeof apiHash})
     - phoneNumber: ${phoneNumber ? phoneNumber.substring(0, 4) + '****' : 'none'} (${typeof phoneNumber})
     - accountId: ${accountId} (${typeof accountId})
-    - sessionString: ${sessionString ? 'provided' : 'none'} (${typeof sessionString})`);
+    - sessionString: ${sessionString ? 'provided' : 'none'} (length: ${sessionString?.length || 0})`);
     
     // Convert apiId to string if needed
     const apiIdStr = String(apiId || "");
@@ -51,7 +51,7 @@ export abstract class BaseClient {
       - API Hash: "${this.apiHash.substring(0, 3)}..." (${typeof this.apiHash}, length: ${this.apiHash.length})
       - Phone Number: "${this.phoneNumber ? this.phoneNumber.substring(0, 4) + '****' : 'none'}"
       - Account ID: "${this.accountId}"
-      - Session: ${this.sessionString ? 'provided' : 'none'}`);
+      - Session: ${this.sessionString ? `provided (length: ${this.sessionString.length})` : 'none'}`);
     
     // Determine initial auth state
     if (this.sessionString) {
@@ -73,12 +73,15 @@ export abstract class BaseClient {
       throw new Error(`API ID must be a valid positive number, got: ${this.apiId}`);
     }
     
+    // Clean session string
+    const cleanSessionString = this.sessionString ? this.sessionString.trim() : "";
+    
     console.log(`[BASE-CLIENT] Calling initializeMTProto with:
       - apiId: ${numericApiId} (${typeof numericApiId})
       - apiHash: ${this.apiHash.substring(0, 3)}... (${typeof this.apiHash})
-      - sessionString: ${this.sessionString ? 'provided' : 'none'} (${typeof this.sessionString})`);
+      - sessionString: ${cleanSessionString ? `provided (length: ${cleanSessionString.length})` : 'none'}`);
     
-    this.client = initializeMTProto(numericApiId, this.apiHash, this.sessionString);
+    this.client = initializeMTProto(numericApiId, this.apiHash, cleanSessionString);
     return this.client;
   }
   
@@ -125,7 +128,14 @@ export abstract class BaseClient {
       return;
     }
     
-    this.sessionString = await exportSession(this.client);
+    try {
+      console.log("Saving session from client...");
+      this.sessionString = await exportSession(this.client);
+      console.log(`Session saved successfully (length: ${this.sessionString.length})`);
+    } catch (error) {
+      console.error("Error in saveSession:", error);
+      throw error;
+    }
   }
   
   /**

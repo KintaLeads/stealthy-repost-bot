@@ -19,7 +19,7 @@ export class AuthImplementation extends BaseTelegramImplementation {
       - apiHash: ${apiHash?.substring(0, 3)}... (${typeof apiHash})
       - phoneNumber: ${phoneNumber?.substring(0, 4)}**** (${typeof phoneNumber})
       - accountId: ${accountId} (${typeof accountId})
-      - sessionString: ${sessionString ? 'provided' : 'none'} (${typeof sessionString})`);
+      - sessionString: ${sessionString ? 'provided' : 'none'} (${typeof sessionString}, length: ${sessionString?.length || 0})`);
   }
   
   // Method to get auth client (lazy loading)
@@ -44,25 +44,28 @@ export class AuthImplementation extends BaseTelegramImplementation {
       }
       
       // Convert API ID to numeric
-      const numericApiId = parseInt(this.apiId, 10);
+      const numericApiId = parseInt(String(this.apiId), 10);
       if (isNaN(numericApiId) || numericApiId <= 0) {
         console.error("[AUTH-IMPLEMENTATION] Invalid API ID:", this.apiId);
         throw new Error(`API ID must be a valid number, got: ${this.apiId}`);
       }
+      
+      // Clean session string
+      const cleanSessionString = this.sessionString ? this.sessionString.trim() : "";
       
       console.log(`[AUTH-IMPLEMENTATION] Creating AuthClient with:
         - apiId (numeric): ${numericApiId} (${typeof numericApiId})
         - apiHash: ${this.apiHash.substring(0, 3)}... (${typeof this.apiHash})
         - phoneNumber: ${this.phoneNumber?.substring(0, 4)}**** (${typeof this.phoneNumber})
         - accountId: ${this.accountId} (${typeof this.accountId})
-        - sessionString: ${this.sessionString ? 'provided' : 'none'} (${typeof this.sessionString})`);
+        - sessionString: ${cleanSessionString ? `provided (length: ${cleanSessionString.length})` : 'none'}`);
       
       this.authClient = new AuthClient(
         numericApiId, // Pass as number
         this.apiHash, 
         this.phoneNumber, 
         this.accountId, 
-        this.sessionString
+        cleanSessionString
       );
     }
     return this.authClient;
