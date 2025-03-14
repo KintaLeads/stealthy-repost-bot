@@ -58,14 +58,26 @@ export function initializeTelegramClient(
       - apiId: ${numericApiId} (type: ${typeof numericApiId})
       - apiHash: ${apiHash.substring(0, 3)}... (type: ${typeof apiHash})`);
       
-    const client = new TelegramClient({
+    // IMPORTANT: Always create new object here to avoid reference issues
+    const clientOptions = {
       apiId: numericApiId,  // Make sure to use the numeric version here
       apiHash: apiHash,
       session: stringSession,
       connectionRetries: 3,
       useWSS: true,
       requestRetries: 3,
-    });
+    };
+    
+    console.log(`[CLIENT-INITIALIZER] Final client options:`, 
+      JSON.stringify({
+        apiId: clientOptions.apiId,
+        apiIdType: typeof clientOptions.apiId,
+        apiHashPrefix: apiHash.substring(0, 3),
+        apiHashType: typeof clientOptions.apiHash
+      })
+    );
+    
+    const client = new TelegramClient(clientOptions);
     
     console.log(`Telegram client initialized successfully with apiId: ${numericApiId}`);
     

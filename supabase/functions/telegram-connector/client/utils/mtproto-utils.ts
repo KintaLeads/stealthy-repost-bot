@@ -49,13 +49,27 @@ export function initializeMTProto(apiId: string | number, apiHash: string, sessi
       - apiHash: ${apiHash} (${typeof apiHash})
       - session: ${sessionString ? 'has session' : 'no session'}`);
     
-    const client = new MTProto({
+    // IMPORTANT: Create a new object here to avoid reference issues
+    const mtprotoOptions = {
       apiId: numericApiId, // Use the validated numeric version
       apiHash: apiHash.trim(),
       storageOptions: {
         session: sessionString
       }
-    });
+    };
+    
+    // Double check the final values right before creation
+    console.log(`[MTPROTO-UTILS] Final MTProto options:`, 
+      JSON.stringify({
+        apiId: mtprotoOptions.apiId,
+        apiIdType: typeof mtprotoOptions.apiId,
+        apiHashPrefix: mtprotoOptions.apiHash.substring(0, 3),
+        apiHashLength: mtprotoOptions.apiHash.length,
+        apiHashType: typeof mtprotoOptions.apiHash
+      })
+    );
+    
+    const client = new MTProto(mtprotoOptions);
     
     console.log(`[MTPROTO-UTILS] MTProto client initialized successfully`);
     return client;

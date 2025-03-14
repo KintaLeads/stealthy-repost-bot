@@ -2,13 +2,22 @@
 // This file would need to be created or updated with better validation logic
 import { ApiAccount } from '@/types/channels';
 import { supabase } from '@/integrations/supabase/client';
-import { logInfo, logWarning, logError, trackApiCall } from './debugger';
+import { logInfo, logWarning, logError, trackApiCall, trackApiCredentials } from './debugger';
 import { runConnectivityChecks } from './networkCheck';
 
 /**
  * Validate format of Telegram API credentials
  */
 const validateCredentialFormat = (account: ApiAccount): { valid: boolean; error?: string } => {
+  // Track API credentials at validation start
+  trackApiCredentials(
+    'credentialValidator.ts',
+    'validateCredentialFormat',
+    'start',
+    account.apiKey,
+    account.apiHash
+  );
+  
   // Check API ID format
   if (!account.apiKey || account.apiKey.trim() === '') {
     return { valid: false, error: "API ID cannot be empty" };
@@ -37,6 +46,15 @@ const validateCredentialFormat = (account: ApiAccount): { valid: boolean; error?
     return { valid: false, error: "Invalid phone number format. Must include country code (e.g. +1234567890)" };
   }
   
+  // Track API credentials after validation
+  trackApiCredentials(
+    'credentialValidator.ts',
+    'validateCredentialFormat',
+    'validated',
+    apiId, // Track as number here
+    account.apiHash
+  );
+  
   return { valid: true };
 }
 
@@ -51,6 +69,16 @@ export const validateTelegramCredentials = async (account: ApiAccount) => {
   logInfo(context, `Account: ${account.nickname} (${account.phoneNumber})`);
   logInfo(context, `API ID: ${account.apiKey}`);
   
+  // Track API credentials at start of validation
+  trackApiCredentials(
+    'credentialValidator.ts',
+    'validateTelegramCredentials',
+    'start',
+    account.apiKey,
+    account.apiHash,
+    { phoneNumber: account.phoneNumber, accountId: account.id }
+  );
+  
   try {
     // First validate format of credentials before making any network requests
     const formatValidation = validateCredentialFormat(account);
@@ -61,6 +89,9 @@ export const validateTelegramCredentials = async (account: ApiAccount) => {
         error: formatValidation.error
       };
     }
+    
+    // Convert API ID to number for subsequent operations
+    const numericApiId = parseInt(account.apiKey, 10);
     
     // First check if the edge function is deployed and accessible
     logInfo(context, 'Checking Edge Function deployment status...');
@@ -97,13 +128,23 @@ export const validateTelegramCredentials = async (account: ApiAccount) => {
     // Trim whitespace from all fields
     const requestData = {
       operation: 'validate',
-      apiId: account.apiKey.trim(),
+      apiId: numericApiId, // Send as numeric value
       apiHash: account.apiHash.trim(),
       phoneNumber: account.phoneNumber.trim(),
       accountId: account.id || 'temp-validation',
       // CRITICAL: Make sure we are explicitly requesting version 2.26.22
       telegramVersion: '2.26.22'
     };
+    
+    // Track API credentials before API call
+    trackApiCredentials(
+      'credentialValidator.ts',
+      'validateTelegramCredentials',
+      'before-api-call',
+      requestData.apiId,
+      requestData.apiHash,
+      { operation: requestData.operation }
+    );
     
     try {
       const { data, error } = await supabase.functions.invoke('telegram-connector', {
@@ -112,6 +153,16 @@ export const validateTelegramCredentials = async (account: ApiAccount) => {
       
       // Track the API call with our enhanced debugger
       trackApiCall('telegram-connector/validate', requestData, data, error);
+      
+      // Track API credentials after API call
+      trackApiCredentials(
+        'credentialValidator.ts',
+        'validateTelegramCredentials',
+        'after-api-call',
+        requestData.apiId,
+        requestData.apiHash,
+        { success: !error, error: error?.message }
+      );
       
       // Log the validation response
       logInfo(context, 'Telegram credentials validation response:', data);
@@ -164,6 +215,16 @@ export const validateTelegramCredentials = async (account: ApiAccount) => {
       // Enhanced error logging and handling
       logError(context, 'Exception during Telegram validation', invokeError);
       
+      // Track API credentials on error
+      trackApiCredentials(
+        'credentialValidator.ts',
+        'validateTelegramCredentials',
+        'invoke-error',
+        account.apiKey,
+        account.apiHash,
+        { error: invokeError instanceof Error ? invokeError.message : String(invokeError) }
+      );
+      
       // Provide more specific error messages
       if (invokeError instanceof Error) {
         // Check for version mismatch
@@ -208,6 +269,16 @@ export const validateTelegramCredentials = async (account: ApiAccount) => {
     }
   } catch (error) {
     logError(context, 'Unexpected error during validation process', error);
+    
+    // Track API credentials on error
+    trackApiCredentials(
+      'credentialValidator.ts',
+      'validateTelegramCredentials',
+      'unhandled-error',
+      account.apiKey,
+      account.apiHash,
+      { error: error instanceof Error ? error.message : String(error) }
+    );
     
     // Check for version mismatch
     if (error instanceof Error && error.message.includes('unsupported Telegram client version')) {

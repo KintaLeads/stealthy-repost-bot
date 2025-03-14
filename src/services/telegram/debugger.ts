@@ -65,6 +65,9 @@ export class ConsoleDebugger {
         message: args[0],
         data: args.length > 1 ? args.slice(1) : undefined
       });
+      
+      // Auto-track API credentials if they appear in logs
+      this.tryExtractApiCredentials('console.log', String(args[0]), args.slice(1));
     };
     
     console.warn = (...args: any[]) => {
@@ -78,6 +81,9 @@ export class ConsoleDebugger {
         message: args[0],
         data: args.length > 1 ? args.slice(1) : undefined
       });
+      
+      // Auto-track API credentials if they appear in logs
+      this.tryExtractApiCredentials('console.warn', String(args[0]), args.slice(1));
     };
     
     console.error = (...args: any[]) => {
@@ -106,7 +112,90 @@ export class ConsoleDebugger {
         message: typeof args[0] === 'string' ? args[0] : args[0] instanceof Error ? args[0].message : String(args[0]),
         data: formattedError
       });
+      
+      // Auto-track API credentials if they appear in logs
+      this.tryExtractApiCredentials('console.error', String(args[0]), args.slice(1));
     };
+  }
+  
+  private tryExtractApiCredentials(functionName: string, message: string, args: any[]) {
+    // Look for typical patterns in log messages
+    if (message.includes('apiId') || message.includes('API ID') || 
+        message.includes('apiHash') || message.includes('API Hash')) {
+      
+      // Try to extract api credentials
+      let apiId: any = null;
+      let apiHash: any = null;
+      let otherData: any = {};
+      
+      // Check message for details
+      if (message.includes('apiId')) {
+        const match = message.match(/apiId:?\s*([^,)(\n\s]+)/i);
+        if (match && match[1]) {
+          apiId = match[1].trim();
+        }
+      }
+      
+      if (message.includes('apiHash')) {
+        const match = message.match(/apiHash:?\s*([^,)(\n\s]+)/i);
+        if (match && match[1]) {
+          apiHash = match[1].trim();
+        }
+      }
+      
+      // Check the args too
+      if (args && args.length > 0) {
+        args.forEach(arg => {
+          if (typeof arg === 'object' && arg !== null) {
+            if ('apiId' in arg) apiId = arg.apiId;
+            if ('api_id' in arg) apiId = arg.api_id;
+            if ('apiHash' in arg) apiHash = arg.apiHash;
+            if ('api_hash' in arg) apiHash = arg.api_hash;
+            
+            // Collect other useful debugging data
+            otherData = { ...otherData, ...arg };
+          }
+        });
+      }
+      
+      if (apiId || apiHash) {
+        // Get file path from error stack if possible
+        let filePath = 'unknown';
+        let callerFn = functionName;
+        
+        try {
+          const stackLines = new Error().stack?.split('\n') || [];
+          // Look for a non-debugger file in the stack
+          for (let i = 2; i < stackLines.length; i++) { // Skip first 2 lines (Error and this function)
+            const line = stackLines[i];
+            if (line && !line.includes('debugger.ts') && !line.includes('console.')) {
+              const fileMatch = line.match(/\((.+?):\d+:\d+\)/) || line.match(/at\s+(.+?):\d+:\d+/);
+              if (fileMatch && fileMatch[1]) {
+                filePath = fileMatch[1];
+                // Extract function name if available
+                const fnMatch = line.match(/at\s+([^(]+)\s+\(/) || line.match(/at\s+new\s+([^(]+)\s+\(/);
+                if (fnMatch && fnMatch[1]) {
+                  callerFn = fnMatch[1].trim();
+                }
+                break;
+              }
+            }
+          }
+        } catch (e) {
+          // Ignore stack parsing errors
+        }
+        
+        // Track the credentials
+        this.trackApiCredentials(
+          filePath,
+          callerFn,
+          'auto-extracted',
+          apiId,
+          apiHash,
+          otherData
+        );
+      }
+    }
   }
   
   public getLogs() {
@@ -159,6 +248,21 @@ export class ConsoleDebugger {
         request: maskedRequestData,
         response: response
       });
+    }
+    
+    // Also track the API credentials from the request
+    if (requestData && (requestData.apiId || requestData.apiHash)) {
+      this.trackApiCredentials(
+        'api-call',
+        endpoint,
+        'request',
+        requestData.apiId,
+        requestData.apiHash,
+        { 
+          endpoint,
+          status: error ? 'error' : 'success'
+        }
+      );
     }
   }
   

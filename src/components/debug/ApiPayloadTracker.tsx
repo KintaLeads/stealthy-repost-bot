@@ -4,6 +4,8 @@ import { consoleLogger } from '@/services/telegram/debugger';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { RefreshCw } from 'lucide-react';
 
 interface ApiPayloadEntry {
   timestamp: Date;
@@ -22,24 +24,48 @@ interface ApiPayloadEntry {
 }
 
 const ApiPayloadTracker: React.FC = () => {
+  const [refresh, setRefresh] = React.useState(0);
   const payloads = consoleLogger.getApiPayloads();
+  
+  // Function to force refresh
+  const handleRefresh = () => {
+    setRefresh(prev => prev + 1);
+  };
   
   if (payloads.length === 0) {
     return (
-      <div className="p-4 text-center text-muted-foreground">
-        No API payloads have been tracked yet. Perform an operation that uses API credentials.
+      <div className="p-4 text-center space-y-4">
+        <div className="text-muted-foreground">
+          No API payloads have been tracked yet. Perform an operation that uses API credentials.
+        </div>
+        <Button variant="outline" size="sm" onClick={handleRefresh} className="gap-2">
+          <RefreshCw size={14} />
+          Refresh
+        </Button>
       </div>
     );
   }
   
   return (
-    <ScrollArea className="h-[300px] w-full">
-      <div className="p-1 space-y-2">
-        {payloads.map((payload, index) => (
-          <PayloadCard key={index} payload={payload} index={index} />
-        ))}
+    <div className="space-y-3">
+      <div className="flex justify-between items-center px-1">
+        <span className="text-sm text-muted-foreground">
+          Showing {payloads.length} tracked API credential operations
+        </span>
+        <Button variant="outline" size="sm" onClick={handleRefresh} className="gap-2">
+          <RefreshCw size={14} />
+          Refresh
+        </Button>
       </div>
-    </ScrollArea>
+      
+      <ScrollArea className="h-[300px] w-full">
+        <div className="p-1 space-y-2">
+          {payloads.map((payload, index) => (
+            <PayloadCard key={index} payload={payload} index={index} />
+          ))}
+        </div>
+      </ScrollArea>
+    </div>
   );
 };
 
@@ -53,17 +79,28 @@ const PayloadCard: React.FC<{ payload: ApiPayloadEntry; index: number }> = ({ pa
   const apiIdTypeBadge = getBadgeVariant(apiId.type);
   const apiHashTypeBadge = getBadgeVariant(apiHash.type);
   
+  // Format file path for better display
+  const shortFilePath = getShortFileName(filePath);
+  
+  // Highlight stages with different colors
+  const stageBadgeVariant = getStageBadgeVariant(stage);
+  
   return (
     <Card className="border-l-4 border-l-blue-500">
       <CardContent className="p-2 text-xs">
         <div className="flex justify-between items-start mb-1">
-          <span className="font-bold">{formattedTime}</span>
+          <div className="flex items-center gap-1">
+            <span className="font-bold">{formattedTime}</span>
+            <Badge variant={stageBadgeVariant} className="text-[10px] h-4 ml-1">
+              {stage}
+            </Badge>
+          </div>
           <span className="text-muted-foreground">#{index + 1}</span>
         </div>
         
         <div className="mb-1">
-          <div className="font-medium text-xs">{getShortFileName(filePath)}</div>
-          <div className="text-muted-foreground text-[10px]">{functionName} - {stage}</div>
+          <div className="font-medium text-xs">{shortFilePath}</div>
+          <div className="text-muted-foreground text-[10px]">{functionName}</div>
         </div>
         
         <div className="grid grid-cols-2 gap-1 mt-2">
@@ -124,6 +161,16 @@ const getBadgeVariant = (type: string): "default" | "secondary" | "destructive" 
     default:
       return 'outline';
   }
+};
+
+// Helper function to get badge variant based on stage
+const getStageBadgeVariant = (stage: string): "default" | "secondary" | "destructive" | "outline" => {
+  if (stage.includes('start')) return 'secondary';
+  if (stage.includes('validated')) return 'default';
+  if (stage.includes('error') || stage.includes('failed')) return 'destructive';
+  if (stage.includes('before')) return 'outline';
+  if (stage.includes('after')) return 'default';
+  return 'outline';
 };
 
 export default ApiPayloadTracker;
