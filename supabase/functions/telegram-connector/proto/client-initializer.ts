@@ -47,7 +47,7 @@ export function initializeTelegramClient(
     - Session: ${session ? `length: ${session.length}` : 'empty string'}`);
   
   try {
-    // ✅ Ensure that a valid session string is used (empty string if falsy)
+    // ✅ CRITICAL FIX: Ensure that a valid session string is used (empty string if falsy)
     const cleanSessionString = session || "";
     
     // ✅ CRITICAL FIX: Always create a new StringSession object with the session string
