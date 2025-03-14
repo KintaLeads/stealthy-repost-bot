@@ -4,7 +4,7 @@
  * Using GramJS for Deno
  */
 import { TelegramClient } from "https://esm.sh/telegram@2.19.10";
-import { StringSession } from "https://esm.sh/telegram/sessions";
+import { StringSession } from "https://esm.sh/telegram@2.19.10/sessions";
 import { MTProtoInterface, MTProtoOptions } from "./interfaces.ts";
 import * as Auth from "./auth-methods.ts";
 import * as Messages from "./message-methods.ts";
@@ -86,7 +86,7 @@ export class MTProtoClient implements MTProtoInterface {
         - apiHash: ${this.apiHash.substring(0, 3)}... (${typeof this.apiHash})
         - session: ${this.session ? `length: ${this.session.length}` : 'empty string'} (${typeof this.session})`);
       
-      // IMPORTANT FIX: Initialize client using the client initializer with proper session handling
+      // Initialize client using the client initializer with proper session handling
       const { client, stringSession } = initializeTelegramClient(
         this.apiId,  // This should be a number at this point
         this.apiHash,
