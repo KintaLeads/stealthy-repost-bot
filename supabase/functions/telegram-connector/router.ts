@@ -42,22 +42,15 @@ export async function routeOperation(
     sessionLength: clientParams.sessionString?.length || 0
   });
 
-  // Set a timeout for the operation
-  const operationTimeout = setTimeout(() => {
-    console.error(`⚠️ Operation ${operation} timed out after 25 seconds`);
-  }, 25000);
-
   try {
     // Check if healthcheck is being requested (special case that doesn't need client)
     if (operation === 'healthcheck') {
-      clearTimeout(operationTimeout);
       return handleHealthcheck(enhancedCorsHeaders);
     }
     
     // Handle test mode separately
     if (operation === 'connect' && requestData.testMode === true) {
       console.log("🧪 Test mode request detected");
-      clearTimeout(operationTimeout);
       return new Response(
         JSON.stringify({
           success: true,
@@ -71,19 +64,16 @@ export async function routeOperation(
     // Validate client parameters before creating client
     if (!clientParams.apiId) {
       console.error("⚠️ Missing apiId in client parameters");
-      clearTimeout(operationTimeout);
       return createBadRequestResponse("Missing required parameter: apiId", enhancedCorsHeaders);
     }
     
     if (!clientParams.apiHash) {
       console.error("⚠️ Missing apiHash in client parameters");
-      clearTimeout(operationTimeout);
       return createBadRequestResponse("Missing required parameter: apiHash", enhancedCorsHeaders);
     }
     
     if (!clientParams.phoneNumber) {
       console.error("⚠️ Missing phoneNumber in client parameters");
-      clearTimeout(operationTimeout);
       return createBadRequestResponse("Missing required parameter: phoneNumber", enhancedCorsHeaders);
     }
 
@@ -94,7 +84,6 @@ export async function routeOperation(
       
     if (isNaN(numericApiId) || numericApiId <= 0) {
       console.error("⚠️ Invalid apiId (not a valid number):", clientParams.apiId);
-      clearTimeout(operationTimeout);
       return createBadRequestResponse(
         `Invalid apiId: ${clientParams.apiId} is not a valid positive number`,
         enhancedCorsHeaders
@@ -136,7 +125,6 @@ export async function routeOperation(
       console.log("✅ Telegram client created successfully");
     } catch (clientError) {
       console.error("⚠️ Error initializing Telegram client:", clientError);
-      clearTimeout(operationTimeout);
       return createBadRequestResponse(
         `Error initializing Telegram client: ${clientError instanceof Error ? clientError.message : String(clientError)}`,
         enhancedCorsHeaders
@@ -175,14 +163,12 @@ export async function routeOperation(
         
       default:
         console.error("⚠️ Invalid operation:", operation);
-        clearTimeout(operationTimeout);
         return createBadRequestResponse(
           `Invalid operation: ${operation}. Supported operations are: validate, connect, listen, repost, healthcheck`,
           enhancedCorsHeaders
         );
     }
     
-    clearTimeout(operationTimeout);
     console.log(`✅ Operation ${operation} completed successfully`);
     
     // Ensure we have a valid response with CORS headers
@@ -198,7 +184,6 @@ export async function routeOperation(
     
     return response;
   } catch (error) {
-    clearTimeout(operationTimeout);
     console.error("⚠️ Error in routeOperation:", error);
     return createBadRequestResponse(
       `Error processing operation: ${error instanceof Error ? error.message : String(error)}`,

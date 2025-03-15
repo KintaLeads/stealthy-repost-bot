@@ -51,7 +51,7 @@ export const handleInitialConnection = async (
     }
 
     // Construct final payload for API request
-    // IMPORTANT: Use consistent parameter naming
+    // IMPORTANT: Use consistent parameter naming - use sessionString as the parameter name
     const connectionData = {
       operation: 'connect', 
       apiId: apiId,
@@ -95,131 +95,93 @@ export const handleInitialConnection = async (
     const accessToken = sessionData.session?.access_token || '';
     const anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVzd2ZyemRxeHNhaXprZHN3eGZuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA5ODM2ODQsImV4cCI6MjA1NjU1OTY4NH0.2onrHJHapQZbqi7RgsuK7A6G5xlJrNSgRv21_mUT7ik';
 
-    // **Optimized Retry Mechanism**
-    let retries = 0;
-    const maxRetries = 2;
-    let lastError = null;
-
-    while (retries <= maxRetries) {
-      try {
-        // Create abort controller for timeout - shorter timeout for faster feedback
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => {
-          controller.abort();
-          console.log(`Request timed out after ${retries === 0 ? 15 : 20} seconds`);
-        }, (retries === 0 ? 15000 : 20000)); // Shorter first try, longer retries
-        
-        try {
-          console.log(`Attempt ${retries + 1}/${maxRetries + 1}: Sending request to ${requestUrl}`);
-          
-          // Track the API call attempt
-          trackApiCall(
-            'connector/connect/attempt',
-            { ...connectionData, attempt: retries + 1 }, 
-            null, 
-            null
-          );
-          
-          const response = await fetch(requestUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${accessToken}`,
-              'apikey': anonKey
-            },
-            body: JSON.stringify(connectionData),
-            signal: controller.signal,
-            // Adding cache control
-            cache: 'no-store'
-          });
-          
-          // Clear the timeout since request completed
-          clearTimeout(timeoutId);
-          
-          // Check if response is not ok
-          if (!response.ok) {
-            const errorText = await response.text();
-            console.log(`Request failed with status: ${response.status}`);
-            console.log(`Error response: ${errorText}`);
-            throw new Error(`HTTP error ${response.status}: ${errorText}`);
-          }
-
-          const data = await response.json();
-          console.log("Response received:", data);
-
-          // Track the API response
-          trackApiCall(
-            'connector/connect/response',
-            connectionData, 
-            data, 
-            null
-          );
-
-          // If session needs verification
-          if (data.codeNeeded) {
-            toast({
-              title: "Verification Required",
-              description: "Enter the verification code sent to your Telegram app",
-            });
-
-            return {
-              success: true,
-              codeNeeded: true,
-              phoneCodeHash: data.phoneCodeHash
-            };
-          }
-
-          // Store the new session if provided
-          if (data.session) {
-            storeSession(account.id, data.session);
-            logInfo(context, `📦 Session stored for account ${account.id}`);
-          }
-
-          toast({
-            title: "Connected Successfully",
-            description: "Your Telegram account is now connected",
-          });
-
-          return {
-            success: true,
-            session: data.session,
-            user: data.user
-          };
-        } catch (fetchError) {
-          clearTimeout(timeoutId);
-          throw fetchError;
-        }
-
-      } catch (error) {
-        console.error(`❌ Connection error (attempt ${retries + 1}/${maxRetries + 1}):`, error);
-        
-        // Special handling for AbortError (timeout)
-        if (error.name === 'AbortError') {
-          lastError = new Error('Connection timed out. The server took too long to respond.');
-        } else {
-          lastError = error;
-        }
-        
-        // Track the API error
-        trackApiCall(
-          'connector/connect/error',
-          { ...connectionData, attempt: retries + 1 }, 
-          null, 
-          lastError
-        );
+    // Create abort controller for timeout - moderate timeout for better user experience
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      controller.abort();
+      console.log(`Request timed out after 15 seconds`);
+    }, 15000);
+    
+    try {
+      console.log(`Sending request to ${requestUrl}`);
+      
+      // Track the API call attempt
+      trackApiCall(
+        'connector/connect/attempt',
+        connectionData, 
+        null, 
+        null
+      );
+      
+      const response = await fetch(requestUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+          'apikey': anonKey
+        },
+        body: JSON.stringify(connectionData),
+        signal: controller.signal,
+        // Adding cache control
+        cache: 'no-store'
+      });
+      
+      // Clear the timeout since request completed
+      clearTimeout(timeoutId);
+      
+      // Check if response is not ok
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.log(`Request failed with status: ${response.status}`);
+        console.log(`Error response: ${errorText}`);
+        throw new Error(`HTTP error ${response.status}: ${errorText}`);
       }
 
-      retries++;
-      if (retries <= maxRetries) {
-        // Exponential backoff with first retry being faster
-        const backoffTime = 1000 * retries;
-        console.log(`Retrying in ${backoffTime}ms...`);
-        await new Promise(resolve => setTimeout(resolve, backoffTime));
+      const data = await response.json();
+      console.log("Response received:", data);
+
+      // Track the API response
+      trackApiCall(
+        'connector/connect/response',
+        connectionData, 
+        data, 
+        null
+      );
+
+      // If session needs verification
+      if (data.codeNeeded) {
+        toast({
+          title: "Verification Required",
+          description: "Enter the verification code sent to your Telegram app",
+        });
+
+        return {
+          success: true,
+          codeNeeded: true,
+          phoneCodeHash: data.phoneCodeHash
+        };
       }
+
+      // Store the new session if provided
+      if (data.session) {
+        storeSession(account.id, data.session);
+        logInfo(context, `📦 Session stored for account ${account.id}`);
+      }
+
+      toast({
+        title: "Connected Successfully",
+        description: "Your Telegram account is now connected",
+      });
+
+      return {
+        success: true,
+        session: data.session,
+        user: data.user
+      };
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      throw fetchError;
     }
-
-    throw lastError || new Error('Failed to connect after multiple attempts');
-
   } catch (error) {
     logError(context, '💥 Connection error:', error);
 
