@@ -1,3 +1,4 @@
+
 import { TelegramClient } from "https://esm.sh/telegram@2.19.10";
 import { StringSession } from "https://esm.sh/telegram@2.19.10/sessions/index.js";
 
@@ -22,9 +23,11 @@ export async function handler(req: Request) {
       console.log("No session provided, initializing empty StringSession.");
       stringSession = new StringSession("");
     } else {
-      console.log("Using existing session string.");
+      console.log("Using existing session string:", sessionString.substring(0, 10) + "...");
       stringSession = new StringSession(sessionString.trim());
     }
+
+    console.log("Initialized StringSession object:", stringSession ? "Valid" : "Invalid");
 
     // ✅ Step 2: Initialize Telegram Client with `StringSession`
     const client = new TelegramClient(
@@ -54,6 +57,12 @@ export async function handler(req: Request) {
         );
       } else {
         console.log("✅ Connection successful. Returning session.");
+        console.log("Session details:", {
+          type: typeof client.session.save(),
+          length: client.session.save().length,
+          sample: client.session.save().substring(0, 10) + "..."
+        });
+        
         return new Response(
           JSON.stringify({ success: true, session: client.session.save() }),
           { status: 200, headers: { "Content-Type": "application/json" } }
@@ -67,6 +76,11 @@ export async function handler(req: Request) {
       try {
         await client.signIn({ phoneNumber, phoneCode: verificationCode });
         console.log("✅ Verification successful.");
+        console.log("Session after verification:", {
+          type: typeof client.session.save(),
+          length: client.session.save().length,
+          sample: client.session.save().substring(0, 10) + "..."
+        });
 
         return new Response(
           JSON.stringify({ success: true, session: client.session.save() }),
