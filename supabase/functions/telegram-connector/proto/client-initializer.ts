@@ -3,7 +3,7 @@
  * Handles Telegram client initialization
  */
 import { TelegramClient } from "https://esm.sh/telegram@2.19.10";
-import { StringSession } from "https://esm.sh/telegram@2.19.10/sessions";
+import { StringSession } from "https://esm.sh/telegram@2.19.10/sessions/index.js";
 
 /**
  * Initialize a new Telegram client instance
@@ -47,7 +47,7 @@ export function initializeTelegramClient(
     - Session: ${session ? `length: ${session.length}` : 'empty string'}`);
   
   try {
-    // Create StringSession correctly with proper type checking
+    // Create a fresh StringSession with the provided session string
     const cleanSession = session || "";
     const stringSession = new StringSession(cleanSession);
     
