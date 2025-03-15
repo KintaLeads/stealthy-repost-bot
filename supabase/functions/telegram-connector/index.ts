@@ -30,15 +30,13 @@ serve(async (req) => {
     }
     
     // Extract operation and client parameters
-    const { operation, apiId, apiHash, phoneNumber, accountId, sessionString, ...otherParams } = data;
+    const { operation, apiId, apiHash, phoneNumber, accountId, ...otherParams } = data;
     
     console.log(`Request received for operation: ${operation}`, {
       hasApiId: !!apiId,
       hasApiHash: !!apiHash,
       hasPhoneNumber: !!phoneNumber,
       hasAccountId: !!accountId,
-      hasSession: !!sessionString,
-      sessionLength: sessionString?.length || 0,
       otherParamsKeys: Object.keys(otherParams)
     });
     
@@ -48,15 +46,14 @@ serve(async (req) => {
         operation,
         apiId,
         apiHash: apiHash ? `${apiHash.substring(0, 3)}...` : 'missing',
-        phoneNumber: phoneNumber ? `${phoneNumber.substring(0, 4)}****` : 'missing',
-        sessionLength: sessionString?.length || 0
+        phoneNumber: phoneNumber ? `${phoneNumber.substring(0, 4)}****` : 'missing'
       }));
     }
     
     // Route the operation to the appropriate handler
     const response = await routeOperation(
       operation,
-      { apiId, apiHash, phoneNumber, accountId, sessionString },
+      { apiId, apiHash, phoneNumber, accountId },
       data
     );
     

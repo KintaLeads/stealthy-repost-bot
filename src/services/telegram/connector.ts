@@ -3,7 +3,6 @@ import { ApiAccount } from '@/types/channels';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/use-toast';
 import { ConnectionResult, ConnectionOptions } from './types';
-import { getStoredSession, storeSession } from './session/sessionManager';
 
 /**
  * Handles the connection to Telegram.
@@ -22,27 +21,13 @@ export const connectToTelegram = async (
       throw new Error(`Invalid API ID: "${account.apiKey}" is not a valid number`);
     }
     
-    // Get existing session if available
-    let sessionString = "";
-    if (account.id) {
-      sessionString = getStoredSession(account.id);
-      console.log(`Got existing session for account ${account.id}: ${sessionString ? 'found' : 'none'}`);
-    }
-    
-    // Make sure we never pass [NONE] as a session string
-    if (/^\[NONE\]$/i.test(sessionString)) {
-      console.log("Session string was [NONE], converting to empty string");
-      sessionString = "";
-    }
-    
-    // Construct payload
+    // Construct payload - no session string
     const payload = {
       operation: 'connect', 
       apiId: apiId,
       apiHash: account.apiHash,
       phoneNumber: account.phoneNumber,
       accountId: account.id || 'unknown',
-      sessionString: sessionString, // Pass existing session if available
       testOnly: options.testOnly || false,
       debug: options.debug || false
     };
@@ -57,8 +42,7 @@ export const connectToTelegram = async (
     
     console.log('Sending request to Telegram connector with payload:', {
       ...payload,
-      apiHash: '[REDACTED]',
-      sessionString: sessionString ? `length: ${sessionString.length}` : 'none'
+      apiHash: '[REDACTED]'
     });
     
     // Call the edge function
@@ -102,18 +86,6 @@ export const connectToTelegram = async (
       };
     }
     
-    // If we have a session, store it
-    if (data.session) {
-      // Don't store [NONE] as a session
-      if (data.session && !/^\[NONE\]$/i.test(data.session)) {
-        // Store session in localStorage
-        storeSession(account.id, data.session);
-        console.log(`Session stored for account ${account.id}`);
-      } else {
-        console.log(`Not storing invalid session: "${data.session}"`);
-      }
-    }
-    
     toast({
       title: "Connected Successfully",
       description: "Your Telegram account is now connected",
@@ -121,7 +93,6 @@ export const connectToTelegram = async (
     
     return {
       success: true,
-      session: data.session,
       user: data.user
     };
   } catch (error) {

@@ -15,7 +15,6 @@ interface ClientParams {
   apiHash: string;
   phoneNumber: string;
   accountId: string;
-  sessionString: string;
 }
 
 // Updated CORS headers for all responses
@@ -37,9 +36,7 @@ export async function routeOperation(
     hasApiId: !!clientParams.apiId,
     apiIdType: typeof clientParams.apiId,
     hasApiHash: !!clientParams.apiHash,
-    hasPhoneNumber: !!clientParams.phoneNumber,
-    hasSession: !!clientParams.sessionString,
-    sessionLength: clientParams.sessionString?.length || 0
+    hasPhoneNumber: !!clientParams.phoneNumber
   });
 
   try {
@@ -90,25 +87,13 @@ export async function routeOperation(
       );
     }
     
-    // CRITICAL FIX: NEVER use "[NONE]" or "[none]" as a session string, always use empty string
-    // Use regex to handle any case variation of [none]
-    let sessionString = "";
-    if (clientParams.sessionString) {
-      if (!/^\[NONE\]$/i.test(clientParams.sessionString)) {
-        sessionString = clientParams.sessionString.trim();
-      }
-      console.log(`Session string check: Original "${clientParams.sessionString}", Cleaned: "${sessionString}"`);
-    }
-    
     // Log the validated parameters
     console.log("✅ Validated client parameters:", {
       apiId: numericApiId,
       apiIdType: typeof numericApiId,
       apiHashLength: clientParams.apiHash?.length,
       phoneNumber: clientParams.phoneNumber.substring(0, 4) + "****",
-      accountId: clientParams.accountId,
-      sessionLength: sessionString.length,
-      sessionIsNone: sessionString === "[NONE]" || sessionString === "[none]"
+      accountId: clientParams.accountId
     });
 
     // Create the client with validated credentials
@@ -117,9 +102,7 @@ export async function routeOperation(
     try {
       client = createTelegramClient({
         ...clientParams,
-        apiId: numericApiId, // Always pass as a number
-        phoneNumber: clientParams.phoneNumber,
-        sessionString: sessionString // Ensure clean session is passed
+        apiId: numericApiId // Always pass as a number
       });
       
       console.log("✅ Telegram client created successfully");

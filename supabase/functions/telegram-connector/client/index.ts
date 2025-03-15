@@ -10,7 +10,6 @@ export interface ClientCredentials {
   apiHash: string;
   phoneNumber: string;
   accountId?: string;
-  sessionString?: string;
 }
 
 /**
@@ -39,29 +38,18 @@ export function createTelegramClient(credentials: ClientCredentials): TelegramCl
     throw new Error(`Invalid API ID: ${credentials.apiId}`);
   }
   
-  // CRITICAL: Make sure sessionString is a string and not the literal "[NONE]"
-  let sessionString = credentials.sessionString || "";
-  
-  // Check if it's "[NONE]" in any capitalization
-  if (/^\[NONE\]$/i.test(sessionString)) {
-    console.log(`Session string was [NONE], converting to empty string`);
-    sessionString = "";
-  }
-  
   console.log(`Creating client with:
     - API ID: ${apiId}
     - API Hash: ${credentials.apiHash.substring(0, 3)}...
     - Phone: ${credentials.phoneNumber.substring(0, 4)}****
-    - Account ID: ${credentials.accountId || "unknown"}
-    - Session string length: ${sessionString.length}`);
+    - Account ID: ${credentials.accountId || "unknown"}`);
   
   // Create the MTProto client with proper session handling
   try {
-    // IMPORTANT: Using a different constructor pattern - no storageOptions
+    // IMPORTANT: Using a simplified constructor pattern
     const client = new MTProto(
       apiId,
-      credentials.apiHash,
-      sessionString
+      credentials.apiHash
     );
     
     // Set phone number on the client for easier access
@@ -77,12 +65,12 @@ export function createTelegramClient(credentials: ClientCredentials): TelegramCl
       getApiId: () => apiId,
       getApiHash: () => credentials.apiHash,
       getAccountId: () => credentials.accountId || "unknown",
-      getSession: () => sessionString,
+      getSession: () => "", // Always return empty string for now
       getAuthState: () => "initializing", // This would be updated later
       getClient: () => client,
       exportSession: async () => {
         try {
-          return await client.exportSession();
+          return ""; // Always return empty string for now
         } catch (error) {
           console.error("Error exporting session:", error);
           return "";

@@ -10,15 +10,14 @@ export class MTProto implements MTProtoInterface {
   
   constructor(
     apiId: number,
-    apiHash: string,
-    sessionString: string = ""
+    apiHash: string
   ) {
-    // Create the MTProto client with the correct session formatting
+    // Create the MTProto client with minimal settings
     this.client = new MTProtoClient({
       apiId,
       apiHash,
       storageOptions: {
-        session: sessionString
+        session: ""  // Always use empty session string
       }
     });
   }
@@ -28,7 +27,7 @@ export class MTProto implements MTProtoInterface {
   }
   
   async exportSession(): Promise<string> {
-    return await this.client.exportSession();
+    return ""; // Always return empty string
   }
   
   async validateCredentials(): Promise<{ success: boolean; error?: string }> {
