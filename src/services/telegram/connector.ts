@@ -51,14 +51,14 @@ export const handleInitialConnection = async (
     }
 
     // Construct final payload for API request
-    // Backend expects 'sessionString' parameter, not 'StringSession'
+    // IMPORTANT: Use consistent parameter naming
     const connectionData = {
       operation: 'connect', 
       apiId: apiId,
       apiHash: account.apiHash,
       phoneNumber: account.phoneNumber,
       accountId: account.id || 'unknown',
-      sessionString: sessionString, // Use 'sessionString' as the parameter name
+      sessionString: sessionString, // Use 'sessionString' as the parameter name consistently
       debug: true,
       logLevel: 'verbose',
       ...options
@@ -95,22 +95,30 @@ export const handleInitialConnection = async (
     const accessToken = sessionData.session?.access_token || '';
     const anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVzd2ZyemRxeHNhaXprZHN3eGZuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA5ODM2ODQsImV4cCI6MjA1NjU1OTY4NH0.2onrHJHapQZbqi7RgsuK7A6G5xlJrNSgRv21_mUT7ik';
 
-    // **Retry Mechanism with Timeout**: Attempts up to 3 times with abort controller
+    // **Optimized Retry Mechanism**
     let retries = 0;
     const maxRetries = 2;
     let lastError = null;
 
     while (retries <= maxRetries) {
       try {
-        // Create abort controller for timeout
+        // Create abort controller for timeout - shorter timeout for faster feedback
         const controller = new AbortController();
         const timeoutId = setTimeout(() => {
           controller.abort();
-          console.log("Request timed out after 30 seconds");
-        }, 30000); // 30 second timeout
+          console.log(`Request timed out after ${retries === 0 ? 15 : 20} seconds`);
+        }, (retries === 0 ? 15000 : 20000)); // Shorter first try, longer retries
         
         try {
           console.log(`Attempt ${retries + 1}/${maxRetries + 1}: Sending request to ${requestUrl}`);
+          
+          // Track the API call attempt
+          trackApiCall(
+            'connector/connect/attempt',
+            { ...connectionData, attempt: retries + 1 }, 
+            null, 
+            null
+          );
           
           const response = await fetch(requestUrl, {
             method: 'POST',
@@ -120,7 +128,9 @@ export const handleInitialConnection = async (
               'apikey': anonKey
             },
             body: JSON.stringify(connectionData),
-            signal: controller.signal
+            signal: controller.signal,
+            // Adding cache control
+            cache: 'no-store'
           });
           
           // Clear the timeout since request completed
@@ -193,7 +203,7 @@ export const handleInitialConnection = async (
         // Track the API error
         trackApiCall(
           'connector/connect/error',
-          connectionData, 
+          { ...connectionData, attempt: retries + 1 }, 
           null, 
           lastError
         );
@@ -201,9 +211,10 @@ export const handleInitialConnection = async (
 
       retries++;
       if (retries <= maxRetries) {
+        // Exponential backoff with first retry being faster
         const backoffTime = 1000 * retries;
         console.log(`Retrying in ${backoffTime}ms...`);
-        await new Promise(resolve => setTimeout(resolve, backoffTime)); // Exponential backoff
+        await new Promise(resolve => setTimeout(resolve, backoffTime));
       }
     }
 

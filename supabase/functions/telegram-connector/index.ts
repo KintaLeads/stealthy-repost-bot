@@ -4,7 +4,42 @@ import { StringSession } from "https://esm.sh/telegram@2.19.10/sessions/index.js
 import { routeOperation } from "./router.ts";
 import { handleCorsRequest, parseRequestBody, validateApiParameters } from "./utils/requestHandler.ts";
 
+// Maximum time in milliseconds for function execution
+const MAX_EXECUTION_TIME = 28000; // 28 seconds to allow for 2s buffer before Supabase's 30s timeout
+
 export async function handler(req: Request) {
+  // Set up a timeout to ensure we don't hit Supabase's 30s timeout without a response
+  const timeoutPromise = new Promise((_, reject) => 
+    setTimeout(() => reject(new Error("Function execution timed out")), MAX_EXECUTION_TIME)
+  );
+  
+  // Wrap the actual handler in a promise so we can race with the timeout
+  const handlerPromise = handleRequest(req);
+  
+  try {
+    // Race the handler against the timeout
+    return await Promise.race([handlerPromise, timeoutPromise]);
+  } catch (timeoutError) {
+    console.error("⚠️ Function execution timed out:", timeoutError);
+    return new Response(
+      JSON.stringify({ 
+        success: false, 
+        error: "Request timed out after " + (MAX_EXECUTION_TIME/1000) + " seconds",
+        timeoutError: true
+      }),
+      { 
+        status: 504, 
+        headers: { 
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type' 
+        } 
+      }
+    );
+  }
+}
+
+async function handleRequest(req: Request) {
   try {
     // Check for CORS pre-flight requests first
     if (req.method === 'OPTIONS') {
@@ -55,7 +90,7 @@ export async function handler(req: Request) {
       apiHash: apiHash || "",
       phoneNumber: phoneNumber || "",
       accountId: accountId || "unknown",
-      sessionString: StringSession || sessionString || ""  // Try StringSession first, fall back to sessionString
+      sessionString: sessionString || StringSession || ""  // Try sessionString first, fall back to StringSession
     };
     
     console.log("🔄 Routing to operation:", operation);

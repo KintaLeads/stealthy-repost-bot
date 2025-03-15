@@ -1,198 +1,127 @@
 
+// Request handling utilities for telegram-connector
+
 /**
- * Request handling utilities for the Telegram connector functions
+ * Enhanced CORS headers to handle cross-origin requests
  */
-
-// CORS headers for cross-origin requests
-export const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-telegram-session',
-  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-  'Access-Control-Expose-Headers': 'Content-Length, X-Telegram-Session',
-  'Access-Control-Max-Age': '86400',
-};
-
-// Updated CORS headers with extra fields
 export const updatedCorsHeaders = {
-  ...corsHeaders,
-  'Content-Type': 'application/json'
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Max-Age': '86400',
+  'Access-Control-Expose-Headers': 'Content-Length, X-Telegram-Session'
 };
 
 /**
- * Handle CORS preflight requests
+ * Handles CORS preflight requests
  */
 export function handleCorsRequest(): Response {
-  console.log("Handling OPTIONS request for CORS with proper headers");
   return new Response(null, {
-    status: 204,
-    headers: corsHeaders
+    status: 204, // No content
+    headers: updatedCorsHeaders
   });
 }
 
 /**
- * Parse and validate the request body
- * @param req The original request
- * @returns Object containing validity status and parsed data
+ * Parses and validates request body
  */
-export async function parseRequestBody(req: Request): Promise<{ valid: boolean; data: any; error?: string }> {
+export async function parseRequestBody(req: Request): Promise<{
+  valid: boolean;
+  data?: any;
+  error?: string;
+}> {
   try {
-    // Clone the request before reading the body
-    const reqClone = req.clone();
+    // Check if request has a body
+    if (!req.body) {
+      return { valid: false, error: "Request has no body" };
+    }
     
-    // Try to read the request text
-    let bodyText = '';
-    try {
-      bodyText = await reqClone.text();
-      console.log(`Request body received (${bodyText.length} chars)`, bodyText.substring(0, 200) + (bodyText.length > 200 ? '...' : ''));
-    } catch (readError) {
-      console.error("Error reading request body:", readError);
-      return {
-        valid: false,
-        data: null,
-        error: `Failed to read request body: ${readError instanceof Error ? readError.message : String(readError)}`
+    // Clone the request to ensure we don't consume the body
+    const clonedReq = req.clone();
+
+    // Attempt to parse JSON body
+    const contentType = req.headers.get('content-type');
+    
+    if (!contentType || !contentType.includes('application/json')) {
+      return { 
+        valid: false, 
+        error: `Invalid content type: ${contentType}. Expected application/json` 
       };
     }
     
-    // Check if body is empty
-    if (!bodyText || bodyText.trim() === '') {
-      console.error("Empty request body received");
-      return {
-        valid: false,
-        data: null,
-        error: 'Request body is empty'
-      };
+    const rawText = await clonedReq.text();
+    
+    if (!rawText) {
+      return { valid: false, error: "Empty request body" };
     }
     
-    // Try to parse the body as JSON
     try {
-      const data = JSON.parse(bodyText);
-      console.log("[REQUEST-HANDLER] Successfully parsed JSON body, keys:", Object.keys(data));
+      const data = JSON.parse(rawText);
       
-      // Log the entire request payload with types for debugging
-      console.log("[REQUEST-HANDLER] Full request payload with types:");
-      if (data.apiId !== undefined) {
-        console.log(`- apiId: ${data.apiId} (${typeof data.apiId})`);
-      }
-      if (data.apiHash !== undefined) {
-        console.log(`- apiHash: ${data.apiHash.substring(0, 3)}... (${typeof data.apiHash}, length: ${data.apiHash.length})`);
-      }
-      if (data.phoneNumber !== undefined) {
-        console.log(`- phoneNumber: ${data.phoneNumber.substring(0, 4)}**** (${typeof data.phoneNumber})`);
-      }
-      if (data.accountId !== undefined) {
-        console.log(`- accountId: ${data.accountId} (${typeof data.accountId})`);
-      }
-      if (data.operation !== undefined) {
-        console.log(`- operation: ${data.operation} (${typeof data.operation})`);
+      // Validate basic structure
+      if (!data || typeof data !== 'object') {
+        return { valid: false, error: "Invalid JSON: not an object" };
       }
       
-      // Special handling for session strings - check both parameter names
-      console.log(`- StringSession: ${data.StringSession ? 'present' : 'missing'} (${typeof data.StringSession})`);
-      console.log(`- sessionString: ${data.sessionString ? 'present' : 'missing'} (${typeof data.sessionString})`);
-      
-      // Validate critical fields
       if (!data.operation) {
-        console.error("[REQUEST-HANDLER] Missing operation in request");
-        return {
-          valid: false,
-          data,
-          error: 'Operation field is required'
-        };
+        return { valid: false, error: "Missing required parameter: operation" };
       }
       
-      return {
-        valid: true,
-        data
-      };
-    } catch (parseError) {
-      console.error("[REQUEST-HANDLER] Failed to parse JSON:", parseError);
-      return {
-        valid: false,
-        data: bodyText,
-        error: `Invalid JSON format: ${parseError instanceof Error ? parseError.message : String(parseError)}`
+      return { valid: true, data };
+    } catch (jsonError) {
+      return { 
+        valid: false, 
+        error: `Invalid JSON: ${jsonError instanceof Error ? jsonError.message : String(jsonError)}` 
       };
     }
   } catch (error) {
-    console.error("[REQUEST-HANDLER] Unexpected error in parseRequestBody:", error);
-    return {
-      valid: false,
-      data: null,
-      error: `Error processing request: ${error instanceof Error ? error.message : String(error)}`
+    console.error("Error parsing request body:", error);
+    return { 
+      valid: false, 
+      error: `Error parsing request: ${error instanceof Error ? error.message : String(error)}` 
     };
   }
 }
 
 /**
- * Validates that the API parameters are correct
+ * Validates required API parameters
  */
-export function validateApiParameters(apiId: string | number, apiHash: string, phoneNumber: string): { 
-  valid: boolean; 
-  error?: string;
-  details?: Record<string, any>; 
+export function validateApiParameters(
+  apiId: any, 
+  apiHash: string | undefined, 
+  phoneNumber: string | undefined
+): { 
+  valid: boolean;
+  error?: string; 
 } {
-  const errors = [];
-  const details: Record<string, any> = {};
-  
-  console.log("[REQUEST-HANDLER] validateApiParameters received:");
-  console.log(`- apiId: ${apiId} (${typeof apiId})`);
-  console.log(`- apiHash: ${apiHash?.substring(0, 3)}... (${typeof apiHash}, length: ${apiHash?.length})`);
-  console.log(`- phoneNumber: ${phoneNumber?.substring(0, 4)}**** (${typeof phoneNumber})`);
-  
-  // Ensure apiId is always a string for validation
-  const apiIdStr = String(apiId);
-  
-  // Check apiId
-  if (!apiIdStr) {
-    errors.push('API ID is required');
-    details.apiId = 'missing';
-  } else if (!/^\d+$/.test(apiIdStr)) {
-    errors.push('API ID must be a numeric value');
-    details.apiId = 'invalid_format';
+  // Validate API ID
+  if (!apiId) {
+    return { valid: false, error: "Missing required parameter: apiId" };
   }
   
-  // Check apiHash
+  const numericApiId = typeof apiId === 'number' ? apiId : parseInt(String(apiId), 10);
+  
+  if (isNaN(numericApiId) || numericApiId <= 0) {
+    return { valid: false, error: `Invalid apiId: ${apiId} is not a valid positive number` };
+  }
+  
+  // Validate API Hash
   if (!apiHash) {
-    errors.push('API Hash is required');
-    details.apiHash = 'missing';
-  } else if (apiHash.length < 10) {
-    errors.push('API Hash seems too short');
-    details.apiHash = 'suspicious_length';
+    return { valid: false, error: "Missing required parameter: apiHash" };
   }
   
-  // Check phoneNumber
+  if (typeof apiHash !== 'string' || apiHash.trim() === '') {
+    return { valid: false, error: `Invalid apiHash: ${apiHash}` };
+  }
+  
+  // Validate Phone Number
   if (!phoneNumber) {
-    errors.push('Phone number is required');
-    details.phoneNumber = 'missing';
-  } else if (!/^\+?\d{10,15}$/.test(phoneNumber.replace(/\s+/g, ''))) {
-    errors.push('Phone number must be in international format (e.g. +1234567890)');
-    details.phoneNumber = 'invalid_format';
+    return { valid: false, error: "Missing required parameter: phoneNumber" };
   }
   
-  return {
-    valid: errors.length === 0,
-    error: errors.length > 0 ? errors.join('; ') : undefined,
-    details: Object.keys(details).length > 0 ? details : undefined
-  };
-}
-
-/**
- * Debug utility to check a value with type information
- */
-export function debugCheckValue(name: string, value: any): void {
-  console.log(`Value check - ${name}:`);
-  console.log(`  - Type: ${typeof value}`);
-  console.log(`  - Value: ${value}`);
-  
-  if (typeof value === 'string') {
-    console.log(`  - Length: ${value.length}`);
-    console.log(`  - Empty: ${value.trim() === ''}`);
-  } else if (value === null) {
-    console.log('  - Is null');
-  } else if (value === undefined) {
-    console.log('  - Is undefined');
-  } else if (Array.isArray(value)) {
-    console.log(`  - Is array of length ${value.length}`);
-  } else if (typeof value === 'object') {
-    console.log(`  - Is object with keys: ${Object.keys(value).join(', ')}`);
+  if (typeof phoneNumber !== 'string' || phoneNumber.trim() === '') {
+    return { valid: false, error: `Invalid phoneNumber: ${phoneNumber}` };
   }
+  
+  return { valid: true };
 }

@@ -18,6 +18,15 @@ interface ClientParams {
   sessionString: string;
 }
 
+// Updated CORS headers for all responses
+const enhancedCorsHeaders = {
+  ...updatedCorsHeaders,
+  'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+  'Pragma': 'no-cache',
+  'Expires': '0',
+  'Surrogate-Control': 'no-store'
+};
+
 // Router to handle different operations
 export async function routeOperation(
   operation: string,
@@ -33,39 +42,49 @@ export async function routeOperation(
     sessionLength: clientParams.sessionString?.length || 0
   });
 
+  // Set a timeout for the operation
+  const operationTimeout = setTimeout(() => {
+    console.error(`⚠️ Operation ${operation} timed out after 25 seconds`);
+  }, 25000);
+
   try {
     // Check if healthcheck is being requested (special case that doesn't need client)
     if (operation === 'healthcheck') {
-      return handleHealthcheck(updatedCorsHeaders);
+      clearTimeout(operationTimeout);
+      return handleHealthcheck(enhancedCorsHeaders);
     }
     
     // Handle test mode separately
     if (operation === 'connect' && requestData.testMode === true) {
       console.log("🧪 Test mode request detected");
+      clearTimeout(operationTimeout);
       return new Response(
         JSON.stringify({
           success: true,
           message: "Test connection successful",
           test: true
         }), 
-        { headers: { ...updatedCorsHeaders, "Content-Type": "application/json" } }
+        { headers: { ...enhancedCorsHeaders, "Content-Type": "application/json" } }
       );
     }
     
     // Validate client parameters before creating client
     if (!clientParams.apiId) {
       console.error("⚠️ Missing apiId in client parameters");
-      return createBadRequestResponse("Missing required parameter: apiId", updatedCorsHeaders);
+      clearTimeout(operationTimeout);
+      return createBadRequestResponse("Missing required parameter: apiId", enhancedCorsHeaders);
     }
     
     if (!clientParams.apiHash) {
       console.error("⚠️ Missing apiHash in client parameters");
-      return createBadRequestResponse("Missing required parameter: apiHash", updatedCorsHeaders);
+      clearTimeout(operationTimeout);
+      return createBadRequestResponse("Missing required parameter: apiHash", enhancedCorsHeaders);
     }
     
     if (!clientParams.phoneNumber) {
       console.error("⚠️ Missing phoneNumber in client parameters");
-      return createBadRequestResponse("Missing required parameter: phoneNumber", updatedCorsHeaders);
+      clearTimeout(operationTimeout);
+      return createBadRequestResponse("Missing required parameter: phoneNumber", enhancedCorsHeaders);
     }
 
     // Ensure apiId is always a number - convert if it's a string
@@ -75,9 +94,10 @@ export async function routeOperation(
       
     if (isNaN(numericApiId) || numericApiId <= 0) {
       console.error("⚠️ Invalid apiId (not a valid number):", clientParams.apiId);
+      clearTimeout(operationTimeout);
       return createBadRequestResponse(
         `Invalid apiId: ${clientParams.apiId} is not a valid positive number`,
-        updatedCorsHeaders
+        enhancedCorsHeaders
       );
     }
     
@@ -116,9 +136,10 @@ export async function routeOperation(
       console.log("✅ Telegram client created successfully");
     } catch (clientError) {
       console.error("⚠️ Error initializing Telegram client:", clientError);
+      clearTimeout(operationTimeout);
       return createBadRequestResponse(
         `Error initializing Telegram client: ${clientError instanceof Error ? clientError.message : String(clientError)}`,
-        updatedCorsHeaders
+        enhancedCorsHeaders
       );
     }
 
@@ -128,18 +149,18 @@ export async function routeOperation(
     
     switch (operation) {
       case 'validate':
-        response = await handleValidate(client, updatedCorsHeaders);
+        response = await handleValidate(client, enhancedCorsHeaders);
         break;
         
       case 'connect':
-        response = await handleConnect(client, updatedCorsHeaders, { 
+        response = await handleConnect(client, enhancedCorsHeaders, { 
           verificationCode: requestData.verificationCode, 
           debug: requestData.debug === true 
         });
         break;
         
       case 'listen':
-        response = await handleListen(client, requestData.sourceChannels || [], updatedCorsHeaders);
+        response = await handleListen(client, requestData.sourceChannels || [], enhancedCorsHeaders);
         break;
         
       case 'repost':
@@ -148,25 +169,40 @@ export async function routeOperation(
           requestData.messageId || 0, 
           requestData.sourceChannel || "", 
           requestData.targetChannel || "", 
-          updatedCorsHeaders
+          enhancedCorsHeaders
         );
         break;
         
       default:
         console.error("⚠️ Invalid operation:", operation);
+        clearTimeout(operationTimeout);
         return createBadRequestResponse(
           `Invalid operation: ${operation}. Supported operations are: validate, connect, listen, repost, healthcheck`,
-          updatedCorsHeaders
+          enhancedCorsHeaders
         );
     }
     
+    clearTimeout(operationTimeout);
     console.log(`✅ Operation ${operation} completed successfully`);
+    
+    // Ensure we have a valid response with CORS headers
+    if (response instanceof Response) {
+      // Clone the response to add our enhanced CORS headers
+      const originalHeaders = Object.fromEntries(response.headers.entries());
+      return new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: { ...originalHeaders, ...enhancedCorsHeaders }
+      });
+    }
+    
     return response;
   } catch (error) {
+    clearTimeout(operationTimeout);
     console.error("⚠️ Error in routeOperation:", error);
     return createBadRequestResponse(
       `Error processing operation: ${error instanceof Error ? error.message : String(error)}`,
-      updatedCorsHeaders
+      enhancedCorsHeaders
     );
   }
 }
