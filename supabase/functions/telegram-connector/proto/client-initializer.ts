@@ -47,13 +47,15 @@ export function initializeTelegramClient(
     - Session: ${session ? `length: ${session.length}` : 'empty string'}`);
   
   try {
-    // Create a StringSession with the given session string (if any)
-    const stringSession = new StringSession(session || "");
+    // Create StringSession correctly with proper type checking
+    const cleanSession = session || "";
+    const stringSession = new StringSession(cleanSession);
     
     console.log(`Created StringSession successfully.
-      - Session string length: ${(session || "").length}
+      - Session string length: ${cleanSession.length}
       - StringSession type: ${typeof stringSession}
-      - StringSession constructor: ${stringSession.constructor.name}`);
+      - StringSession constructor: ${stringSession.constructor.name}
+      - Is StringSession instance: ${stringSession instanceof StringSession}`);
     
     // Create TelegramClient with the StringSession instance
     const client = new TelegramClient(

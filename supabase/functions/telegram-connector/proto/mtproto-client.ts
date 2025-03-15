@@ -1,4 +1,3 @@
-
 /**
  * MTProto client implementation for Telegram API
  * Using GramJS for Deno
@@ -62,9 +61,6 @@ export class MTProtoClient implements MTProtoInterface {
     this.initClient();
   }
   
-  /**
-   * Initialize the Telegram client
-   */
   private initClient() {
     try {
       console.log(`==== TELEGRAM CLIENT INITIALIZATION ====`);
@@ -108,9 +104,6 @@ export class MTProtoClient implements MTProtoInterface {
     }
   }
   
-  /**
-   * Export current session as a string
-   */
   async exportSession(): Promise<string> {
     if (!this.client || !this.stringSession) {
       throw new Error("Client not initialized");
@@ -137,9 +130,6 @@ export class MTProtoClient implements MTProtoInterface {
     }
   }
   
-  /**
-   * Connect to Telegram servers
-   */
   private async connect(): Promise<void> {
     if (this.connected) return;
     
@@ -157,9 +147,6 @@ export class MTProtoClient implements MTProtoInterface {
     }
   }
   
-  /**
-   * Call a Telegram API method
-   */
   async call(method: string, params: Record<string, any> = {}): Promise<any> {
     // Ensure we're connected
     if (!this.connected) {
@@ -214,9 +201,6 @@ export class MTProtoClient implements MTProtoInterface {
     }
   }
   
-  /**
-   * Disconnect from Telegram servers
-   */
   async disconnect(): Promise<void> {
     if (!this.connected || !this.client) return;
     
@@ -224,9 +208,6 @@ export class MTProtoClient implements MTProtoInterface {
     this.connected = false;
   }
   
-  /**
-   * Validate the API credentials
-   */
   async validateCredentials(): Promise<{ success: boolean; error?: string }> {
     try {
       if (!this.client) {
