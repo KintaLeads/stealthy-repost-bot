@@ -89,3 +89,27 @@ export const hasStoredSession = (accountId: string): boolean => {
   const session = getStoredSession(accountId);
   return !!session && session.length > 0;
 };
+
+/**
+ * Alias for clearStoredSession to maintain compatibility with existing code
+ */
+export const clearSession = clearStoredSession;
+
+/**
+ * Validate if a session is valid
+ * Currently just checks if it exists and is not empty, 
+ * but could be extended to validate format or freshness
+ */
+export const validateSession = (accountId: string): boolean => {
+  if (!accountId) {
+    return false;
+  }
+  
+  const session = getStoredSession(accountId);
+  
+  // Currently just checks for existence, but in the future could check:
+  // - If session has proper structure/format
+  // - If session is not expired (if we store creation date)
+  // - If session has valid signatures or structure
+  return !!session && session.length > 0;
+};
