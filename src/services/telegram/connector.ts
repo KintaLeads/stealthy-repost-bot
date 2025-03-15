@@ -2,15 +2,15 @@
 import { ApiAccount } from '@/types/channels';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/use-toast';
-import { ConnectionResult } from './types';
+import { ConnectionResult, ConnectionOptions } from './types';
 
 /**
- * Handles the initial connection to Telegram.
+ * Handles the connection to Telegram.
  * This simplified version directly calls the edge function.
  */
 export const connectToTelegram = async (
   account: ApiAccount,
-  options: { verificationCode?: string, phoneCodeHash?: string } = {}
+  options: ConnectionOptions = {}
 ): Promise<ConnectionResult> => {
   try {
     console.log('Starting Telegram connection for account:', account.nickname || account.phoneNumber);
@@ -27,7 +27,9 @@ export const connectToTelegram = async (
       apiId: apiId,
       apiHash: account.apiHash,
       phoneNumber: account.phoneNumber,
-      accountId: account.id || 'unknown'
+      accountId: account.id || 'unknown',
+      testOnly: options.testOnly || false,
+      debug: options.debug || false
     };
     
     // If we have a verification code and hash, add them to the payload
@@ -79,7 +81,8 @@ export const connectToTelegram = async (
       return {
         success: true,
         codeNeeded: true,
-        phoneCodeHash: data.phoneCodeHash
+        phoneCodeHash: data.phoneCodeHash,
+        needsVerification: true
       };
     }
     
@@ -113,43 +116,5 @@ export const connectToTelegram = async (
       success: false,
       error: error instanceof Error ? error.message : 'An unknown error occurred'
     };
-  }
-};
-
-/**
- * Verifies a Telegram verification code
- */
-export const verifyTelegramCode = async (
-  account: ApiAccount,
-  code: string,
-  options: { phoneCodeHash?: string } = {}
-): Promise<boolean> => {
-  try {
-    console.log('Verifying code for account:', account.nickname || account.phoneNumber);
-    
-    // Get phoneCodeHash from options or localStorage
-    const phoneCodeHash = options.phoneCodeHash || 
-                         localStorage.getItem(`telegram_code_hash_${account.id}`);
-    
-    if (!phoneCodeHash) {
-      throw new Error('Missing phone code hash. Please request a new verification code.');
-    }
-    
-    // Call connectToTelegram with verification code
-    const result = await connectToTelegram(account, {
-      verificationCode: code,
-      phoneCodeHash
-    });
-    
-    if (result.success && !result.codeNeeded) {
-      // Clear phoneCodeHash from localStorage as it's no longer needed
-      localStorage.removeItem(`telegram_code_hash_${account.id}`);
-      return true;
-    }
-    
-    return false;
-  } catch (error) {
-    console.error('Error in verifyTelegramCode:', error);
-    throw error;
   }
 };

@@ -1,6 +1,7 @@
 
 import { ApiAccount } from '@/types/channels';
 import { connectToTelegram } from './connector';
+import { ConnectionOptions } from './types';
 
 /**
  * Verifies a Telegram verification code
@@ -9,13 +10,14 @@ import { connectToTelegram } from './connector';
 export const verifyTelegramCode = async (
   account: ApiAccount, 
   code: string, 
-  options: { phoneCodeHash?: string } = {}
+  options: ConnectionOptions = {}
 ) => {
   try {
     // Simply pass through to connectToTelegram with the verification code
     const result = await connectToTelegram(account, {
       verificationCode: code,
-      phoneCodeHash: options.phoneCodeHash
+      phoneCodeHash: options.phoneCodeHash,
+      debug: options.debug
     });
     
     return result.success && !result.codeNeeded;

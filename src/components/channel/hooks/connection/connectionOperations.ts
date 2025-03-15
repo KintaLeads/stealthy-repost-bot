@@ -1,4 +1,3 @@
-
 import { ApiAccount } from "@/types/channels";
 import { runConnectivityChecks, testCorsConfiguration } from "@/services/telegram/networkCheck";
 import { toast } from "sonner";
@@ -65,8 +64,7 @@ export const testConnectionToTelegram = async (account: ApiAccount) => {
     
     // Call the connectToTelegram function to test the connection
     const connectionResult = await connectToTelegram(account, {
-      testOnly: true,
-      debug: true
+      testOnly: true
     });
     
     if (connectionResult.success) {

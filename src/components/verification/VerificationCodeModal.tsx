@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -7,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { verifyTelegramCode } from '@/services/telegram/verifier';
 import { useApiAccounts } from '@/hooks/useApiAccounts';
 import { toast } from 'sonner';
-import { ChannelsApiAccount } from '@/types/channels';
+import { ApiAccount } from '@/types/channels';
 
 interface VerificationCodeModalProps {
   isOpen: boolean;
@@ -53,15 +52,8 @@ const VerificationCodeModal: React.FC<VerificationCodeModalProps> = ({
         code: verificationCode
       });
       
-      // Create a channels-compatible account object
-      const channelsAccount: ChannelsApiAccount = {
-        ...dashboardAccount,
-        createdAt: new Date().toISOString(),
-        userId: 'current-user'
-      };
-      
       // Call the verification service
-      const success = await verifyTelegramCode(channelsAccount, verificationCode, {
+      const success = await verifyTelegramCode(dashboardAccount, verificationCode, {
         phoneCodeHash: phoneCodeHash || undefined
       });
       

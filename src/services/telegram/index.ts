@@ -9,8 +9,12 @@ export * from './debugger';
 export { runConnectivityChecks as runBasicConnectivityChecks } from './networkConnectivity';
 export { testCorsConfiguration as testCorsSettings } from './corsChecker';
 
-// Re-export these modules normally
+// Export network check directly
 export * from './networkCheck';
+
+// Export connector and credential validator
 export * from './connector';
-export * from './verifier';
 export * from './credentialValidator';
+
+// Explicitly export verifier to avoid naming conflicts
+export { verifyTelegramCode } from './verifier';
