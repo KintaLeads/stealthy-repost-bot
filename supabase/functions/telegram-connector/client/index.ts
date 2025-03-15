@@ -88,6 +88,14 @@ export function createTelegramClient(credentials: ClientCredentials): TelegramCl
           console.error("Error exporting session:", error);
           return "";
         }
+      },
+      // Add missing interface methods
+      connect: async () => { 
+        // This is a stub, will be replaced in full implementation
+        return { success: false, error: "Not implemented" }; 
+      },
+      verifyCode: async () => { 
+        return { success: false, error: "Not implemented" }; 
       }
     };
   } catch (error) {
