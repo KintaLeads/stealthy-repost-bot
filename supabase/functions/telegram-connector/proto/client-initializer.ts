@@ -47,17 +47,12 @@ export function initializeTelegramClient(
     - Session: ${session ? `length: ${session.length}` : 'empty string'}`);
   
   try {
-    // Ensure session string is valid and not "[NONE]" 
-    let cleanSession = "";
+    // Ensure session string is valid and not "[NONE]"
+    const cleanSession = session && session !== "[NONE]" ? session.trim() : "";
     
-    if (session && session !== "[NONE]" && session.trim() !== "") {
-      cleanSession = session.trim();
-      console.log(`Using existing session string (length: ${cleanSession.length})`);
-    } else {
-      console.log(`Creating new empty session`);
-    }
+    console.log(`Using clean session string (length: ${cleanSession.length})`);
     
-    // Create a fresh StringSession with the provided session string
+    // Create a proper StringSession instance
     const stringSession = new StringSession(cleanSession);
     
     console.log(`Created StringSession successfully.
@@ -78,6 +73,7 @@ export function initializeTelegramClient(
       }
     );
     
+    console.log(`Client created with session: ${stringSession.save()}`);
     console.log(`Telegram client initialized successfully with apiId: ${numericApiId}`);
     
     return { client, stringSession };
