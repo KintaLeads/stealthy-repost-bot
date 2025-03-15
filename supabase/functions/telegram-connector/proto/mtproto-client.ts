@@ -50,8 +50,10 @@ export class MTProtoClient implements MTProtoInterface {
       throw error;
     }
     
-    // Store session - ensure it's a string, never undefined or null
-    this.session = options.storageOptions.session || "";
+    // CRITICAL FIX: Store session - ensure it's a valid string, never undefined, null or "[NONE]"
+    this.session = options.storageOptions.session && 
+                   options.storageOptions.session !== "[NONE]" ? 
+                   options.storageOptions.session.trim() : "";
     
     console.log(`[MTPROTO-CLIENT] MTProto initialized with:
       - API ID: ${this.apiId} (${typeof this.apiId})
@@ -98,6 +100,11 @@ export class MTProtoClient implements MTProtoInterface {
       // Debug the type of stringSession to verify it's correct
       console.log(`[MTPROTO-CLIENT] StringSession type: ${this.stringSession ? this.stringSession.constructor.name : 'null'}`);
       console.log(`[MTPROTO-CLIENT] Is stringSession an instance of StringSession: ${this.stringSession instanceof StringSession}`);
+      
+      // CRITICAL FIX: Final validation of stringSession
+      if (!(this.stringSession instanceof StringSession)) {
+        throw new Error("Failed to create a proper StringSession instance");
+      }
     } catch (error) {
       console.error("[MTPROTO-CLIENT] Error initializing Telegram client:", error);
       console.error("[MTPROTO-CLIENT] Stack trace:", error instanceof Error ? error.stack : "No stack trace");

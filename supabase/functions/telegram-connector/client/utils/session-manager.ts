@@ -17,7 +17,6 @@ export async function exportSession(client: MTProto): Promise<string> {
     // Get the current session string
     console.log("Attempting to export session from client...");
     const sessionString = await client.exportSession();
-    console.log("Session saved successfully (length: " + sessionString.length + ")");
     
     // Verify the session is valid
     if (!sessionString || typeof sessionString !== 'string') {
@@ -25,6 +24,7 @@ export async function exportSession(client: MTProto): Promise<string> {
       return "";
     }
     
+    console.log("Session exported successfully (length: " + sessionString.length + ")");
     return sessionString;
   } catch (error) {
     console.error("Error saving session:", error);
@@ -44,11 +44,7 @@ export async function exportSession(client: MTProto): Promise<string> {
 export async function checkAuthentication(client: MTProto): Promise<boolean> {
   try {
     // Try to get user info to check authentication status
-    const result = await client.call('users.getFullUser', {
-      id: {
-        _: 'inputUserSelf'
-      }
-    });
+    const result = await client.call('users.getMe', {});
     
     const authenticated = !result.error;
     console.log(`Authentication check: ${authenticated ? 'Authenticated' : 'Not authenticated'}`);

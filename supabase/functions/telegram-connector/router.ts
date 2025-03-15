@@ -81,8 +81,10 @@ export async function routeOperation(
       );
     }
     
-    // Ensure session is a string
-    const sessionString = clientParams.sessionString || "";
+    // CRITICAL FIX: Clean up session string - never pass "[NONE]", only empty string when no session
+    const sessionString = clientParams.sessionString && 
+                         clientParams.sessionString !== "[NONE]" ? 
+                         clientParams.sessionString.trim() : "";
     
     // Log the validated parameters
     console.log("✅ Validated client parameters:", {
@@ -102,7 +104,7 @@ export async function routeOperation(
         ...clientParams,
         apiId: numericApiId, // Always pass as a number
         phoneNumber: clientParams.phoneNumber,
-        sessionString: sessionString // Ensure session is passed properly
+        sessionString: sessionString // Ensure clean session is passed
       });
     } catch (clientError) {
       console.error("⚠️ Error initializing Telegram client:", clientError);

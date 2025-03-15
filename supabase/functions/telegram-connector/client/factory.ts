@@ -36,8 +36,9 @@ export class TelegramClientFactory {
       throw new Error(`API Hash cannot be empty or undefined, received: ${JSON.stringify(apiHash)}`);
     }
     
-    // Ensure sessionString is a string, never undefined or null
-    const cleanSessionString = sessionString || "";
+    // CRITICAL FIX: Ensure sessionString is a valid string, never undefined, null, or "[NONE]"
+    const cleanSessionString = sessionString && sessionString !== "[NONE]" ? 
+                               sessionString.trim() : "";
     
     // Log the final values after validation
     console.log(`[CLIENT-FACTORY] Creating TelegramCombinedImplementation with:
