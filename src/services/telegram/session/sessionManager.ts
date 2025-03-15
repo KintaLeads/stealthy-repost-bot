@@ -20,8 +20,7 @@ export const getStoredSession = (accountId: string): string => {
     
     logInfo("SessionManager", `Session ${isValidSession ? 'found' : 'not found'} for account ${accountId}, length: ${sessionString?.length || 0}`);
     
-    // Always return a valid string, never null or undefined
-    // If session is "[NONE]" or invalid, treat it as an empty string
+    // Always return a valid string, never null, undefined, or "[NONE]"
     return isValidSession ? sessionString.trim() : "";
   } catch (error) {
     logError("SessionManager", "Error getting stored session:", error);

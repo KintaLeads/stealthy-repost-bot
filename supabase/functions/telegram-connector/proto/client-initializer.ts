@@ -47,28 +47,27 @@ export function initializeTelegramClient(
     - Session: ${session ? `length: ${session.length}` : 'empty string'}`);
   
   try {
-    // CRITICAL FIX: Always create a proper StringSession object
-    // Filter out invalid session values like "[NONE]" and empty strings
+    // CRITICAL FIX: Always create a StringSession object, never "[NONE]"
     const cleanSessionString = session && session !== "[NONE]" ? session.trim() : "";
     console.log(`Clean session string: ${cleanSessionString ? 'has content' : 'empty'}, length: ${cleanSessionString.length}`);
     
-    // Create a StringSession instance with the clean session string
+    // Create a StringSession instance directly with the clean session string
     const stringSession = new StringSession(cleanSessionString);
     console.log(`Created StringSession object type: ${typeof stringSession}`);
     console.log(`StringSession constructor: ${stringSession.constructor.name}`);
     
-    // Log critical validation to confirm StringSession is created correctly
+    // Validate that we've created a proper StringSession instance
     if (!(stringSession instanceof StringSession)) {
       throw new Error('Failed to create a proper StringSession instance');
     }
     
-    // Create TelegramClient with the StringSession instance
-    // IMPORTANT: We pass the StringSession OBJECT directly, not a string
+    // Create TelegramClient with the StringSession object
+    // IMPORTANT: Always pass the StringSession OBJECT, not a string
     const client = new TelegramClient(
-      stringSession,     // This must be a StringSession OBJECT
-      numericApiId,      // API ID as number
-      apiHash,           // API Hash
-      {                  // Options
+      stringSession,    // Pass the StringSession object, not a string
+      numericApiId,     // API ID as number
+      apiHash,          // API Hash
+      {                 // Options
         connectionRetries: 5,
         useWSS: true,
         requestRetries: 3

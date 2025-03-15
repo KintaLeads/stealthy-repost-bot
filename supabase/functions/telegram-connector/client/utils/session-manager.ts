@@ -19,13 +19,13 @@ export async function exportSession(client: MTProto): Promise<string> {
     const sessionString = await client.exportSession();
     
     // Verify the session is valid
-    if (!sessionString || typeof sessionString !== 'string') {
+    if (!sessionString || typeof sessionString !== 'string' || sessionString === "[NONE]") {
       console.warn("Warning: Exported session is invalid or empty");
       return "";
     }
     
     console.log("Session exported successfully (length: " + sessionString.length + ")");
-    return sessionString;
+    return sessionString.trim();
   } catch (error) {
     console.error("Error saving session:", error);
     if (error instanceof Error) {

@@ -36,7 +36,7 @@ export class TelegramClientFactory {
       throw new Error(`API Hash cannot be empty or undefined, received: ${JSON.stringify(apiHash)}`);
     }
     
-    // CRITICAL FIX: Ensure sessionString is a valid string, never undefined, null, or "[NONE]"
+    // CRITICAL FIX: Never use "[NONE]" as a session, only empty string
     const cleanSessionString = sessionString && sessionString !== "[NONE]" ? 
                                sessionString.trim() : "";
     
@@ -48,7 +48,7 @@ export class TelegramClientFactory {
       - accountId: ${accountId} (${typeof accountId})
       - sessionString: ${cleanSessionString ? `length: ${cleanSessionString.length}` : 'empty string'} (${typeof cleanSessionString})`);
     
-    // Pass the numeric API ID to the constructor
+    // Pass the numeric API ID and clean session string to the constructor
     return new TelegramCombinedImplementation(
       numericApiId, 
       apiHash, 

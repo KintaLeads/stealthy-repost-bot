@@ -50,10 +50,10 @@ export class MTProtoClient implements MTProtoInterface {
       throw error;
     }
     
-    // CRITICAL FIX: Store session - ensure it's a valid string, never undefined, null or "[NONE]"
+    // CRITICAL FIX: Never use "[NONE]" as a session, only empty string
     this.session = options.storageOptions.session && 
-                   options.storageOptions.session !== "[NONE]" ? 
-                   options.storageOptions.session.trim() : "";
+                  options.storageOptions.session !== "[NONE]" ? 
+                  options.storageOptions.session.trim() : "";
     
     console.log(`[MTPROTO-CLIENT] MTProto initialized with:
       - API ID: ${this.apiId} (${typeof this.apiId})
@@ -87,9 +87,9 @@ export class MTProtoClient implements MTProtoInterface {
       
       // Initialize client using the client initializer with proper session handling
       const { client, stringSession } = initializeTelegramClient(
-        this.apiId,  // This should be a number at this point
+        this.apiId,
         this.apiHash,
-        this.session
+        this.session  // Already cleaned in constructor
       );
       
       this.client = client;

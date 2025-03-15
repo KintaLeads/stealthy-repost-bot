@@ -81,7 +81,7 @@ export async function routeOperation(
       );
     }
     
-    // CRITICAL FIX: Clean up session string - never pass "[NONE]", only empty string when no session
+    // CRITICAL FIX: Never send "[NONE]" as a session string, only empty string
     const sessionString = clientParams.sessionString && 
                          clientParams.sessionString !== "[NONE]" ? 
                          clientParams.sessionString.trim() : "";

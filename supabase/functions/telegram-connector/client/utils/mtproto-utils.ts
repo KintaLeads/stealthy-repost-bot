@@ -40,8 +40,8 @@ export function initializeMTProto(apiId: string | number, apiHash: string, sessi
       - API Hash: "${apiHash.substring(0, 3)}..." (length: ${apiHash.length})
       - Session: ${sessionString ? `provided (length: ${sessionString.length})` : 'none'}`);
     
-    // Clean session string if provided to ensure it's valid
-    const cleanSessionString = sessionString ? sessionString.trim() : "";
+    // Clean session string to ensure it's valid (not "[NONE]")
+    const cleanSessionString = sessionString && sessionString !== "[NONE]" ? sessionString.trim() : "";
     
     // Add detailed logging right before creating the MTProto instance
     console.log(`[MTPROTO-UTILS] Creating MTProto with:

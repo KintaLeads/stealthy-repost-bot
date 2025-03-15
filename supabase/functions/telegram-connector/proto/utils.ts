@@ -54,3 +54,13 @@ export function validateApiHash(apiHash: any): string {
   console.log(`[UTILS] API Hash validated successfully: ${apiHashStr.substring(0, 3)}... (length: ${apiHashStr.length})`);
   return apiHashStr.trim();
 }
+
+/**
+ * Clean a session string, handling special cases like "[NONE]"
+ */
+export function cleanSessionString(session: string | null | undefined): string {
+  if (!session || session === "[NONE]" || session.trim() === '') {
+    return "";
+  }
+  return session.trim();
+}

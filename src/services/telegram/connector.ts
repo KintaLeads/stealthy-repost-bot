@@ -17,7 +17,7 @@ export const handleInitialConnection = async (
   logInfo(context, `🚀 Starting Telegram connection for account: ${account.nickname || account.phoneNumber}`);
   
   try {
-    // Check for existing session
+    // Check for existing session - NEVER use "[NONE]"
     const sessionString = getStoredSession(account.id);
     logInfo(context, `📦 Session check - exists: ${!!sessionString}, length: ${sessionString?.length || 0}`);
 
@@ -29,7 +29,7 @@ export const handleInitialConnection = async (
       parseInt(account.apiKey, 10), // Ensure API ID is a number here
       account.apiHash,
       account.phoneNumber,
-      sessionString || "", // Ensure empty string instead of undefined
+      sessionString, // Already cleaned by getStoredSession
       { accountId: account.id, sessionExists: !!sessionString }
     );
     
@@ -47,7 +47,7 @@ export const handleInitialConnection = async (
       apiId, // Already a number here
       account.apiHash,
       account.phoneNumber,
-      sessionString || "", // Ensure empty string instead of undefined
+      sessionString, // Already cleaned by getStoredSession
       { accountId: account.id, originalApiKey: account.apiKey }
     );
     
@@ -58,7 +58,7 @@ export const handleInitialConnection = async (
       apiHash: account.apiHash,
       phoneNumber: account.phoneNumber,
       accountId: account.id || 'unknown',
-      sessionString: sessionString || '',
+      sessionString: sessionString, // Already cleaned by getStoredSession
       debug: true, // Always enable debug mode
       logLevel: 'verbose',
       ...options
@@ -68,7 +68,7 @@ export const handleInitialConnection = async (
     logInfo(context, '📤 Connection data:', {
       ...connectionData,
       apiHash: '[REDACTED]',
-      sessionString: sessionString ? `[${sessionString.length} chars]` : '[NONE]'
+      sessionString: sessionString ? `[${sessionString.length} chars]` : ''
     });
     
     // Call the edge function
@@ -89,7 +89,7 @@ export const handleInitialConnection = async (
       connectionData.apiId, // Now a number
       connectionData.apiHash,
       connectionData.phoneNumber,
-      connectionData.sessionString || "", // Include the session string with empty string fallback
+      connectionData.sessionString, // Already cleaned by getStoredSession
       { 
         operation: connectionData.operation,
         accountId: connectionData.accountId
@@ -152,7 +152,7 @@ export const handleInitialConnection = async (
           connectionData.apiId, // API ID
           connectionData.apiHash, // API Hash
           connectionData.phoneNumber, // Phone number
-          connectionData.sessionString || "", // Session string (never undefined)
+          connectionData.sessionString, // Session string (never undefined)
           { // Other data
             endpoint: requestUrl,
             attempt: retries + 1,
@@ -166,8 +166,7 @@ export const handleInitialConnection = async (
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${accessToken}`,
-            'apikey': anonKey,
-            ...(sessionString ? { 'X-Telegram-Session': sessionString } : {})
+            'apikey': anonKey
           },
           body: JSON.stringify(connectionData) // Explicitly stringify the body
         });
