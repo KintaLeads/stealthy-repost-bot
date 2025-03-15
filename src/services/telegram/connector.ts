@@ -7,7 +7,7 @@ import { ConnectionResult } from './types';
 import { toast } from '@/components/ui/use-toast';
 
 /**
- * Converts a session string into a properly formatted StringSession object.
+ * Creates a properly formatted session object for Telegram API.
  * Ensures that `[NONE]` is treated as an empty session.
  */
 const prepareSession = (session: string | null | undefined): string => {
@@ -57,7 +57,7 @@ export const handleInitialConnection = async (
       apiHash: account.apiHash,
       phoneNumber: account.phoneNumber,
       accountId: account.id || 'unknown',
-      sessionString, // Session string ready for conversion in edge function
+      StringSession: sessionString, // 🔄 Changed from sessionString to StringSession
       debug: true,
       logLevel: 'verbose',
       ...options
@@ -67,14 +67,14 @@ export const handleInitialConnection = async (
     logInfo(context, '📤 API Payload:', {
       ...connectionData,
       apiHash: '[REDACTED]',
-      sessionString: sessionString ? `[${sessionString.length} chars]` : '[empty]'
+      StringSession: sessionString ? `[${sessionString.length} chars]` : '[empty]' // 🔄 Updated log
     });
     
     // Additional console logging for API payload tracking
     console.log('🚀 Final API Payload Before Sending:', {
       ...connectionData,
       apiHash: '[REDACTED]',
-      sessionString: sessionString ? `[Session String: ${sessionString.length} chars]` : '[empty session]'
+      StringSession: sessionString ? `[StringSession: ${sessionString.length} chars]` : '[empty StringSession]' // 🔄 Updated log
     });
 
     // Track API credentials for debugging

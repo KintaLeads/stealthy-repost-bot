@@ -8,7 +8,9 @@ export async function handler(req: Request) {
 
     console.log("Received payload:", body);
 
-    const { apiId, apiHash, sessionString, phoneNumber, operation, verificationCode } = body;
+    const { apiId, apiHash, phoneNumber, operation, verificationCode } = body;
+    // Get session string - look for both formats (sessionString and StringSession)
+    const sessionString = body.StringSession || body.sessionString || '';
 
     if (!apiId || !apiHash || !phoneNumber) {
       return new Response(
@@ -16,6 +18,12 @@ export async function handler(req: Request) {
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
+
+    console.log("Session information received:", { 
+      type: typeof sessionString, 
+      length: sessionString?.length || 0,
+      content: sessionString ? (sessionString.substring(0, 10) + "...") : "[empty]"
+    });
 
     // ✅ Step 1: Ensure `sessionString` is always a valid `StringSession`
     let stringSession;
@@ -28,6 +36,11 @@ export async function handler(req: Request) {
     }
 
     console.log("Initialized StringSession object:", stringSession ? "Valid" : "Invalid");
+    console.log("StringSession details:", {
+      constructor: stringSession.constructor.name,
+      isEmpty: stringSession.isEmpty,
+      data: stringSession.isEmpty ? "[empty]" : "[has data]"
+    });
 
     // ✅ Step 2: Initialize Telegram Client with `StringSession`
     const client = new TelegramClient(
