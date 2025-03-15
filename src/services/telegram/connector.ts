@@ -57,7 +57,7 @@ export const handleInitialConnection = async (
       apiHash: account.apiHash,
       phoneNumber: account.phoneNumber,
       accountId: account.id || 'unknown',
-      StringSession: sessionString, // 🔄 Changed from sessionString to StringSession
+      StringSession: sessionString, // Using StringSession parameter name
       debug: true,
       logLevel: 'verbose',
       ...options
@@ -67,14 +67,14 @@ export const handleInitialConnection = async (
     logInfo(context, '📤 API Payload:', {
       ...connectionData,
       apiHash: '[REDACTED]',
-      StringSession: sessionString ? `[${sessionString.length} chars]` : '[empty]' // 🔄 Updated log
+      StringSession: sessionString ? `[${sessionString.length} chars]` : '[empty]'
     });
     
     // Additional console logging for API payload tracking
     console.log('🚀 Final API Payload Before Sending:', {
       ...connectionData,
       apiHash: '[REDACTED]',
-      StringSession: sessionString ? `[StringSession: ${sessionString.length} chars]` : '[empty StringSession]' // 🔄 Updated log
+      StringSession: sessionString ? `[StringSession: ${sessionString.length} chars]` : '[empty StringSession]'
     });
 
     // Track API credentials for debugging
@@ -94,82 +94,105 @@ export const handleInitialConnection = async (
     const accessToken = sessionData.session?.access_token || '';
     const anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVzd2ZyemRxeHNhaXprZHN3eGZuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA5ODM2ODQsImV4cCI6MjA1NjU1OTY4NH0.2onrHJHapQZbqi7RgsuK7A6G5xlJrNSgRv21_mUT7ik';
 
-    // **Retry Mechanism**: Attempts up to 3 times
+    // **Retry Mechanism with Timeout**: Attempts up to 3 times with abort controller
     let retries = 0;
     const maxRetries = 2;
     let lastError = null;
 
     while (retries <= maxRetries) {
       try {
-        const response = await fetch(requestUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${accessToken}`,
-            'apikey': anonKey
-          },
-          body: JSON.stringify(connectionData)
-        });
+        // Create abort controller for timeout
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => {
+          controller.abort();
+          console.log("Request timed out after 30 seconds");
+        }, 30000); // 30 second timeout
+        
+        try {
+          const response = await fetch(requestUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${accessToken}`,
+              'apikey': anonKey
+            },
+            body: JSON.stringify(connectionData),
+            signal: controller.signal
+          });
+          
+          // Clear the timeout since request completed
+          clearTimeout(timeoutId);
+          
+          // Check if response is not ok
+          if (!response.ok) {
+            console.log(`Request failed with status: ${response.status}`);
+            const errorText = await response.text();
+            console.log(`Error response: ${errorText}`);
+            throw new Error(`HTTP error ${response.status}: ${errorText}`);
+          }
 
-        const data = await response.json();
+          const data = await response.json();
 
-        // Track the API response
-        trackApiCall(
-          'connector/connect/response',
-          connectionData, 
-          data, 
-          null
-        );
+          // Track the API response
+          trackApiCall(
+            'connector/connect/response',
+            connectionData, 
+            data, 
+            null
+          );
 
-        if (!response.ok) {
-          logError(context, `❌ Edge function error: HTTP ${response.status}`, data);
-          lastError = new Error(data.error || `HTTP error ${response.status}`);
-          throw lastError;
-        }
+          // If session needs verification
+          if (data.codeNeeded) {
+            toast({
+              title: "Verification Required",
+              description: "Enter the verification code sent to your Telegram app",
+            });
 
-        // If session needs verification
-        if (data.codeNeeded) {
+            return {
+              success: true,
+              codeNeeded: true,
+              phoneCodeHash: data.phoneCodeHash
+            };
+          }
+
+          // Store the new session if provided
+          if (data.session) {
+            storeSession(account.id, data.session);
+            logInfo(context, `📦 Session stored for account ${account.id}`);
+          }
+
           toast({
-            title: "Verification Required",
-            description: "Enter the verification code sent to your Telegram app",
+            title: "Connected Successfully",
+            description: "Your Telegram account is now connected",
           });
 
           return {
             success: true,
-            codeNeeded: true,
-            phoneCodeHash: data.phoneCodeHash
+            session: data.session,
+            user: data.user
           };
+        } catch (fetchError) {
+          clearTimeout(timeoutId);
+          throw fetchError;
         }
-
-        // Store the new session if provided
-        if (data.session) {
-          storeSession(account.id, data.session);
-          logInfo(context, `📦 Session stored for account ${account.id}`);
-        }
-
-        toast({
-          title: "Connected Successfully",
-          description: "Your Telegram account is now connected",
-        });
-
-        return {
-          success: true,
-          session: data.session,
-          user: data.user
-        };
 
       } catch (error) {
-        logError(context, `❌ Connection error (attempt ${retries + 1}/${maxRetries + 1}):`, error);
+        console.error(`❌ Connection error (attempt ${retries + 1}/${maxRetries + 1}):`, error);
+        
+        // Special handling for AbortError (timeout)
+        if (error.name === 'AbortError') {
+          lastError = new Error('Connection timed out. The server took too long to respond.');
+        } else {
+          lastError = error;
+        }
         
         // Track the API error
         trackApiCall(
           'connector/connect/error',
           connectionData, 
           null, 
-          error
+          lastError
         );
-        
-        lastError = error;
       }
 
       retries++;

@@ -43,13 +43,23 @@ export async function parseRequestBody(req: Request): Promise<{ valid: boolean; 
     let bodyText = '';
     try {
       bodyText = await reqClone.text();
-      console.log(`Request body (${bodyText.length} chars):`, bodyText.substring(0, 100) + (bodyText.length > 100 ? '...' : ''));
+      console.log(`Request body received (${bodyText.length} chars)`, bodyText.substring(0, 200) + (bodyText.length > 200 ? '...' : ''));
     } catch (readError) {
       console.error("Error reading request body:", readError);
       return {
         valid: false,
         data: null,
         error: `Failed to read request body: ${readError instanceof Error ? readError.message : String(readError)}`
+      };
+    }
+    
+    // Check if body is empty
+    if (!bodyText || bodyText.trim() === '') {
+      console.error("Empty request body received");
+      return {
+        valid: false,
+        data: null,
+        error: 'Request body is empty'
       };
     }
     
@@ -76,17 +86,18 @@ export async function parseRequestBody(req: Request): Promise<{ valid: boolean; 
         console.log(`- operation: ${data.operation} (${typeof data.operation})`);
       }
       
+      // Special handling for session strings - check both parameter names
+      console.log(`- StringSession: ${data.StringSession ? 'present' : 'missing'} (${typeof data.StringSession})`);
+      console.log(`- sessionString: ${data.sessionString ? 'present' : 'missing'} (${typeof data.sessionString})`);
+      
       // Validate critical fields
-      if (data.operation && (data.operation === 'connect' || data.operation === 'validate')) {
-        // Handle apiId which can be number or string
-        if (data.apiId === undefined || data.apiId === null) {
-          console.error("[REQUEST-HANDLER] Missing apiId in request");
-          return {
-            valid: false,
-            data,
-            error: 'API ID cannot be empty or invalid'
-          };
-        }
+      if (!data.operation) {
+        console.error("[REQUEST-HANDLER] Missing operation in request");
+        return {
+          valid: false,
+          data,
+          error: 'Operation field is required'
+        };
       }
       
       return {
