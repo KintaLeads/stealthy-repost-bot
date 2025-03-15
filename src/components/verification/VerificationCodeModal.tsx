@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -6,7 +7,8 @@ import { Label } from '@/components/ui/label';
 import { verifyTelegramCode } from '@/services/telegram/verifier';
 import { useApiAccounts } from '@/hooks/useApiAccounts';
 import { toast } from 'sonner';
-import { ApiAccount } from '@/types/channels';
+import { ApiAccount as DashboardApiAccount } from '@/types/dashboard';
+import { ApiAccount as ChannelsApiAccount } from '@/types/channels';
 
 interface VerificationCodeModalProps {
   isOpen: boolean;
@@ -52,8 +54,15 @@ const VerificationCodeModal: React.FC<VerificationCodeModalProps> = ({
         code: verificationCode
       });
       
-      // Call the verification service
-      const success = await verifyTelegramCode(dashboardAccount, verificationCode, {
+      // Convert dashboard account to channels account format
+      const channelsAccount: ChannelsApiAccount = {
+        ...dashboardAccount,
+        createdAt: new Date().toISOString(), // Default current time
+        userId: 'current-user' // Default value
+      };
+      
+      // Call the verification service with the properly formatted account
+      const success = await verifyTelegramCode(channelsAccount, verificationCode, {
         phoneCodeHash: phoneCodeHash || undefined
       });
       

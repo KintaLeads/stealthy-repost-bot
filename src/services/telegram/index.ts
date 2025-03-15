@@ -16,5 +16,5 @@ export * from './networkCheck';
 export * from './connector';
 export * from './credentialValidator';
 
-// Explicitly export verifier to avoid naming conflicts
-export { verifyTelegramCode } from './verifier';
+// Export from connectionService to avoid duplicates
+export { verifyTelegramCode } from './connectionService';
