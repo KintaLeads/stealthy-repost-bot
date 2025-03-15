@@ -1,10 +1,27 @@
-
 import { ApiAccount } from '@/types/channels';
 import { supabase } from '@/integrations/supabase/client';
 import { logInfo, logError, trackApiCall, consoleLogger } from './debugger';
 import { getStoredSession, storeSession } from './session/sessionManager';
 import { ConnectionResult } from './types';
 import { toast } from '@/components/ui/use-toast';
+
+/**
+ * Prepare session string for API request
+ * Converts any session string to a properly formatted string
+ * and handles the special case of "[NONE]"
+ */
+const prepareSessionString = (sessionString: string | null | undefined): string => {
+  // If session is empty, undefined, null, or "[NONE]", return empty string
+  if (!sessionString || 
+      sessionString.trim() === "" || 
+      /^\[NONE\]$/i.test(sessionString)) {
+    logInfo('TelegramConnector', 'Replacing invalid session with empty string');
+    return "";
+  }
+  
+  // Otherwise, return the cleaned session string
+  return sessionString.trim();
+};
 
 /**
  * Handles the initial connection to Telegram
@@ -20,12 +37,8 @@ export const handleInitialConnection = async (
     // Get session string from storage
     let sessionString = getStoredSession(account.id);
     
-    // CRITICAL FIX: Ensure we NEVER send "[NONE]" or "[none]" regardless of case
-    // This is the last safety check right before sending
-    if (!sessionString || /^\[NONE\]$/i.test(sessionString)) {
-      logInfo(context, `⚠️ Invalid session found, replacing with empty string`);
-      sessionString = "";
-    }
+    // Clean the session string - this is the critical fix
+    sessionString = prepareSessionString(sessionString);
     
     logInfo(context, `📦 Session check - exists: ${!!sessionString}, length: ${sessionString?.length || 0}`);
 
@@ -89,25 +102,22 @@ export const handleInitialConnection = async (
       description: "Please wait while we establish a connection...",
     });
     
-    // CRITICAL FIX: Final validation before API call
-    // Ensure session string is valid one last time
-    if (connectionData.sessionString && /^\[NONE\]$/i.test(connectionData.sessionString)) {
-      logError(context, "🚨 [NONE] session detected right before API call, replacing with empty string");
-      connectionData.sessionString = "";
-    }
+    // Final validation - this enforces that we NEVER send '[NONE]'
+    const finalConnectionData = {...connectionData};
+    finalConnectionData.sessionString = prepareSessionString(finalConnectionData.sessionString);
     
     // Track the constructed payload
     consoleLogger.trackApiPayload(
       'services/telegram/connector.ts',
       'handleInitialConnection',
       'before-api-call',
-      connectionData.apiId, // Now a number
-      connectionData.apiHash,
-      connectionData.phoneNumber,
-      connectionData.sessionString, // Use cleaned session string
+      finalConnectionData.apiId, // Now a number
+      finalConnectionData.apiHash,
+      finalConnectionData.phoneNumber,
+      finalConnectionData.sessionString, // Use prepared session string
       { 
-        operation: connectionData.operation,
-        accountId: connectionData.accountId
+        operation: finalConnectionData.operation,
+        accountId: finalConnectionData.accountId
       }
     );
     
@@ -128,10 +138,10 @@ export const handleInitialConnection = async (
         const anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVzd2ZyemRxeHNhaXprZHN3eGZuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA5ODM2ODQsImV4cCI6MjA1NjU1OTY4NH0.2onrHJHapQZbqi7RgsuK7A6G5xlJrNSgRv21_mUT7ik';
         
         console.log(`Sending direct fetch to ${requestUrl}`, {
-          apiId: connectionData.apiId, // Now a number
-          phoneNumber: connectionData.phoneNumber,
-          accountId: connectionData.accountId,
-          sessionPresent: !!connectionData.sessionString
+          apiId: finalConnectionData.apiId, // Now a number
+          phoneNumber: finalConnectionData.phoneNumber,
+          accountId: finalConnectionData.accountId,
+          sessionPresent: !!finalConnectionData.sessionString
         });
         
         // First try a test request to verify connectivity
@@ -156,19 +166,6 @@ export const handleInitialConnection = async (
           if (!testResponse.ok) {
             console.error('Test connection failed:', testData);
           }
-        }
-        
-        // ABSOLUTELY CRITICAL FIX: Last check before sending the request
-        // Create a copy of connection data to ensure we don't modify the original
-        const finalConnectionData = {...connectionData};
-        
-        // This is the FINAL check before sending - make 100% sure we NEVER send [NONE]
-        if (finalConnectionData.sessionString && 
-            (finalConnectionData.sessionString === "[NONE]" || 
-             finalConnectionData.sessionString === "[none]" ||
-             /^\[NONE\]$/i.test(finalConnectionData.sessionString))) {
-          console.warn("🚨 CRITICAL: [NONE] session detected at point of sending, switching to empty string");
-          finalConnectionData.sessionString = "";
         }
         
         // Track the finalized payload right before sending

@@ -60,7 +60,7 @@ export function validateApiHash(apiHash: any): string {
  * This is the central session cleaning function used throughout the app
  */
 export function cleanSessionString(session: string | null | undefined): string {
-  // CRITICAL FIX: Always check for "[NONE]" using case-insensitive regex
+  // Check if session is null, undefined, empty, or "[NONE]" (case insensitive)
   if (!session || /^\[NONE\]$/i.test(session) || session.trim() === '') {
     console.log(`[UTILS] cleanSessionString: Input "${session}" converted to empty string`);
     return "";
