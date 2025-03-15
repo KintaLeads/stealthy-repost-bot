@@ -12,10 +12,15 @@ export const getStoredSession = (accountId: string): string => {
   try {
     const key = getSessionKey(accountId);
     const session = localStorage.getItem(key);
-    logInfo("SessionManager", `Session ${session ? 'found' : 'not found'} for account ${accountId}, length: ${session?.length || 0}`);
+    
+    // Check for invalid sessions like "[NONE]"
+    const isValidSession = session && session !== "[NONE]";
+    
+    logInfo("SessionManager", `Session ${isValidSession ? 'found' : 'not found'} for account ${accountId}, length: ${session?.length || 0}`);
     
     // ✅ Always return a string, never null or undefined
-    return session || "";
+    // If session is "[NONE]" treat it as an empty string
+    return isValidSession ? session : "";
   } catch (error) {
     logError("SessionManager", "Error getting stored session:", error);
     return "";
@@ -24,8 +29,8 @@ export const getStoredSession = (accountId: string): string => {
 
 export const storeSession = (accountId: string, sessionString: string): void => {
   try {
-    if (!sessionString) {
-      logError("SessionManager", "Attempted to store empty session");
+    if (!sessionString || sessionString === "[NONE]") {
+      logError("SessionManager", "Attempted to store empty or invalid session");
       return;
     }
     
@@ -48,8 +53,10 @@ export const hasStoredSession = (accountId: string): boolean => {
   try {
     const key = getSessionKey(accountId);
     const session = localStorage.getItem(key);
-    logInfo("SessionManager", `Checking session exists for account ${accountId}: ${!!session}`);
-    return !!session;
+    const isValidSession = session && session !== "[NONE]";
+    
+    logInfo("SessionManager", `Checking session exists for account ${accountId}: ${!!isValidSession}`);
+    return !!isValidSession;
   } catch (error) {
     logError("SessionManager", "Error checking session existence:", error);
     return false;

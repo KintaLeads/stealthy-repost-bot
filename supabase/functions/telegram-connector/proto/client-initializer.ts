@@ -47,8 +47,11 @@ export function initializeTelegramClient(
     - Session: ${session ? `length: ${session.length}` : 'empty string'}`);
   
   try {
+    // Ensure session string is valid and not "[NONE]" 
+    const cleanSession = (session && session !== "[NONE]") ? session : "";
+    console.log(`Using clean session string (length: ${cleanSession.length})`);
+    
     // Create a fresh StringSession with the provided session string
-    const cleanSession = session || "";
     const stringSession = new StringSession(cleanSession);
     
     console.log(`Created StringSession successfully.
@@ -63,7 +66,7 @@ export function initializeTelegramClient(
       numericApiId,      // API ID as number
       apiHash,           // API Hash
       {                  // Options
-        connectionRetries: 3,
+        connectionRetries: 5,  // Increased from 3 to 5
         useWSS: true,
         requestRetries: 3
       }
