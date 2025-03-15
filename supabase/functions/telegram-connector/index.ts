@@ -31,6 +31,7 @@ export async function handler(req: Request) {
     }
     
     console.log("✅ Request body parsed successfully");
+    console.log("📦 Raw request data:", JSON.stringify(data));
     
     // Extract and validate required parameters
     // IMPORTANT: Support both StringSession and sessionString parameter names
@@ -40,6 +41,8 @@ export async function handler(req: Request) {
     console.log("📦 Parameters received:", {
       hasOperation: !!operation,
       hasApiId: !!apiId,
+      hasApiHash: !!apiHash,
+      hasPhoneNumber: !!phoneNumber,
       hasStringSession: !!StringSession,
       hasSessionString: !!sessionString,
       // Parameter names exactly as they appear in the request
@@ -56,6 +59,13 @@ export async function handler(req: Request) {
     };
     
     console.log("🔄 Routing to operation:", operation);
+    console.log("🔄 Client params:", {
+      apiId: clientParams.apiId,
+      apiIdType: typeof clientParams.apiId,
+      hasApiHash: !!clientParams.apiHash,
+      hasPhoneNumber: !!clientParams.phoneNumber,
+      sessionLength: (clientParams.sessionString || "").length
+    });
     
     // Route the request to the appropriate handler
     return await routeOperation(operation, clientParams, data);

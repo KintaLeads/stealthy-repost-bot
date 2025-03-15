@@ -112,6 +112,8 @@ export async function routeOperation(
         phoneNumber: clientParams.phoneNumber,
         sessionString: sessionString // Ensure clean session is passed
       });
+      
+      console.log("✅ Telegram client created successfully");
     } catch (clientError) {
       console.error("⚠️ Error initializing Telegram client:", clientError);
       return createBadRequestResponse(
@@ -122,6 +124,8 @@ export async function routeOperation(
 
     // Route to the appropriate operation handler
     let response;
+    console.log(`🔄 Routing to handler for operation: ${operation}`);
+    
     switch (operation) {
       case 'validate':
         response = await handleValidate(client, updatedCorsHeaders);
@@ -156,6 +160,7 @@ export async function routeOperation(
         );
     }
     
+    console.log(`✅ Operation ${operation} completed successfully`);
     return response;
   } catch (error) {
     console.error("⚠️ Error in routeOperation:", error);

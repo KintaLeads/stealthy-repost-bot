@@ -51,14 +51,14 @@ export const handleInitialConnection = async (
     }
 
     // Construct final payload for API request
-    // CRITICAL FIX: Use StringSession instead of sessionString in the payload
+    // Backend expects 'sessionString' parameter, not 'StringSession'
     const connectionData = {
       operation: 'connect', 
       apiId: apiId,
       apiHash: account.apiHash,
       phoneNumber: account.phoneNumber,
       accountId: account.id || 'unknown',
-      StringSession: sessionString, // Critical: Must use StringSession not sessionString
+      sessionString: sessionString, // Use 'sessionString' as the parameter name
       debug: true,
       logLevel: 'verbose',
       ...options
@@ -68,14 +68,14 @@ export const handleInitialConnection = async (
     logInfo(context, '📤 API Payload:', {
       ...connectionData,
       apiHash: '[REDACTED]',
-      StringSession: sessionString ? `[${sessionString.length} chars]` : '[empty]'
+      sessionString: sessionString ? `[${sessionString.length} chars]` : '[empty]'
     });
     
     // Additional console logging for API payload tracking
     console.log('🚀 Final API Payload Before Sending:', {
       ...connectionData,
       apiHash: '[REDACTED]',
-      StringSession: sessionString ? `[StringSession: ${sessionString.length} chars]` : '[empty StringSession]'
+      sessionString: sessionString ? `[sessionString: ${sessionString.length} chars]` : '[empty sessionString]'
     });
 
     // Track API credentials for debugging
@@ -110,6 +110,8 @@ export const handleInitialConnection = async (
         }, 30000); // 30 second timeout
         
         try {
+          console.log(`Attempt ${retries + 1}/${maxRetries + 1}: Sending request to ${requestUrl}`);
+          
           const response = await fetch(requestUrl, {
             method: 'POST',
             headers: {
@@ -126,13 +128,14 @@ export const handleInitialConnection = async (
           
           // Check if response is not ok
           if (!response.ok) {
-            console.log(`Request failed with status: ${response.status}`);
             const errorText = await response.text();
+            console.log(`Request failed with status: ${response.status}`);
             console.log(`Error response: ${errorText}`);
             throw new Error(`HTTP error ${response.status}: ${errorText}`);
           }
 
           const data = await response.json();
+          console.log("Response received:", data);
 
           // Track the API response
           trackApiCall(
@@ -198,7 +201,9 @@ export const handleInitialConnection = async (
 
       retries++;
       if (retries <= maxRetries) {
-        await new Promise(resolve => setTimeout(resolve, 1000 * retries)); // Exponential backoff
+        const backoffTime = 1000 * retries;
+        console.log(`Retrying in ${backoffTime}ms...`);
+        await new Promise(resolve => setTimeout(resolve, backoffTime)); // Exponential backoff
       }
     }
 
