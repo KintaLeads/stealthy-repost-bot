@@ -1,8 +1,7 @@
-
 /**
  * Handles connection to Telegram servers
  */
-import { TelegramClient } from "telegram";
+import { TelegramClient } from "https://esm.sh/telegram@2.19.10";
 
 /**
  * Connect to Telegram servers

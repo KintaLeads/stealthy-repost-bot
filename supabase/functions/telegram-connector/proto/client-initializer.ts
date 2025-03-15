@@ -2,7 +2,7 @@
 /**
  * Handles Telegram client initialization
  */
-import { TelegramClient } from "telegram";
+import { TelegramClient } from "https://esm.sh/telegram@2.19.10";
 import { StringSession } from "https://esm.sh/telegram@2.19.10/sessions";
 
 /**

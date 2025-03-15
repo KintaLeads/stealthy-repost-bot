@@ -1,9 +1,8 @@
-
 /**
  * Validates Telegram API credentials
  */
 import { TelegramClient } from "https://esm.sh/telegram@2.19.10";
-import { connectToTelegram } from "./connection-handler.ts";
+import { connectToTelegram } from "../connection-handler.ts";
 
 /**
  * Validate the API credentials

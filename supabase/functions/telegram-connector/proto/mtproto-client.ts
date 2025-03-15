@@ -3,14 +3,14 @@
  * MTProto client implementation for Telegram API
  * Using GramJS for Deno
  */
-import { TelegramClient } from "telegram";
+import { TelegramClient } from "https://esm.sh/telegram@2.19.10";
 import { StringSession } from "https://esm.sh/telegram@2.19.10/sessions";
 import { MTProtoInterface, MTProtoOptions } from "./interfaces.ts";
 import * as Auth from "./auth-methods.ts";
 import * as Messages from "./message-methods.ts";
 import { validateApiId, validateApiHash } from "./utils.ts";
 import { initializeTelegramClient, exportClientSession } from "./client-initializer.ts";
-import { connectToTelegram, disconnectFromTelegram } from "./connection-handler.ts";
+import { connectToTelegram, disconnectFromTelegram } from "../connection-handler.ts";
 import { validateCredentials } from "./credential-validator.ts";
 
 export class MTProtoClient implements MTProtoInterface {
