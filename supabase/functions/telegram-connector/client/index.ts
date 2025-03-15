@@ -61,7 +61,7 @@ export function createTelegramClient(credentials: ClientCredentials): TelegramCl
       apiId: apiId,
       apiHash: credentials.apiHash,
       storageOptions: {
-        session: sessionString
+        session: sessionString // Make sure we pass an empty string instead of [NONE]
       }
     });
     

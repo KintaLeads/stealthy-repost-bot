@@ -29,6 +29,12 @@ export const connectToTelegram = async (
       console.log(`Got existing session for account ${account.id}: ${sessionString ? 'found' : 'none'}`);
     }
     
+    // Make sure we never pass [NONE] as a session string
+    if (/^\[NONE\]$/i.test(sessionString)) {
+      console.log("Session string was [NONE], converting to empty string");
+      sessionString = "";
+    }
+    
     // Construct payload
     const payload = {
       operation: 'connect', 
@@ -98,9 +104,14 @@ export const connectToTelegram = async (
     
     // If we have a session, store it
     if (data.session) {
-      // Store session in localStorage
-      storeSession(account.id, data.session);
-      console.log(`Session stored for account ${account.id}`);
+      // Don't store [NONE] as a session
+      if (data.session && !/^\[NONE\]$/i.test(data.session)) {
+        // Store session in localStorage
+        storeSession(account.id, data.session);
+        console.log(`Session stored for account ${account.id}`);
+      } else {
+        console.log(`Not storing invalid session: "${data.session}"`);
+      }
     }
     
     toast({
