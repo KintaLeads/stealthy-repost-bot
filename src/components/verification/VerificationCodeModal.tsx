@@ -7,8 +7,7 @@ import { Label } from '@/components/ui/label';
 import { verifyTelegramCode } from '@/services/telegram/verifier';
 import { useApiAccounts } from '@/hooks/useApiAccounts';
 import { toast } from 'sonner';
-import { ApiAccount as DashboardApiAccount } from '@/types/dashboard';
-import { ApiAccount as ChannelsApiAccount } from '@/types/channels';
+import { ChannelsApiAccount } from '@/types/channels';
 
 interface VerificationCodeModalProps {
   isOpen: boolean;
@@ -54,16 +53,16 @@ const VerificationCodeModal: React.FC<VerificationCodeModalProps> = ({
         code: verificationCode
       });
       
-      // Convert dashboard account to channels account format
+      // Create a channels-compatible account object
       const channelsAccount: ChannelsApiAccount = {
         ...dashboardAccount,
-        createdAt: new Date().toISOString(), // Add required field
-        userId: 'current-user' // Add required field
+        createdAt: new Date().toISOString(),
+        userId: 'current-user'
       };
       
       // Call the verification service
       const success = await verifyTelegramCode(channelsAccount, verificationCode, {
-        phoneCodeHash: phoneCodeHash
+        phoneCodeHash: phoneCodeHash || undefined
       });
       
       if (success) {
@@ -91,7 +90,7 @@ const VerificationCodeModal: React.FC<VerificationCodeModalProps> = ({
         
         <div className="grid gap-4 py-4">
           <p className="text-sm text-muted-foreground">
-            A verification code has been sent to your Telegram account. 
+            A verification code has been sent to your Telegram app. 
             Please enter the code below to complete the connection.
           </p>
           
