@@ -7,15 +7,14 @@ import { MTProto } from "../../proto/index.ts";
 /**
  * Initialize an MTProto client with provided credentials
  */
-export function initializeMTProto(apiId: string | number, apiHash: string, sessionString: string = ""): MTProto {
+export function initializeMTProto(apiId: string | number, apiHash: string): MTProto {
   try {
     console.log("=== INITIALIZING MTPROTO CLIENT ===");
     
     // Log the values being passed in at the entry point
     console.log(`[MTPROTO-UTILS] initializeMTProto received:
       - apiId: ${apiId} (${typeof apiId})
-      - apiHash: ${apiHash?.substring(0, 3)}... (${typeof apiHash}, length: ${apiHash?.length})
-      - sessionString: ${sessionString ? 'provided' : 'none'} (length: ${sessionString ? sessionString.length : 0})`);
+      - apiHash: ${apiHash?.substring(0, 3)}... (${typeof apiHash}, length: ${apiHash?.length})`);
     
     // Enhanced validation with descriptive messages
     if (apiId === undefined || apiId === null) {
@@ -37,41 +36,14 @@ export function initializeMTProto(apiId: string | number, apiHash: string, sessi
     
     console.log(`[MTPROTO-UTILS] After validation, using:
       - API ID: "${apiId}" (${typeof apiId}) -> ${numericApiId} (number)
-      - API Hash: "${apiHash.substring(0, 3)}..." (length: ${apiHash.length})
-      - Session: ${sessionString ? `provided (length: ${sessionString.length})` : 'none'}`);
-    
-    // Clean session string to ensure it's valid (not "[NONE]")
-    const cleanSessionString = sessionString && !/^\[NONE\]$/i.test(sessionString) ? sessionString.trim() : "";
+      - API Hash: "${apiHash.substring(0, 3)}..." (length: ${apiHash.length})`);
     
     // Add detailed logging right before creating the MTProto instance
     console.log(`[MTPROTO-UTILS] Creating MTProto with:
       - apiId: ${numericApiId} (${typeof numericApiId})
-      - apiHash: ${apiHash} (${typeof apiHash})
-      - session: ${cleanSessionString ? `has session (length: ${cleanSessionString.length})` : 'no session'}`);
+      - apiHash: ${apiHash} (${typeof apiHash})`);
     
-    // IMPORTANT: Create a new object here to avoid reference issues
-    const mtprotoOptions = {
-      apiId: numericApiId, // Always use the numeric version
-      apiHash: apiHash.trim(),
-      storageOptions: {
-        session: cleanSessionString
-      }
-    };
-    
-    // Double check the final values right before creation
-    console.log(`[MTPROTO-UTILS] Final MTProto options:`, 
-      JSON.stringify({
-        apiId: mtprotoOptions.apiId,
-        apiIdType: typeof mtprotoOptions.apiId,
-        apiHashPrefix: mtprotoOptions.apiHash.substring(0, 3),
-        apiHashLength: mtprotoOptions.apiHash.length,
-        apiHashType: typeof mtprotoOptions.apiHash,
-        sessionProvided: !!cleanSessionString,
-        sessionLength: cleanSessionString.length
-      })
-    );
-    
-    const client = new MTProto(mtprotoOptions);
+    const client = new MTProto(numericApiId, apiHash.trim());
     
     console.log(`[MTPROTO-UTILS] MTProto client initialized successfully`);
     return client;

@@ -8,17 +8,15 @@ export abstract class BaseTelegramImplementation implements Partial<TelegramClie
   protected apiHash: string;
   protected phoneNumber: string;
   protected accountId: string;
-  protected sessionString: string;
   protected validationClient: ValidationClient;
 
-  constructor(apiId: string | number, apiHash: string, phoneNumber: string, accountId: string, sessionString: string = "") {
+  constructor(apiId: string | number, apiHash: string, phoneNumber: string, accountId: string) {
     // Log received values
     console.log(`[BASE-IMPLEMENTATION] Constructor received:
       - apiId: ${apiId} (${typeof apiId})
       - apiHash: ${apiHash ? apiHash.substring(0, 3) + '...' : 'undefined'} (${typeof apiHash})
       - phoneNumber: ${phoneNumber ? phoneNumber.substring(0, 4) + '****' : 'none'} (${typeof phoneNumber})
-      - accountId: ${accountId} (${typeof accountId})
-      - sessionString: ${sessionString ? 'provided' : 'none'} (${typeof sessionString})`);
+      - accountId: ${accountId} (${typeof accountId})`);
     
     // Enhanced validation to catch issues early
     if (apiId === undefined || apiId === null) {
@@ -37,7 +35,6 @@ export abstract class BaseTelegramImplementation implements Partial<TelegramClie
     this.apiHash = apiHash.trim();
     this.phoneNumber = phoneNumber;
     this.accountId = accountId;
-    this.sessionString = sessionString;
     
     console.log("[BASE-IMPLEMENTATION] Creating BaseTelegramImplementation");
     console.log(`[BASE-IMPLEMENTATION] Values after processing:
@@ -53,7 +50,7 @@ export abstract class BaseTelegramImplementation implements Partial<TelegramClie
     }
     
     // Initialize validation client - use the original apiId type (string or number)
-    this.validationClient = new ValidationClient(this.apiId, this.apiHash, this.phoneNumber, this.accountId, this.sessionString);
+    this.validationClient = new ValidationClient(this.apiId, this.apiHash, this.phoneNumber, this.accountId);
     
     console.log("[BASE-IMPLEMENTATION] BaseTelegramImplementation created successfully");
   }
@@ -80,7 +77,7 @@ export abstract class BaseTelegramImplementation implements Partial<TelegramClie
   
   // Get session string
   getSession(): string {
-    return this.sessionString;
+    return "";
   }
   
   // Get phone number

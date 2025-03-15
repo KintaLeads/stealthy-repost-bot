@@ -44,9 +44,9 @@ export function initializeTelegramClient(
     - API Hash: ${apiHash.substring(0, 3)}... (length: ${apiHash.length})`);
   
   try {
-    // Create a new empty StringSession (no saved session)
+    // Create a new StringSession object with no data
     const stringSession = new StringSession("");
-    console.log("Created empty StringSession object");
+    console.log("Created new StringSession object");
     
     // Create a new TelegramClient with minimal settings
     const client = new TelegramClient(
@@ -60,7 +60,7 @@ export function initializeTelegramClient(
       }
     );
     
-    console.log("TelegramClient created successfully with empty session");
+    console.log("TelegramClient created successfully with new StringSession");
     
     return { client, stringSession };
   } catch (error) {

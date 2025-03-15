@@ -15,10 +15,7 @@ export class MTProto implements MTProtoInterface {
     // Create the MTProto client with minimal settings - no session
     this.client = new MTProtoClient({
       apiId,
-      apiHash,
-      storageOptions: {
-        session: ""  // Always use empty session string
-      }
+      apiHash
     });
   }
   

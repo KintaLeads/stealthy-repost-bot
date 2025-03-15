@@ -12,15 +12,14 @@ export class TelegramClientFactory {
   static createClient(options: TelegramClientOptions): TelegramClientInterface {
     console.log("[CLIENT-FACTORY] Creating Telegram client with MTProto implementation");
     
-    const { apiId, apiHash, phoneNumber, accountId, sessionString = "" } = options;
+    const { apiId, apiHash, phoneNumber, accountId } = options;
     
     // Log the received options
     console.log(`[CLIENT-FACTORY] Received options:
       - apiId: ${apiId} (${typeof apiId})
       - apiHash: ${apiHash ? apiHash.substring(0, 3) + '...' : 'undefined'} (${typeof apiHash})
       - phoneNumber: ${phoneNumber ? phoneNumber.substring(0, 4) + '****' : 'none'} (${typeof phoneNumber})
-      - accountId: ${accountId} (${typeof accountId})
-      - sessionString: ${sessionString ? `length: ${sessionString.length}` : 'empty string'} (${typeof sessionString})`);
+      - accountId: ${accountId} (${typeof accountId})`);
     
     // Convert apiId to number if it's a string, and validate
     const numericApiId = typeof apiId === 'number' ? apiId : parseInt(String(apiId), 10);
@@ -36,24 +35,19 @@ export class TelegramClientFactory {
       throw new Error(`API Hash cannot be empty or undefined, received: ${JSON.stringify(apiHash)}`);
     }
     
-    // Ensure sessionString is a string, never undefined or null
-    const cleanSessionString = sessionString || "";
-    
     // Log the final values after validation
     console.log(`[CLIENT-FACTORY] Creating TelegramCombinedImplementation with:
       - apiId (numeric): ${numericApiId} (${typeof numericApiId})
       - apiHash: ${apiHash.substring(0, 3)}... (${typeof apiHash})
       - phoneNumber: ${phoneNumber ? phoneNumber.substring(0, 4) + '****' : 'none'} (${typeof phoneNumber})
-      - accountId: ${accountId} (${typeof accountId})
-      - sessionString: ${cleanSessionString ? `length: ${cleanSessionString.length}` : 'empty string'} (${typeof cleanSessionString})`);
+      - accountId: ${accountId} (${typeof accountId})`);
     
-    // Pass the numeric API ID to the constructor
+    // Pass the numeric API ID to the constructor - no session
     return new TelegramCombinedImplementation(
       numericApiId, 
       apiHash, 
       phoneNumber, 
-      accountId, 
-      cleanSessionString
+      accountId
     );
   }
 }

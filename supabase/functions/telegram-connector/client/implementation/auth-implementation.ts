@@ -7,8 +7,8 @@ import { AuthState } from "../types.ts";
 export class AuthImplementation extends BaseTelegramImplementation {
   private authClient: AuthClient | null = null;
   
-  constructor(apiId: string | number, apiHash: string, phoneNumber: string, accountId: string, sessionString: string = "") {
-    super(apiId, apiHash, phoneNumber, accountId, sessionString);
+  constructor(apiId: string | number, apiHash: string, phoneNumber: string, accountId: string) {
+    super(apiId, apiHash, phoneNumber, accountId);
     
     // Parse apiId to number if it's a string
     const numericApiId = typeof apiId === 'number' ? apiId : parseInt(String(apiId), 10);
@@ -18,8 +18,7 @@ export class AuthImplementation extends BaseTelegramImplementation {
       - apiId (numeric): ${numericApiId} (${typeof numericApiId})
       - apiHash: ${apiHash?.substring(0, 3)}... (${typeof apiHash})
       - phoneNumber: ${phoneNumber?.substring(0, 4)}**** (${typeof phoneNumber})
-      - accountId: ${accountId} (${typeof accountId})
-      - sessionString: ${sessionString ? 'provided' : 'none'} (${typeof sessionString}, length: ${sessionString?.length || 0})`);
+      - accountId: ${accountId} (${typeof accountId})`);
   }
   
   // Method to get auth client (lazy loading)
@@ -50,22 +49,17 @@ export class AuthImplementation extends BaseTelegramImplementation {
         throw new Error(`API ID must be a valid number, got: ${this.apiId}`);
       }
       
-      // Clean session string
-      const cleanSessionString = this.sessionString ? this.sessionString.trim() : "";
-      
       console.log(`[AUTH-IMPLEMENTATION] Creating AuthClient with:
         - apiId (numeric): ${numericApiId} (${typeof numericApiId})
         - apiHash: ${this.apiHash.substring(0, 3)}... (${typeof this.apiHash})
         - phoneNumber: ${this.phoneNumber?.substring(0, 4)}**** (${typeof this.phoneNumber})
-        - accountId: ${this.accountId} (${typeof this.accountId})
-        - sessionString: ${cleanSessionString ? `provided (length: ${cleanSessionString.length})` : 'none'}`);
+        - accountId: ${this.accountId} (${typeof this.accountId})`);
       
       this.authClient = new AuthClient(
         numericApiId, // Pass as number
         this.apiHash, 
         this.phoneNumber, 
-        this.accountId, 
-        cleanSessionString
+        this.accountId
       );
     }
     return this.authClient;
@@ -78,7 +72,7 @@ export class AuthImplementation extends BaseTelegramImplementation {
   }
   
   // Method to connect to Telegram
-  async connect(): Promise<{ success: boolean; codeNeeded?: boolean; phoneCodeHash?: string; error?: string; session?: string; _testCode?: string; user?: any; details?: any }> {
+  async connect(): Promise<{ success: boolean; codeNeeded?: boolean; phoneCodeHash?: string; error?: string; user?: any; details?: any }> {
     console.log(`[AUTH-IMPLEMENTATION] Connect method called`);
     try {
       const authClient = await this.getAuthClient();
@@ -95,7 +89,7 @@ export class AuthImplementation extends BaseTelegramImplementation {
   }
   
   // Method to verify code
-  async verifyCode(code: string, phone_code_hash: string): Promise<{ success: boolean; error?: string; session?: string; user?: any }> {
+  async verifyCode(code: string, phone_code_hash: string): Promise<{ success: boolean; error?: string; user?: any }> {
     const authClient = await this.getAuthClient();
     return authClient.verifyAuthenticationCode(code, phone_code_hash);
   }

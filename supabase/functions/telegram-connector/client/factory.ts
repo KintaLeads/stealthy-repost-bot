@@ -47,8 +47,7 @@ export class TelegramClientFactory {
       numericApiId, 
       apiHash, 
       phoneNumber, 
-      accountId, 
-      "" // Always use empty string for session
+      accountId
     );
   }
 }

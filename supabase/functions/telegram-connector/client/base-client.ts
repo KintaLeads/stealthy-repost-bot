@@ -1,26 +1,25 @@
+
 // Base client class with common functionality for MTProto
 import { MTProto } from "../proto/index.ts";
 import { AuthState } from "./types.ts";
 import { ClientConfig, validateClientConfig } from "./config/client-config.ts";
 import { initializeMTProto, callMTProtoMethod } from "./utils/mtproto-utils.ts";
-import { exportSession, checkAuthentication } from "./utils/session-manager.ts";
+import { checkAuthentication } from "./utils/session-manager.ts";
 
 export abstract class BaseClient {
   protected accountId: string;
   protected apiId: string;
   protected apiHash: string;
   protected phoneNumber: string;
-  protected sessionString: string;
   protected client: MTProto | null = null;
   protected authState: AuthState = "unauthorized";
   
-  constructor(apiId: string | number, apiHash: string, phoneNumber: string, accountId: string, sessionString: string = "") {
+  constructor(apiId: string | number, apiHash: string, phoneNumber: string, accountId: string) {
     console.log(`[BASE-CLIENT] Constructor received:
     - apiId: ${apiId} (${typeof apiId})
     - apiHash: ${apiHash ? apiHash.substring(0, 3) + '...' : 'undefined'} (${typeof apiHash})
     - phoneNumber: ${phoneNumber ? phoneNumber.substring(0, 4) + '****' : 'none'} (${typeof phoneNumber})
-    - accountId: ${accountId} (${typeof accountId})
-    - sessionString: ${sessionString ? `length: ${sessionString.length}` : 'empty string'} (${typeof sessionString})`);
+    - accountId: ${accountId} (${typeof accountId})`);
     
     // Convert apiId to string if needed
     const apiIdStr = String(apiId || "");
@@ -30,8 +29,7 @@ export abstract class BaseClient {
       apiId: apiIdStr.trim(),
       apiHash: apiHash ? apiHash.trim() : '',
       phoneNumber: phoneNumber ? phoneNumber.trim() : '',
-      accountId,
-      sessionString: sessionString ? sessionString.trim() : ''
+      accountId
     };
     
     // Validate the configuration
@@ -42,19 +40,12 @@ export abstract class BaseClient {
     this.apiHash = config.apiHash;
     this.phoneNumber = config.phoneNumber;
     this.accountId = config.accountId;
-    this.sessionString = config.sessionString || ""; // Always ensure string
     
     console.log(`[BASE-CLIENT] Initialized with:
       - API ID: "${this.apiId}" (${typeof this.apiId}, length: ${this.apiId.length})
       - API Hash: "${this.apiHash.substring(0, 3)}..." (${typeof this.apiHash}, length: ${this.apiHash.length})
       - Phone Number: "${this.phoneNumber ? this.phoneNumber.substring(0, 4) + '****' : 'none'}"
-      - Account ID: "${this.accountId}"
-      - Session: ${this.sessionString ? `length: ${this.sessionString.length}` : 'empty string'}`);
-    
-    // Determine initial auth state
-    if (this.sessionString) {
-      this.authState = "authorized";
-    }
+      - Account ID: "${this.accountId}"`);
   }
   
   /**
@@ -71,15 +62,11 @@ export abstract class BaseClient {
       throw new Error(`API ID must be a valid positive number, got: ${this.apiId}`);
     }
     
-    // Clean session string - ensure it's a string, never undefined or null
-    const cleanSessionString = this.sessionString ? this.sessionString.trim() : "";
-    
     console.log(`[BASE-CLIENT] Calling initializeMTProto with:
       - apiId: ${numericApiId} (${typeof numericApiId})
-      - apiHash: ${this.apiHash.substring(0, 3)}... (${typeof this.apiHash})
-      - sessionString: ${cleanSessionString ? `length: ${cleanSessionString.length}` : 'empty string'} (${typeof cleanSessionString})`);
+      - apiHash: ${this.apiHash.substring(0, 3)}... (${typeof this.apiHash})`);
     
-    this.client = initializeMTProto(numericApiId, this.apiHash, cleanSessionString);
+    this.client = initializeMTProto(numericApiId, this.apiHash);
     return this.client;
   }
   
@@ -118,25 +105,6 @@ export abstract class BaseClient {
   }
   
   /**
-   * Save the current session
-   */
-  protected async saveSession(): Promise<void> {
-    if (!this.client) {
-      console.warn("Cannot save session: Client not initialized");
-      return;
-    }
-    
-    try {
-      console.log("Saving session from client...");
-      this.sessionString = await exportSession(this.client);
-      console.log(`Session saved successfully (length: ${this.sessionString.length})`);
-    } catch (error) {
-      console.error("Error in saveSession:", error);
-      throw error;
-    }
-  }
-  
-  /**
    * Check if the client is authenticated
    */
   async isAuthenticated(): Promise<boolean> {
@@ -144,11 +112,6 @@ export abstract class BaseClient {
       if (!this.client) {
         // Initialize the client if it doesn't exist
         this.client = this.initMTProto();
-      }
-      
-      if (!this.sessionString) {
-        console.log("No session string available, not authenticated");
-        return false;
       }
       
       const authenticated = await checkAuthentication(this.client);
