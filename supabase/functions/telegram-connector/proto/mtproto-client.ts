@@ -1,10 +1,9 @@
-
 /**
  * MTProto client implementation for Telegram API
  * Using GramJS for Deno
  */
-import { TelegramClient } from "https://esm.sh/telegram@2.19.10";
-import { StringSession } from "https://esm.sh/telegram@2.19.10/sessions/index.js";
+import { TelegramClient } from "telegram";
+import { StringSession } from "telegram/sessions";
 import { MTProtoInterface, MTProtoOptions } from "./interfaces.ts";
 import * as Auth from "./auth-methods.ts";
 import * as Messages from "./message-methods.ts";
@@ -99,10 +98,9 @@ export class MTProtoClient implements MTProtoInterface {
       
       // Debug the type of stringSession to verify it's correct
       console.log(`[MTPROTO-CLIENT] StringSession type: ${this.stringSession ? this.stringSession.constructor.name : 'null'}`);
-      console.log(`[MTPROTO-CLIENT] Is stringSession an instance of StringSession: ${this.stringSession instanceof StringSession}`);
       
       // CRITICAL FIX: Final validation of stringSession
-      if (!(this.stringSession instanceof StringSession)) {
+      if (!this.stringSession || typeof this.stringSession !== 'object') {
         throw new Error("Failed to create a proper StringSession instance");
       }
     } catch (error) {

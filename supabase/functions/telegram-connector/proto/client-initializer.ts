@@ -2,8 +2,8 @@
 /**
  * Handles Telegram client initialization
  */
-import { TelegramClient } from "https://esm.sh/telegram@2.19.10";
-import { StringSession } from "https://esm.sh/telegram@2.19.10/sessions/index.js";
+import { TelegramClient } from "telegram";
+import { StringSession } from "telegram/sessions";
 
 /**
  * Initialize a new Telegram client instance
@@ -67,14 +67,14 @@ export function initializeTelegramClient(
     console.log(`StringSession constructor: ${stringSession.constructor.name}`);
     
     // Validate that we've created a proper StringSession instance
-    if (!(stringSession instanceof StringSession)) {
+    if (!stringSession || typeof stringSession !== 'object') {
       console.error("Failed to create StringSession instance:", stringSession);
       throw new Error('Failed to create a proper StringSession instance');
     }
     
-    // IMPORTANT: When we create the TelegramClient, we need to pass the StringSession OBJECT
+    // IMPORTANT: Create a new TelegramClient with the StringSession
     const client = new TelegramClient(
-      stringSession,         // Must be a StringSession object, not a string
+      stringSession,         // The StringSession object
       numericApiId,          // API ID as number
       apiHash,               // API Hash
       {                      // Options
@@ -84,9 +84,9 @@ export function initializeTelegramClient(
       }
     );
     
-    // Log session details for debugging
-    console.log(`Client created with StringSession object`);
-    console.log(`Telegram client initialized successfully with apiId: ${numericApiId}`);
+    // Log successful creation
+    console.log(`TelegramClient created successfully using StringSession`);
+    console.log(`StringSession save() result: ${stringSession.save()}`);
     
     return { client, stringSession };
   } catch (error) {
@@ -110,12 +110,6 @@ export async function exportClientSession(
     if (!stringSession) {
       console.error("Invalid StringSession object provided to exportClientSession");
       throw new Error("Invalid StringSession object");
-    }
-    
-    // Validate that we have a proper StringSession object
-    if (!(stringSession instanceof StringSession)) {
-      console.error("Object is not a StringSession instance:", stringSession);
-      throw new Error("Invalid StringSession type");
     }
     
     console.log("Exporting session, StringSession type:", stringSession.constructor.name);
