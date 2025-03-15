@@ -1,4 +1,3 @@
-
 import { ApiAccount } from '@/types/channels';
 import { supabase } from '@/integrations/supabase/client';
 import { logInfo, logError, trackApiCall, consoleLogger } from './debugger';
@@ -8,45 +7,27 @@ import { toast } from '@/components/ui/use-toast';
 import { StringSession } from "https://esm.sh/telegram@2.19.10/sessions/index.js";
 
 /**
- * Prepare session string for API request
- * Converts any session string to a properly formatted string
- * and handles the special case of "[NONE]"
+ * Converts a session string into a properly formatted StringSession object.
+ * Ensures that `[NONE]` is treated as an empty session.
  */
-const prepareSessionString = (sessionString: string | null | undefined): string => {
-  // If session is empty, undefined, null, or "[NONE]", return empty string
-  if (!sessionString || 
-      sessionString.trim() === "" || 
-      /^\[NONE\]$/i.test(sessionString)) {
-    logInfo('TelegramConnector', 'Replacing invalid session with empty string');
-    return "";
-  }
-  
-  // Otherwise, return the cleaned session string
-  return sessionString.trim();
-};
-
-/**
- * Create a proper StringSession from a session string
- * This ensures we're always sending a valid StringSession format
- */
-const prepareSession = (session: string): string => {
-  if (!session || /^\[NONE\]$/i.test(session)) {
-    console.log("Session is empty or [NONE], creating a new empty StringSession.");
+const prepareSession = (session: string | null | undefined): string => {
+  if (!session || session.trim() === "" || session.trim().toUpperCase() === "[NONE]") {
+    logInfo("TelegramConnector", "Using a new empty StringSession.");
     return new StringSession("").save(); // Always return a valid session format
   }
 
   try {
-    const stringSession = new StringSession(session);
-    console.log("Session converted successfully:", stringSession);
+    const stringSession = new StringSession(session.trim());
+    logInfo("TelegramConnector", "Converted session successfully.");
     return stringSession.save();
   } catch (error) {
-    console.error("Error converting session to StringSession:", error);
+    logError("TelegramConnector", "Error converting session to StringSession:", error);
     return new StringSession("").save(); // Fallback to empty session
   }
 };
 
 /**
- * Handles the initial connection to Telegram
+ * Handles the initial connection to Telegram.
  */
 export const handleInitialConnection = async (
   account: ApiAccount,
@@ -59,154 +40,52 @@ export const handleInitialConnection = async (
     // Get session string from storage
     let sessionString = getStoredSession(account.id);
     
-    // Clean the session string - this is the critical fix
-    sessionString = prepareSessionString(sessionString);
+    // Convert session to proper format
+    sessionString = prepareSession(sessionString);
     
-    logInfo(context, `📦 Session check - exists: ${!!sessionString}, length: ${sessionString?.length || 0}`);
+    logInfo(context, `📦 Session check - exists: ${!!sessionString}, length: ${sessionString.length}`);
 
-    // Log the account data for debugging
-    consoleLogger.trackApiPayload(
-      'services/telegram/connector.ts',
-      'handleInitialConnection',
-      'start-connection',
-      parseInt(account.apiKey, 10), // Ensure API ID is a number here
-      account.apiHash,
-      account.phoneNumber,
-      sessionString, // Use cleaned session string
-      { accountId: account.id, sessionExists: !!sessionString }
-    );
-    
-    // Parse apiKey to ensure it's a number
+    // Validate API ID
     const apiId = parseInt(account.apiKey, 10);
-    if (isNaN(apiId)) {
+    if (isNaN(apiId) || apiId <= 0) {
       throw new Error(`Invalid API ID: "${account.apiKey}" is not a valid number`);
     }
-    
-    // Log after conversion
-    consoleLogger.trackApiPayload(
-      'services/telegram/connector.ts',
-      'handleInitialConnection',
-      'after-conversion',
-      apiId, // Already a number here
-      account.apiHash,
-      account.phoneNumber,
-      sessionString, // Use cleaned session string
-      { accountId: account.id, originalApiKey: account.apiKey }
-    );
-    
-    // Explicitly build connection data as a separate object for clarity
+
+    // Construct final payload for API request
     const connectionData = {
       operation: 'connect', 
-      apiId: apiId,  // Now sending as a number (integer)
+      apiId: apiId,
       apiHash: account.apiHash,
       phoneNumber: account.phoneNumber,
       accountId: account.id || 'unknown',
-      sessionString: prepareSession(sessionString), // 🔥 FINAL OVERRIDE - Convert to StringSession format
-      debug: true, // Always enable debug mode
+      sessionString, // ✅ Always a valid StringSession now
+      debug: true,
       logLevel: 'verbose',
       ...options
     };
-    
-    // Log connection attempt with sanitized data
-    logInfo(context, '📤 Connection data:', {
+
+    logInfo(context, '📤 Final Connection Data:', {
       ...connectionData,
       apiHash: '[REDACTED]',
-      sessionString: connectionData.sessionString ? `[${connectionData.sessionString.length} chars]` : ''
+      sessionString: sessionString ? `[${sessionString.length} chars]` : ''
     });
-    
-    // Call the edge function
-    logInfo(context, '⚡ Calling telegram-connector edge function');
-    console.log('Making direct call to telegram-connector edge function');
-    
-    // Add a toast to show we're connecting
-    toast({
-      title: "Connecting to Telegram",
-      description: "Please wait while we establish a connection...",
-    });
-    
-    // Final validation - this enforces that we NEVER send '[NONE]'
-    const finalConnectionData = {...connectionData};
-    console.log("🚀 Final Payload Before Sending:", finalConnectionData);
-    
-    // Track the constructed payload
-    consoleLogger.trackApiPayload(
-      'services/telegram/connector.ts',
-      'handleInitialConnection',
-      'before-api-call',
-      finalConnectionData.apiId, // Now a number
-      finalConnectionData.apiHash,
-      finalConnectionData.phoneNumber,
-      finalConnectionData.sessionString, // Use prepared session string
-      { 
-        operation: finalConnectionData.operation,
-        accountId: finalConnectionData.accountId
-      }
-    );
-    
-    // Add retries for better reliability
+
+    // Prepare API request details
+    const projectId = 'eswfrzdqxsaizkdswxfn';
+    const requestUrl = `https://${projectId}.supabase.co/functions/v1/telegram-connector`;
+
+    // Get authentication token
+    const { data: sessionData } = await supabase.auth.getSession();
+    const accessToken = sessionData.session?.access_token || '';
+    const anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVzd2ZyemRxeHNhaXprZHN3eGZuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA5ODM2ODQsImV4cCI6MjA1NjU1OTY4NH0.2onrHJHapQZbqi7RgsuK7A6G5xlJrNSgRv21_mUT7ik';
+
+    // **Retry Mechanism**: Attempts up to 3 times
     let retries = 0;
     const maxRetries = 2;
     let lastError = null;
-    
+
     while (retries <= maxRetries) {
       try {
-        // Use direct fetch instead of supabase.functions.invoke which might be having issues
-        const projectId = 'eswfrzdqxsaizkdswxfn';
-        const requestUrl = `https://${projectId}.supabase.co/functions/v1/telegram-connector`;
-        
-        // Get the access token from session
-        const { data: sessionData } = await supabase.auth.getSession();
-        const accessToken = sessionData.session?.access_token || '';
-        const anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVzd2ZyemRxeHNhaXprZHN3eGZuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA5ODM2ODQsImV4cCI6MjA1NjU1OTY4NH0.2onrHJHapQZbqi7RgsuK7A6G5xlJrNSgRv21_mUT7ik';
-        
-        console.log(`Sending direct fetch to ${requestUrl}`, {
-          apiId: finalConnectionData.apiId, // Now a number
-          phoneNumber: finalConnectionData.phoneNumber,
-          accountId: finalConnectionData.accountId,
-          sessionPresent: !!finalConnectionData.sessionString
-        });
-        
-        // First try a test request to verify connectivity
-        if (retries === 0) {
-          const testResponse = await fetch(requestUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${accessToken}`,
-              'apikey': anonKey
-            },
-            body: JSON.stringify({
-              operation: 'connect',
-              debug: true,
-              testMode: true
-            })
-          });
-          
-          const testData = await testResponse.json();
-          console.log('Test connection response:', testData);
-          
-          if (!testResponse.ok) {
-            console.error('Test connection failed:', testData);
-          }
-        }
-        
-        // Track the finalized payload right before sending
-        consoleLogger.trackApiPayload(
-          'services/telegram/connector.ts',
-          'handleInitialConnection',
-          'sending-request',
-          finalConnectionData.apiId, // API ID
-          finalConnectionData.apiHash, // API Hash
-          finalConnectionData.phoneNumber, // Phone number
-          finalConnectionData.sessionString, // Session string (NEVER "[NONE]")
-          { // Other data
-            endpoint: requestUrl,
-            attempt: retries + 1,
-            totalAttempts: maxRetries + 1
-          }
-        );
-        
-        // Make the actual request with the final data that has been thoroughly checked
         const response = await fetch(requestUrl, {
           method: 'POST',
           headers: {
@@ -214,174 +93,76 @@ export const handleInitialConnection = async (
             'Authorization': `Bearer ${accessToken}`,
             'apikey': anonKey
           },
-          body: JSON.stringify(finalConnectionData) // Explicitly stringify the body
+          body: JSON.stringify(connectionData) // ✅ Always sending a valid session format
         });
-        
-        // Extra logging for debugging
-        console.log('Response status:', response.status);
-        console.log('Response headers:', Object.fromEntries(response.headers.entries()));
-        
-        // Convert response to JSON
+
         const data = await response.json();
-        console.log('Response data:', data);
-        
-        // Track API call
-        trackApiCall('telegram-connector/connect', {
-          ...finalConnectionData,
-          apiHash: '[REDACTED]'
-        }, data, response.ok ? null : new Error(`HTTP error ${response.status}`));
-        
+
         if (!response.ok) {
           logError(context, `❌ Edge function error: HTTP ${response.status}`, data);
-          console.error('Full error response:', data);
-          
           lastError = new Error(data.error || `HTTP error ${response.status}`);
-          
-          // Show toast with error if this is the last retry
-          if (retries === maxRetries) {
-            toast({
-              title: "Connection Failed",
-              description: data.error || `HTTP error ${response.status}`,
-              variant: "destructive",
-            });
-            
-            throw lastError;
-          }
-        } else if (!data) {
-          logError(context, '❌ No data returned from Edge Function');
-          
-          lastError = new Error('No response from Edge Function');
-          
-          // Show toast with error if this is the last retry
-          if (retries === maxRetries) {
-            toast({
-              title: "Connection Failed",
-              description: "No response from Edge Function",
-              variant: "destructive",
-            });
-            
-            throw lastError;
-          }
-        } else {
-          // Successfully got data, process it
-          logInfo(context, '📥 Edge function response:', {
-            success: data.success,
-            codeNeeded: data.codeNeeded,
-            hasSession: !!data.session,
-            error: data.error
-          });
-          
-          if (!data.success) {
-            logError(context, '❌ Connection failed:', data.error);
-            
-            // Show toast with error
-            toast({
-              title: "Connection Failed",
-              description: data.error || 'Failed to connect to Telegram',
-              variant: "destructive",
-            });
-            
-            return {
-              success: false,
-              error: data.error || 'Failed to connect to Telegram',
-              details: data.details
-            };
-          }
-          
-          // Check if verification is needed
-          if (data.codeNeeded) {
-            logInfo(context, '📱 Verification code needed');
-            
-            // Store phone code hash for verification
-            if (data.phoneCodeHash) {
-              localStorage.setItem(`telegram_code_hash_${account.id}`, data.phoneCodeHash);
-            }
-            
-            // Show toast indicating verification needed
-            toast({
-              title: "Verification Required",
-              description: "Please enter the verification code sent to your Telegram app",
-            });
-            
-            return {
-              success: true,
-              codeNeeded: true,
-              phoneCodeHash: data.phoneCodeHash,
-              _testCode: data._testCode
-            };
-          }
-          
-          // Connection successful
-          logInfo(context, '✅ Connection successful, session received');
-          
-          // Store the session if provided
-          if (data.session) {
-            storeSession(account.id, data.session);
-            logInfo(context, `📦 Session stored for account ${account.id}`);
-          }
-          
-          // Show success toast
+          throw lastError;
+        }
+
+        // If session needs verification
+        if (data.codeNeeded) {
           toast({
-            title: "Connected Successfully",
-            description: "Your Telegram account is now connected",
+            title: "Verification Required",
+            description: "Enter the verification code sent to your Telegram app",
           });
-          
+
           return {
             success: true,
-            codeNeeded: false,
-            session: data.session,
-            user: data.user
+            codeNeeded: true,
+            phoneCodeHash: data.phoneCodeHash
           };
         }
-      } catch (invokeError) {
-        logError(context, `❌ Error invoking edge function (attempt ${retries + 1}/${maxRetries + 1}):`, invokeError);
-        console.error(`Attempt ${retries + 1} error:`, invokeError);
-        
-        lastError = invokeError;
-        
-        // Only show toast on the last retry
-        if (retries === maxRetries) {
-          toast({
-            title: "Connection Error",
-            description: invokeError instanceof Error ? invokeError.message : 'Failed to call edge function',
-            variant: "destructive",
-          });
+
+        // Store the new session if provided
+        if (data.session) {
+          storeSession(account.id, data.session);
+          logInfo(context, `📦 Session stored for account ${account.id}`);
         }
+
+        toast({
+          title: "Connected Successfully",
+          description: "Your Telegram account is now connected",
+        });
+
+        return {
+          success: true,
+          session: data.session,
+          user: data.user
+        };
+
+      } catch (error) {
+        logError(context, `❌ Connection error (attempt ${retries + 1}/${maxRetries + 1}):`, error);
+        lastError = error;
       }
-      
-      // Increment retry counter and wait before retrying
+
       retries++;
       if (retries <= maxRetries) {
-        const delay = 1000 * retries; // Exponential backoff: 1s, 2s
-        logInfo(context, `Retrying in ${delay}ms (attempt ${retries + 1}/${maxRetries + 1})`);
-        await new Promise(resolve => setTimeout(resolve, delay));
+        await new Promise(resolve => setTimeout(resolve, 1000 * retries)); // Exponential backoff
       }
     }
-    
-    // If we got here, all retries failed
+
     throw lastError || new Error('Failed to connect after multiple attempts');
-    
+
   } catch (error) {
     logError(context, '💥 Connection error:', error);
-    console.error('Full error details:', error);
-    
-    // Show toast with error
+
     toast({
       title: "Connection Error",
       description: error instanceof Error ? error.message : 'An unknown error occurred',
       variant: "destructive",
     });
-    
+
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'An unknown error occurred',
-      details: error instanceof Error ? {
-        name: error.name,
-        stack: error.stack
-      } : undefined
+      error: error instanceof Error ? error.message : 'An unknown error occurred'
     };
   }
 };
 
-// Export connectToTelegram as an alias for handleInitialConnection
+// Export for external use
 export const connectToTelegram = handleInitialConnection;
