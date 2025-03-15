@@ -1,8 +1,7 @@
-
 /**
  * Authentication-related MTProto methods
  */
-import { TelegramClient } from "https://esm.sh/telegram@2.19.10";
+import { TelegramClient } from "telegram";
 
 /**
  * Handle auth.checkPhone request
