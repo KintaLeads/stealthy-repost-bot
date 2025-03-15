@@ -3,7 +3,7 @@
  * Handles Telegram client initialization
  */
 import { TelegramClient } from "https://esm.sh/telegram@2.19.10";
-import { StringSession } from "https://esm.sh/telegram@2.19.10/sessions/index.js";
+import { StringSession } from "https://esm.sh/telegram@2.19.10/sessions";
 
 /**
  * Initialize a new Telegram client instance
@@ -72,8 +72,7 @@ export function initializeTelegramClient(
       throw new Error('Failed to create a proper StringSession instance');
     }
     
-    // CRITICAL FIX: Create a new TelegramClient with the StringSession object,
-    // not using the storage options pattern
+    // Create a new TelegramClient with the StringSession object
     const client = new TelegramClient(
       stringSession,         // Pass StringSession directly as first argument
       numericApiId,          // API ID as number
