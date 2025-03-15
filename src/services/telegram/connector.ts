@@ -1,9 +1,11 @@
+
 import { ApiAccount } from '@/types/channels';
 import { supabase } from '@/integrations/supabase/client';
 import { logInfo, logError, trackApiCall, consoleLogger } from './debugger';
 import { getStoredSession, storeSession } from './session/sessionManager';
 import { ConnectionResult } from './types';
 import { toast } from '@/components/ui/use-toast';
+import { StringSession } from "https://esm.sh/telegram@2.19.10/sessions/index.js";
 
 /**
  * Prepare session string for API request
@@ -21,6 +23,26 @@ const prepareSessionString = (sessionString: string | null | undefined): string 
   
   // Otherwise, return the cleaned session string
   return sessionString.trim();
+};
+
+/**
+ * Create a proper StringSession from a session string
+ * This ensures we're always sending a valid StringSession format
+ */
+const prepareSession = (session: string): string => {
+  if (!session || /^\[NONE\]$/i.test(session)) {
+    console.log("Session is empty or [NONE], creating a new empty StringSession.");
+    return new StringSession("").save(); // Always return a valid session format
+  }
+
+  try {
+    const stringSession = new StringSession(session);
+    console.log("Session converted successfully:", stringSession);
+    return stringSession.save();
+  } catch (error) {
+    console.error("Error converting session to StringSession:", error);
+    return new StringSession("").save(); // Fallback to empty session
+  }
 };
 
 /**
@@ -79,7 +101,7 @@ export const handleInitialConnection = async (
       apiHash: account.apiHash,
       phoneNumber: account.phoneNumber,
       accountId: account.id || 'unknown',
-      sessionString: sessionString, // Use cleaned session string
+      sessionString: prepareSession(sessionString), // 🔥 FINAL OVERRIDE - Convert to StringSession format
       debug: true, // Always enable debug mode
       logLevel: 'verbose',
       ...options
@@ -89,7 +111,7 @@ export const handleInitialConnection = async (
     logInfo(context, '📤 Connection data:', {
       ...connectionData,
       apiHash: '[REDACTED]',
-      sessionString: sessionString ? `[${sessionString.length} chars]` : ''
+      sessionString: connectionData.sessionString ? `[${connectionData.sessionString.length} chars]` : ''
     });
     
     // Call the edge function
@@ -104,7 +126,7 @@ export const handleInitialConnection = async (
     
     // Final validation - this enforces that we NEVER send '[NONE]'
     const finalConnectionData = {...connectionData};
-    finalConnectionData.sessionString = prepareSessionString(finalConnectionData.sessionString);
+    console.log("🚀 Final Payload Before Sending:", finalConnectionData);
     
     // Track the constructed payload
     consoleLogger.trackApiPayload(
