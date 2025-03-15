@@ -1,83 +1,91 @@
 
-import { ApiAccount } from "@/types/channels";
-import { logInfo, logError } from '../debugger';
+/**
+ * Session storage manager for Telegram API connections
+ */
 
-const SESSION_KEY_PREFIX = 'telegram_session_';
+// Constants for storing sessions
+const SESSION_PREFIX = 'telegram_session_';
 
-export const getSessionKey = (accountId: string): string => {
-  return `${SESSION_KEY_PREFIX}${accountId}`;
+/**
+ * Store a session in localStorage
+ */
+export const storeSession = (accountId: string, session: string): void => {
+  if (!accountId) {
+    console.error('Cannot store session: Missing account ID');
+    return;
+  }
+  
+  // Don't store empty or invalid sessions
+  if (!session || session === '[NONE]') {
+    console.warn(`Not storing empty or invalid session for account ${accountId}`);
+    return;
+  }
+  
+  const key = `${SESSION_PREFIX}${accountId}`;
+  
+  try {
+    localStorage.setItem(key, session);
+    console.log(`Session stored for account ${accountId} (length: ${session.length})`);
+  } catch (error) {
+    console.error('Error storing session:', error);
+  }
 };
 
+/**
+ * Retrieve a stored session from localStorage
+ */
 export const getStoredSession = (accountId: string): string => {
+  if (!accountId) {
+    console.error('Cannot get session: Missing account ID');
+    return '';
+  }
+  
+  const key = `${SESSION_PREFIX}${accountId}`;
+  
   try {
-    const key = getSessionKey(accountId);
-    const sessionString = localStorage.getItem(key);
+    const session = localStorage.getItem(key);
     
-    // CRITICAL FIX: Never return "[NONE]" or "[none]" in any case variation
-    // Check for invalid sessions using case-insensitive regex
-    if (!sessionString || /^\[NONE\]$/i.test(sessionString) || sessionString.trim().length === 0) {
-      logInfo("SessionManager", `No valid session found for account ${accountId}`);
-      return "";
+    // Check if the session is null, undefined, or "[NONE]"
+    if (!session || session === '[NONE]') {
+      console.log(`No valid session found for account ${accountId}`);
+      return '';
     }
     
-    logInfo("SessionManager", `Session found for account ${accountId}, length: ${sessionString.length}`);
-    return sessionString.trim();
+    console.log(`Retrieved session for account ${accountId} (length: ${session.length})`);
+    return session;
   } catch (error) {
-    logError("SessionManager", "Error getting stored session:", error);
-    return "";
+    console.error('Error getting session:', error);
+    return '';
   }
 };
 
-export const storeSession = (accountId: string, sessionString: string): void => {
-  try {
-    // CRITICAL FIX: Never store "[NONE]" or "[none]" in any case variation
-    if (!sessionString || /^\[NONE\]$/i.test(sessionString) || sessionString.trim().length === 0) {
-      logError("SessionManager", "Attempted to store invalid session - aborting");
-      return;
-    }
-    
-    const key = getSessionKey(accountId);
-    localStorage.setItem(key, sessionString.trim());
-    logInfo("SessionManager", `Session stored for account ${accountId}, length: ${sessionString.trim().length}`);
-  } catch (error) {
-    logError("SessionManager", "Error storing session:", error);
+/**
+ * Remove a stored session from localStorage
+ */
+export const clearStoredSession = (accountId: string): void => {
+  if (!accountId) {
+    console.error('Cannot clear session: Missing account ID');
+    return;
   }
-};
-
-export const hasStoredSession = (accountId: string): boolean => {
+  
+  const key = `${SESSION_PREFIX}${accountId}`;
+  
   try {
-    const key = getSessionKey(accountId);
-    const sessionString = localStorage.getItem(key);
-    
-    // CRITICAL FIX: Check more thoroughly for valid sessions with case-insensitive regex
-    const isValidSession = sessionString && 
-                          !/^\[NONE\]$/i.test(sessionString) && 
-                          sessionString.trim().length > 0;
-    
-    logInfo("SessionManager", `Checking session exists for account ${accountId}: ${!!isValidSession}`);
-    return !!isValidSession;
-  } catch (error) {
-    logError("SessionManager", "Error checking session existence:", error);
-    return false;
-  }
-};
-
-export const clearSession = (accountId: string): void => {
-  try {
-    const key = getSessionKey(accountId);
     localStorage.removeItem(key);
-    logInfo("SessionManager", `Session cleared for account ${accountId}`);
+    console.log(`Session cleared for account ${accountId}`);
   } catch (error) {
-    logError("SessionManager", "Error clearing session:", error);
+    console.error('Error clearing session:', error);
   }
 };
 
-export const validateSession = async (account: ApiAccount): Promise<boolean> => {
-  const sessionString = getStoredSession(account.id);
-  if (!sessionString) {
-    logInfo("SessionManager", "No session found for validation");
+/**
+ * Check if a session exists for an account
+ */
+export const hasStoredSession = (accountId: string): boolean => {
+  if (!accountId) {
     return false;
   }
-  // We'll validate the session by attempting to use it
-  return true;
+  
+  const session = getStoredSession(accountId);
+  return !!session && session.length > 0;
 };

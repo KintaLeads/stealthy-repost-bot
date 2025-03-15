@@ -3,7 +3,7 @@ import { ApiAccount } from '@/types/channels';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/use-toast';
 import { ConnectionResult, ConnectionOptions } from './types';
-import { getStoredSession } from './session/sessionManager';
+import { getStoredSession, storeSession } from './session/sessionManager';
 
 /**
  * Handles the connection to Telegram.
@@ -99,7 +99,7 @@ export const connectToTelegram = async (
     // If we have a session, store it
     if (data.session) {
       // Store session in localStorage
-      localStorage.setItem(`telegram_session_${account.id}`, data.session);
+      storeSession(account.id, data.session);
       console.log(`Session stored for account ${account.id}`);
     }
     
