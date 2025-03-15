@@ -3,12 +3,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { ApiAccount } from "@/types/channels";
 import { toast } from "@/components/ui/use-toast";
 import { logInfo, logError } from '../debugger';
-import { storeSession, clearSession, validateSession } from '../session/sessionManager';
+import { clearSession } from '../session/sessionManager';
 
 export interface ConnectionResult {
   success: boolean;
   error?: string;
-  sessionString?: string;
 }
 
 export const connectToTelegram = async (account: ApiAccount): Promise<ConnectionResult> => {
@@ -30,13 +29,8 @@ export const connectToTelegram = async (account: ApiAccount): Promise<Connection
       throw error;
     }
 
-    if (data.sessionString) {
-      storeSession(account.id, data.sessionString);
-    }
-
     return {
-      success: true,
-      sessionString: data.sessionString
+      success: true
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
