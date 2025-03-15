@@ -6,20 +6,18 @@ import { TelegramClient } from "https://esm.sh/telegram@2.19.10";
 import { StringSession } from "https://esm.sh/telegram@2.19.10/sessions";
 
 /**
- * Initialize a new Telegram client instance
+ * Initialize a new Telegram client instance without any session management
  */
 export function initializeTelegramClient(
   apiId: number | string,
-  apiHash: string,
-  session: string = ""
+  apiHash: string
 ): { client: TelegramClient; stringSession: StringSession } {
   console.log("Creating TelegramClient instance...");
   
   // Log the values being passed in
   console.log(`[CLIENT-INITIALIZER] Arguments received:
     - apiId: ${apiId} (${typeof apiId})
-    - apiHash: ${apiHash?.substring(0, 3)}... (${typeof apiHash}, length: ${apiHash?.length})
-    - session: ${session ? `length: ${session.length}` : 'empty string'} (${typeof session})`);
+    - apiHash: ${apiHash?.substring(0, 3)}... (${typeof apiHash}, length: ${apiHash?.length})`);
   
   // Validate inputs before creating client
   if (apiId === undefined || apiId === null) {
@@ -41,52 +39,28 @@ export function initializeTelegramClient(
     throw new Error(`API ID must be a positive number, got: ${apiId}`);
   }
   
-  // CRITICAL FIX: Enhanced session validation with regex
-  const sessionValue = session || "";
-  let cleanSessionString = "";
-  
-  // Check for "[NONE]" in any case combination
-  if (sessionValue && !/^\[NONE\]$/i.test(sessionValue)) {
-    cleanSessionString = sessionValue.trim();
-  }
-  
-  console.log(`[CLIENT-INITIALIZER] Session validation:
-    - Original: "${sessionValue}" (${typeof sessionValue}, length: ${sessionValue.length})
-    - Cleaned: "${cleanSessionString}" (length: ${cleanSessionString.length})
-    - Is valid: ${cleanSessionString !== "" && !/^\[NONE\]$/i.test(cleanSessionString)}`);
-  
   console.log(`Initializing TelegramClient with:
     - API ID: ${numericApiId} (parsed from "${apiId}")
-    - API Hash: ${apiHash.substring(0, 3)}... (length: ${apiHash.length})
-    - Session: ${cleanSessionString ? `length: ${cleanSessionString.length}` : 'empty string'}`);
+    - API Hash: ${apiHash.substring(0, 3)}... (length: ${apiHash.length})`);
   
   try {
-    // Create a StringSession instance
-    const stringSession = new StringSession(cleanSessionString);
-    console.log(`Created StringSession object type: ${typeof stringSession}`);
-    console.log(`StringSession constructor: ${stringSession.constructor.name}`);
+    // Create a new empty StringSession (no saved session)
+    const stringSession = new StringSession("");
+    console.log("Created empty StringSession object");
     
-    // Validate that we've created a proper StringSession instance
-    if (!stringSession || typeof stringSession !== 'object') {
-      console.error("Failed to create StringSession instance:", stringSession);
-      throw new Error('Failed to create a proper StringSession instance');
-    }
-    
-    // Create a new TelegramClient with the StringSession object
+    // Create a new TelegramClient with minimal settings
     const client = new TelegramClient(
-      stringSession,         // Pass StringSession directly as first argument
-      numericApiId,          // API ID as number
-      apiHash,               // API Hash
-      {                      // Options
+      stringSession,        // Empty session
+      numericApiId,         // API ID as number
+      apiHash,              // API Hash
+      {                     // Options
         connectionRetries: 5,
         useWSS: true,
         requestRetries: 3
       }
     );
     
-    // Log successful creation
-    console.log(`TelegramClient created successfully using StringSession`);
-    console.log(`StringSession save() result: ${stringSession.save()}`);
+    console.log("TelegramClient created successfully with empty session");
     
     return { client, stringSession };
   } catch (error) {
@@ -101,34 +75,9 @@ export function initializeTelegramClient(
 }
 
 /**
- * Export current session as a string
+ * This function is currently disabled as we're not using sessions
  */
-export async function exportClientSession(
-  stringSession: StringSession
-): Promise<string> {
-  try {
-    if (!stringSession) {
-      console.error("Invalid StringSession object provided to exportClientSession");
-      throw new Error("Invalid StringSession object");
-    }
-    
-    console.log("Exporting session, StringSession type:", stringSession.constructor.name);
-    
-    // Save the session to a string
-    const sessionString = stringSession.save();
-    
-    // Make sure we never return "[NONE]"
-    if (!sessionString || /^\[NONE\]$/i.test(sessionString)) {
-      console.log("Session exported as [NONE], returning empty string instead");
-      return "";
-    }
-    
-    console.log(`Session exported successfully, length: ${sessionString.length}`);
-    
-    // Return the exported session string
-    return sessionString;
-  } catch (error) {
-    console.error("Error exporting session:", error);
-    throw error;
-  }
+export async function exportClientSession(): Promise<string> {
+  // Return empty string as we're not using sessions for now
+  return "";
 }

@@ -12,7 +12,7 @@ export class MTProto implements MTProtoInterface {
     apiId: number,
     apiHash: string
   ) {
-    // Create the MTProto client with minimal settings
+    // Create the MTProto client with minimal settings - no session
     this.client = new MTProtoClient({
       apiId,
       apiHash,
@@ -27,7 +27,7 @@ export class MTProto implements MTProtoInterface {
   }
   
   async exportSession(): Promise<string> {
-    return ""; // Always return empty string
+    return ""; // Always return empty string for now
   }
   
   async validateCredentials(): Promise<{ success: boolean; error?: string }> {

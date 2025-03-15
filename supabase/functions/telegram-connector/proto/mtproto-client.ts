@@ -1,4 +1,3 @@
-
 /**
  * MTProto client implementation for Telegram API
  * Using GramJS for Deno
@@ -9,14 +8,13 @@ import { MTProtoInterface, MTProtoOptions } from "./interfaces.ts";
 import * as Auth from "./auth-methods.ts";
 import * as Messages from "./message-methods.ts";
 import { validateApiId, validateApiHash } from "./utils.ts";
-import { initializeTelegramClient, exportClientSession } from "./client-initializer.ts";
+import { initializeTelegramClient } from "./client-initializer.ts";
 import { connectToTelegram, disconnectFromTelegram } from "../connection-handler.ts";
 import { validateCredentials } from "./credential-validator.ts";
 
 export class MTProtoClient implements MTProtoInterface {
   private apiId: number;
   private apiHash: string;
-  private session: string;
   private connected: boolean = false;
   private client: TelegramClient | null = null;
   private stringSession: StringSession | null = null;
@@ -26,8 +24,7 @@ export class MTProtoClient implements MTProtoInterface {
     console.log("==== MTPROTO INITIALIZATION ====");
     console.log(`[MTPROTO-CLIENT] Constructor received:
       - apiId: ${options.apiId} (${typeof options.apiId})
-      - apiHash: ${options.apiHash ? options.apiHash.substring(0, 3) + '...' : 'undefined'} (${typeof options.apiHash})
-      - session: ${options.storageOptions.session ? `length: ${options.storageOptions.session.length}` : 'empty string'} (${typeof options.storageOptions.session})`);
+      - apiHash: ${options.apiHash ? options.apiHash.substring(0, 3) + '...' : 'undefined'} (${typeof options.apiHash})`);
     
     // Convert API ID to string first, then validate and convert to number
     const apiIdStr = String(options.apiId || "");
@@ -50,15 +47,9 @@ export class MTProtoClient implements MTProtoInterface {
       throw error;
     }
     
-    // CRITICAL FIX: Never use "[NONE]" as a session, only empty string
-    this.session = options.storageOptions.session && 
-                  options.storageOptions.session !== "[NONE]" ? 
-                  options.storageOptions.session.trim() : "";
-    
     console.log(`[MTPROTO-CLIENT] MTProto initialized with:
       - API ID: ${this.apiId} (${typeof this.apiId})
-      - API Hash: ${this.apiHash.substring(0, 3)}... (length: ${this.apiHash.length})
-      - Session: ${this.session ? `length: ${this.session.length}` : 'empty string'}`);
+      - API Hash: ${this.apiHash.substring(0, 3)}... (length: ${this.apiHash.length})`);
     
     // Initialize the client
     this.initClient();
@@ -82,14 +73,12 @@ export class MTProtoClient implements MTProtoInterface {
       // Log right before client initialization
       console.log(`[MTPROTO-CLIENT] Calling initializeTelegramClient with:
         - apiId: ${this.apiId} (${typeof this.apiId})
-        - apiHash: ${this.apiHash.substring(0, 3)}... (${typeof this.apiHash})
-        - session: ${this.session ? `length: ${this.session.length}` : 'empty string'} (${typeof this.session})`);
+        - apiHash: ${this.apiHash.substring(0, 3)}... (${typeof this.apiHash})`);
       
-      // Initialize client using the client initializer with proper session handling
+      // Initialize client using simplified initialization (no session)
       const { client, stringSession } = initializeTelegramClient(
         this.apiId,
-        this.apiHash,
-        this.session  // Already cleaned in constructor
+        this.apiHash
       );
       
       this.client = client;
@@ -97,13 +86,6 @@ export class MTProtoClient implements MTProtoInterface {
       
       console.log("[MTPROTO-CLIENT] Telegram client initialized successfully");
       
-      // Debug the type of stringSession to verify it's correct
-      console.log(`[MTPROTO-CLIENT] StringSession type: ${this.stringSession ? this.stringSession.constructor.name : 'null'}`);
-      
-      // CRITICAL FIX: Final validation of stringSession
-      if (!this.stringSession || typeof this.stringSession !== 'object') {
-        throw new Error("Failed to create a proper StringSession instance");
-      }
     } catch (error) {
       console.error("[MTPROTO-CLIENT] Error initializing Telegram client:", error);
       console.error("[MTPROTO-CLIENT] Stack trace:", error instanceof Error ? error.stack : "No stack trace");
@@ -112,29 +94,8 @@ export class MTProtoClient implements MTProtoInterface {
   }
   
   async exportSession(): Promise<string> {
-    if (!this.client || !this.stringSession) {
-      throw new Error("Client not initialized");
-    }
-    
-    try {
-      // Explicitly verify stringSession is valid before exporting
-      if (!(this.stringSession instanceof StringSession)) {
-        console.error("[MTPROTO-CLIENT] Invalid StringSession object:", this.stringSession);
-        throw new Error("Invalid StringSession object during export");
-      }
-      
-      // Log the session export attempt
-      console.log(`[MTPROTO-CLIENT] Exporting session from ${this.stringSession.constructor.name}`);
-      
-      // Export session using the stringSession instance
-      const exportedSession = await exportClientSession(this.stringSession);
-      console.log(`[MTPROTO-CLIENT] Exported session successfully, length: ${exportedSession.length}`);
-      
-      return exportedSession;
-    } catch (error) {
-      console.error("[MTPROTO-CLIENT] Error exporting session:", error);
-      throw error;
-    }
+    // We're not using sessions for now
+    return "";
   }
   
   private async connect(): Promise<void> {
