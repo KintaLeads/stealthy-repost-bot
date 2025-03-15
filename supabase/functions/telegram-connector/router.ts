@@ -83,9 +83,13 @@ export async function routeOperation(
     
     // CRITICAL FIX: NEVER use "[NONE]" or "[none]" as a session string, always use empty string
     // Use regex to handle any case variation of [none]
-    const sessionString = clientParams.sessionString && 
-                         !/^\[NONE\]$/i.test(clientParams.sessionString) ? 
-                         clientParams.sessionString.trim() : "";
+    let sessionString = "";
+    if (clientParams.sessionString) {
+      if (!/^\[NONE\]$/i.test(clientParams.sessionString)) {
+        sessionString = clientParams.sessionString.trim();
+      }
+      console.log(`Session string check: Original "${clientParams.sessionString}", Cleaned: "${sessionString}"`);
+    }
     
     // Log the validated parameters
     console.log("✅ Validated client parameters:", {
@@ -94,7 +98,8 @@ export async function routeOperation(
       apiHashLength: clientParams.apiHash?.length,
       phoneNumber: clientParams.phoneNumber.substring(0, 4) + "****",
       accountId: clientParams.accountId,
-      sessionLength: sessionString.length
+      sessionLength: sessionString.length,
+      sessionIsNone: sessionString === "[NONE]" || sessionString === "[none]"
     });
 
     // Create the client with validated credentials

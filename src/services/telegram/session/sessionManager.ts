@@ -13,15 +13,15 @@ export const getStoredSession = (accountId: string): string => {
     const key = getSessionKey(accountId);
     const sessionString = localStorage.getItem(key);
     
-    // Check for invalid sessions like "[NONE]", "[none]", or empty strings
-    const isValidSession = sessionString && 
-                          !/^\[NONE\]$/i.test(sessionString) && 
-                          sessionString.trim().length > 0;
+    // CRITICAL FIX: Never return "[NONE]" or "[none]" in any case variation
+    // Check for invalid sessions using case-insensitive regex
+    if (!sessionString || /^\[NONE\]$/i.test(sessionString) || sessionString.trim().length === 0) {
+      logInfo("SessionManager", `No valid session found for account ${accountId}`);
+      return "";
+    }
     
-    logInfo("SessionManager", `Session ${isValidSession ? 'found' : 'not found'} for account ${accountId}, length: ${sessionString?.length || 0}`);
-    
-    // Always return a valid string, never null, undefined, or "[NONE]"
-    return isValidSession ? sessionString.trim() : "";
+    logInfo("SessionManager", `Session found for account ${accountId}, length: ${sessionString.length}`);
+    return sessionString.trim();
   } catch (error) {
     logError("SessionManager", "Error getting stored session:", error);
     return "";
@@ -30,22 +30,15 @@ export const getStoredSession = (accountId: string): string => {
 
 export const storeSession = (accountId: string, sessionString: string): void => {
   try {
-    // Check for invalid sessions
-    if (!sessionString || /^\[NONE\]$/i.test(sessionString)) {
-      logError("SessionManager", "Attempted to store invalid session");
-      return;
-    }
-    
-    // Make sure the session string is trimmed and valid
-    const cleanSession = sessionString.trim();
-    if (!cleanSession) {
-      logError("SessionManager", "Attempted to store empty session after trimming");
+    // CRITICAL FIX: Never store "[NONE]" or "[none]" in any case variation
+    if (!sessionString || /^\[NONE\]$/i.test(sessionString) || sessionString.trim().length === 0) {
+      logError("SessionManager", "Attempted to store invalid session - aborting");
       return;
     }
     
     const key = getSessionKey(accountId);
-    localStorage.setItem(key, cleanSession);
-    logInfo("SessionManager", `Session stored for account ${accountId}, length: ${cleanSession.length}`);
+    localStorage.setItem(key, sessionString.trim());
+    logInfo("SessionManager", `Session stored for account ${accountId}, length: ${sessionString.trim().length}`);
   } catch (error) {
     logError("SessionManager", "Error storing session:", error);
   }
@@ -56,7 +49,7 @@ export const hasStoredSession = (accountId: string): boolean => {
     const key = getSessionKey(accountId);
     const sessionString = localStorage.getItem(key);
     
-    // Check more thoroughly for valid sessions
+    // CRITICAL FIX: Check more thoroughly for valid sessions with case-insensitive regex
     const isValidSession = sessionString && 
                           !/^\[NONE\]$/i.test(sessionString) && 
                           sessionString.trim().length > 0;

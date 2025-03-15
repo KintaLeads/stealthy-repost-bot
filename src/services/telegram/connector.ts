@@ -1,3 +1,4 @@
+
 import { ApiAccount } from '@/types/channels';
 import { supabase } from '@/integrations/supabase/client';
 import { logInfo, logError, trackApiCall, consoleLogger } from './debugger';
@@ -16,12 +17,17 @@ export const handleInitialConnection = async (
   logInfo(context, `🚀 Starting Telegram connection for account: ${account.nickname || account.phoneNumber}`);
   
   try {
-    // Get session but NEVER use "[NONE]"
-    const sessionString = getStoredSession(account.id);
-    // Add extra check to ensure session is not "[NONE]" or "[none]"
-    const cleanSessionString = sessionString && !/^\[NONE\]$/i.test(sessionString) ? sessionString : "";
+    // Get session string from storage
+    let sessionString = getStoredSession(account.id);
     
-    logInfo(context, `📦 Session check - exists: ${!!cleanSessionString}, length: ${cleanSessionString?.length || 0}`);
+    // CRITICAL FIX: Ensure we NEVER send "[NONE]" or "[none]" regardless of case
+    // This is the last safety check right before sending
+    if (!sessionString || /^\[NONE\]$/i.test(sessionString)) {
+      logInfo(context, `⚠️ Invalid session found, replacing with empty string`);
+      sessionString = "";
+    }
+    
+    logInfo(context, `📦 Session check - exists: ${!!sessionString}, length: ${sessionString?.length || 0}`);
 
     // Log the account data for debugging
     consoleLogger.trackApiPayload(
@@ -31,8 +37,8 @@ export const handleInitialConnection = async (
       parseInt(account.apiKey, 10), // Ensure API ID is a number here
       account.apiHash,
       account.phoneNumber,
-      cleanSessionString, // Use cleaned session string
-      { accountId: account.id, sessionExists: !!cleanSessionString }
+      sessionString, // Use cleaned session string
+      { accountId: account.id, sessionExists: !!sessionString }
     );
     
     // Parse apiKey to ensure it's a number
@@ -49,7 +55,7 @@ export const handleInitialConnection = async (
       apiId, // Already a number here
       account.apiHash,
       account.phoneNumber,
-      cleanSessionString, // Use cleaned session string
+      sessionString, // Use cleaned session string
       { accountId: account.id, originalApiKey: account.apiKey }
     );
     
@@ -60,7 +66,7 @@ export const handleInitialConnection = async (
       apiHash: account.apiHash,
       phoneNumber: account.phoneNumber,
       accountId: account.id || 'unknown',
-      sessionString: cleanSessionString, // Use cleaned session string
+      sessionString: sessionString, // Use cleaned session string
       debug: true, // Always enable debug mode
       logLevel: 'verbose',
       ...options
@@ -70,7 +76,7 @@ export const handleInitialConnection = async (
     logInfo(context, '📤 Connection data:', {
       ...connectionData,
       apiHash: '[REDACTED]',
-      sessionString: cleanSessionString ? `[${cleanSessionString.length} chars]` : ''
+      sessionString: sessionString ? `[${sessionString.length} chars]` : ''
     });
     
     // Call the edge function
@@ -82,6 +88,13 @@ export const handleInitialConnection = async (
       title: "Connecting to Telegram",
       description: "Please wait while we establish a connection...",
     });
+    
+    // CRITICAL FIX: Final validation before API call
+    // Ensure session string is valid one last time
+    if (connectionData.sessionString && /^\[NONE\]$/i.test(connectionData.sessionString)) {
+      logError(context, "🚨 [NONE] session detected right before API call, replacing with empty string");
+      connectionData.sessionString = "";
+    }
     
     // Track the constructed payload
     consoleLogger.trackApiPayload(
@@ -118,7 +131,7 @@ export const handleInitialConnection = async (
           apiId: connectionData.apiId, // Now a number
           phoneNumber: connectionData.phoneNumber,
           accountId: connectionData.accountId,
-          sessionPresent: !!cleanSessionString
+          sessionPresent: !!connectionData.sessionString
         });
         
         // First try a test request to verify connectivity
@@ -145,16 +158,28 @@ export const handleInitialConnection = async (
           }
         }
         
+        // ABSOLUTELY CRITICAL FIX: Last check before sending the request
+        // Create a copy of connection data to ensure we don't modify the original
+        const finalConnectionData = {...connectionData};
+        
+        // This is the FINAL check before sending - make 100% sure we NEVER send [NONE]
+        if (finalConnectionData.sessionString && 
+            (finalConnectionData.sessionString === "[NONE]" || 
+             finalConnectionData.sessionString === "[none]" ||
+             /^\[NONE\]$/i.test(finalConnectionData.sessionString))) {
+          console.warn("🚨 CRITICAL: [NONE] session detected at point of sending, switching to empty string");
+          finalConnectionData.sessionString = "";
+        }
+        
         // Track the finalized payload right before sending
-        // Ensure correct parameter order and NEVER send "[NONE]"
         consoleLogger.trackApiPayload(
           'services/telegram/connector.ts',
           'handleInitialConnection',
           'sending-request',
-          connectionData.apiId, // API ID
-          connectionData.apiHash, // API Hash
-          connectionData.phoneNumber, // Phone number
-          connectionData.sessionString, // Session string (NEVER "[NONE]")
+          finalConnectionData.apiId, // API ID
+          finalConnectionData.apiHash, // API Hash
+          finalConnectionData.phoneNumber, // Phone number
+          finalConnectionData.sessionString, // Session string (NEVER "[NONE]")
           { // Other data
             endpoint: requestUrl,
             attempt: retries + 1,
@@ -162,7 +187,7 @@ export const handleInitialConnection = async (
           }
         );
         
-        // Make the actual request with the full data
+        // Make the actual request with the final data that has been thoroughly checked
         const response = await fetch(requestUrl, {
           method: 'POST',
           headers: {
@@ -170,7 +195,7 @@ export const handleInitialConnection = async (
             'Authorization': `Bearer ${accessToken}`,
             'apikey': anonKey
           },
-          body: JSON.stringify(connectionData) // Explicitly stringify the body
+          body: JSON.stringify(finalConnectionData) // Explicitly stringify the body
         });
         
         // Extra logging for debugging
@@ -183,7 +208,7 @@ export const handleInitialConnection = async (
         
         // Track API call
         trackApiCall('telegram-connector/connect', {
-          ...connectionData,
+          ...finalConnectionData,
           apiHash: '[REDACTED]'
         }, data, response.ok ? null : new Error(`HTTP error ${response.status}`));
         

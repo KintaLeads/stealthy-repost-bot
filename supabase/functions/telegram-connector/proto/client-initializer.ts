@@ -41,16 +41,26 @@ export function initializeTelegramClient(
     throw new Error(`API ID must be a positive number, got: ${apiId}`);
   }
   
+  // CRITICAL FIX: Enhanced session validation with regex
+  const sessionValue = session || "";
+  let cleanSessionString = "";
+  
+  // Check for "[NONE]" in any case combination
+  if (sessionValue && !/^\[NONE\]$/i.test(sessionValue)) {
+    cleanSessionString = sessionValue.trim();
+  }
+  
+  console.log(`[CLIENT-INITIALIZER] Session validation:
+    - Original: "${sessionValue}" (${typeof sessionValue}, length: ${sessionValue.length})
+    - Cleaned: "${cleanSessionString}" (length: ${cleanSessionString.length})
+    - Is valid: ${cleanSessionString !== "" && !/^\[NONE\]$/i.test(cleanSessionString)}`);
+  
   console.log(`Initializing TelegramClient with:
     - API ID: ${numericApiId} (parsed from "${apiId}")
     - API Hash: ${apiHash.substring(0, 3)}... (length: ${apiHash.length})
-    - Session: ${session ? `length: ${session.length}` : 'empty string'}`);
+    - Session: ${cleanSessionString ? `length: ${cleanSessionString.length}` : 'empty string'}`);
   
   try {
-    // CRITICAL FIX: Check session for "[NONE]" with case insensitivity
-    const cleanSessionString = session && !/^\[NONE\]$/i.test(session) ? session.trim() : "";
-    console.log(`Clean session string: ${cleanSessionString ? 'has content' : 'empty'}, length: ${cleanSessionString.length}`);
-    
     // Create a StringSession instance directly with the clean session string
     const stringSession = new StringSession(cleanSessionString);
     console.log(`Created StringSession object type: ${typeof stringSession}`);

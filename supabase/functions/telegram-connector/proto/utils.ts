@@ -57,11 +57,16 @@ export function validateApiHash(apiHash: any): string {
 
 /**
  * Clean a session string, handling special cases like "[NONE]" or "[none]"
+ * This is the central session cleaning function used throughout the app
  */
 export function cleanSessionString(session: string | null | undefined): string {
-  // If session is falsy, empty, or matches "[NONE]" in any case, return empty string
+  // CRITICAL FIX: Always check for "[NONE]" using case-insensitive regex
   if (!session || /^\[NONE\]$/i.test(session) || session.trim() === '') {
+    console.log(`[UTILS] cleanSessionString: Input "${session}" converted to empty string`);
     return "";
   }
-  return session.trim();
+  
+  const trimmed = session.trim();
+  console.log(`[UTILS] cleanSessionString: Input "${session}" cleaned to "${trimmed}" (${trimmed.length} chars)`);
+  return trimmed;
 }
