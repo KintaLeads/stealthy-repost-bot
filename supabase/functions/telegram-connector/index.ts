@@ -33,7 +33,18 @@ export async function handler(req: Request) {
     console.log("✅ Request body parsed successfully");
     
     // Extract and validate required parameters
+    // IMPORTANT: Support both StringSession and sessionString parameter names
     const { operation, apiId, apiHash, phoneNumber, accountId, StringSession, sessionString, verificationCode } = data;
+    
+    // Log exact parameter names received for debugging
+    console.log("📦 Parameters received:", {
+      hasOperation: !!operation,
+      hasApiId: !!apiId,
+      hasStringSession: !!StringSession,
+      hasSessionString: !!sessionString,
+      // Parameter names exactly as they appear in the request
+      parameterNames: Object.keys(data).join(', ')
+    });
     
     // Prepare clientParams for router
     const clientParams = {
@@ -41,7 +52,7 @@ export async function handler(req: Request) {
       apiHash: apiHash || "",
       phoneNumber: phoneNumber || "",
       accountId: accountId || "unknown",
-      sessionString: StringSession || sessionString || ""
+      sessionString: StringSession || sessionString || ""  // Try StringSession first, fall back to sessionString
     };
     
     console.log("🔄 Routing to operation:", operation);

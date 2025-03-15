@@ -51,13 +51,14 @@ export const handleInitialConnection = async (
     }
 
     // Construct final payload for API request
+    // CRITICAL FIX: Use StringSession instead of sessionString in the payload
     const connectionData = {
       operation: 'connect', 
       apiId: apiId,
       apiHash: account.apiHash,
       phoneNumber: account.phoneNumber,
       accountId: account.id || 'unknown',
-      StringSession: sessionString, // Using StringSession parameter name
+      StringSession: sessionString, // Critical: Must use StringSession not sessionString
       debug: true,
       logLevel: 'verbose',
       ...options
