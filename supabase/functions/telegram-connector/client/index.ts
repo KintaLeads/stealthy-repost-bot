@@ -57,13 +57,12 @@ export function createTelegramClient(credentials: ClientCredentials): TelegramCl
   
   // Create the MTProto client with proper session handling
   try {
-    const client = new MTProto({
-      apiId: apiId,
-      apiHash: credentials.apiHash,
-      storageOptions: {
-        session: sessionString // Make sure we pass an empty string instead of [NONE]
-      }
-    });
+    // IMPORTANT: Using a different constructor pattern - no storageOptions
+    const client = new MTProto(
+      apiId,
+      credentials.apiHash,
+      sessionString
+    );
     
     // Set phone number on the client for easier access
     (client as any).phoneNumber = credentials.phoneNumber;

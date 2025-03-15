@@ -1,7 +1,5 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { TelegramClient } from "https://esm.sh/telegram@2.19.10";
-import { StringSession } from "https://esm.sh/telegram@2.19.10/sessions/index.js";
 import { routeOperation } from "./router.ts";
 import { parseRequestBody, handleCorsRequest } from "./utils/requestHandler.ts";
 
@@ -44,12 +42,25 @@ serve(async (req) => {
       otherParamsKeys: Object.keys(otherParams)
     });
     
+    // For debugging, explicitly log the full payload for the connect operation
+    if (operation === 'connect') {
+      console.log(JSON.stringify({
+        operation,
+        apiId,
+        apiHash: apiHash ? `${apiHash.substring(0, 3)}...` : 'missing',
+        phoneNumber: phoneNumber ? `${phoneNumber.substring(0, 4)}****` : 'missing',
+        sessionLength: sessionString?.length || 0
+      }));
+    }
+    
     // Route the operation to the appropriate handler
-    return await routeOperation(
+    const response = await routeOperation(
       operation,
       { apiId, apiHash, phoneNumber, accountId, sessionString },
       data
     );
+    
+    return response;
   } catch (error) {
     console.error("Unhandled error:", error);
     return new Response(

@@ -1,19 +1,37 @@
 
 /**
- * MTProto module for Telegram API
- * 
- * This file maintains backward compatibility with code that previously
- * imported directly from mtproto.ts
+ * MTProto client for Telegram API interaction
  */
 import { MTProtoClient } from "./mtproto-client.ts";
-import { MTProtoInterface, MTProtoOptions } from "./interfaces.ts";
+import { MTProtoOptions, MTProtoInterface } from "./interfaces.ts";
 
-// Export the MTProto class with the original name for backward compatibility
-export class MTProto extends MTProtoClient implements MTProtoInterface {
-  constructor(options: MTProtoOptions) {
-    super(options);
+export class MTProto implements MTProtoInterface {
+  private client: MTProtoClient;
+  
+  constructor(
+    apiId: number,
+    apiHash: string,
+    sessionString: string = ""
+  ) {
+    // Create the MTProto client with the correct session formatting
+    this.client = new MTProtoClient({
+      apiId,
+      apiHash,
+      storageOptions: {
+        session: sessionString
+      }
+    });
+  }
+  
+  async call(method: string, params: Record<string, any> = {}): Promise<any> {
+    return await this.client.call(method, params);
+  }
+  
+  async exportSession(): Promise<string> {
+    return await this.client.exportSession();
+  }
+  
+  async validateCredentials(): Promise<{ success: boolean; error?: string }> {
+    return await this.client.validateCredentials();
   }
 }
-
-// Export interfaces
-export type { MTProtoInterface, MTProtoOptions };
