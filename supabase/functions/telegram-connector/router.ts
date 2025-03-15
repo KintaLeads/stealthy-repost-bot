@@ -81,9 +81,10 @@ export async function routeOperation(
       );
     }
     
-    // CRITICAL FIX: Never send "[NONE]" as a session string, only empty string
+    // CRITICAL FIX: NEVER use "[NONE]" or "[none]" as a session string, always use empty string
+    // Use regex to handle any case variation of [none]
     const sessionString = clientParams.sessionString && 
-                         clientParams.sessionString !== "[NONE]" ? 
+                         !/^\[NONE\]$/i.test(clientParams.sessionString) ? 
                          clientParams.sessionString.trim() : "";
     
     // Log the validated parameters

@@ -56,10 +56,11 @@ export function validateApiHash(apiHash: any): string {
 }
 
 /**
- * Clean a session string, handling special cases like "[NONE]"
+ * Clean a session string, handling special cases like "[NONE]" or "[none]"
  */
 export function cleanSessionString(session: string | null | undefined): string {
-  if (!session || session === "[NONE]" || session.trim() === '') {
+  // If session is falsy, empty, or matches "[NONE]" in any case, return empty string
+  if (!session || /^\[NONE\]$/i.test(session) || session.trim() === '') {
     return "";
   }
   return session.trim();

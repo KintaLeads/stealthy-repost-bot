@@ -18,8 +18,11 @@ export async function exportSession(client: MTProto): Promise<string> {
     console.log("Attempting to export session from client...");
     const sessionString = await client.exportSession();
     
-    // Verify the session is valid
-    if (!sessionString || typeof sessionString !== 'string' || sessionString === "[NONE]") {
+    // Verify the session is valid - NEVER use "[NONE]"
+    if (!sessionString || 
+        typeof sessionString !== 'string' || 
+        sessionString === "[NONE]" ||
+        sessionString === "[none]") {
       console.warn("Warning: Exported session is invalid or empty");
       return "";
     }

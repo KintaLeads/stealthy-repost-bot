@@ -47,8 +47,8 @@ export function initializeTelegramClient(
     - Session: ${session ? `length: ${session.length}` : 'empty string'}`);
   
   try {
-    // CRITICAL FIX: Always create a StringSession object, never "[NONE]"
-    const cleanSessionString = session && session !== "[NONE]" ? session.trim() : "";
+    // CRITICAL FIX: Check session for "[NONE]" with case insensitivity
+    const cleanSessionString = session && !/^\[NONE\]$/i.test(session) ? session.trim() : "";
     console.log(`Clean session string: ${cleanSessionString ? 'has content' : 'empty'}, length: ${cleanSessionString.length}`);
     
     // Create a StringSession instance directly with the clean session string
@@ -112,6 +112,13 @@ export async function exportClientSession(
     
     // Save the session to a string
     const sessionString = stringSession.save();
+    
+    // Make sure we never return "[NONE]"
+    if (!sessionString || /^\[NONE\]$/i.test(sessionString)) {
+      console.log("Session exported as [NONE], returning empty string instead");
+      return "";
+    }
+    
     console.log(`Session exported successfully, length: ${sessionString.length}`);
     
     // Return the exported session string
