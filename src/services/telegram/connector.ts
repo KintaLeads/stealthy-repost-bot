@@ -3,6 +3,7 @@ import { ApiAccount } from '@/types/channels';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/use-toast';
 import { ConnectionResult, ConnectionOptions } from './types';
+import { getStoredSession } from './session/sessionManager';
 
 /**
  * Handles the connection to Telegram.
@@ -21,6 +22,13 @@ export const connectToTelegram = async (
       throw new Error(`Invalid API ID: "${account.apiKey}" is not a valid number`);
     }
     
+    // Get existing session if available
+    let sessionString = "";
+    if (account.id) {
+      sessionString = getStoredSession(account.id);
+      console.log(`Got existing session for account ${account.id}: ${sessionString ? 'found' : 'none'}`);
+    }
+    
     // Construct payload
     const payload = {
       operation: 'connect', 
@@ -28,6 +36,7 @@ export const connectToTelegram = async (
       apiHash: account.apiHash,
       phoneNumber: account.phoneNumber,
       accountId: account.id || 'unknown',
+      sessionString: sessionString, // Pass existing session if available
       testOnly: options.testOnly || false,
       debug: options.debug || false
     };
@@ -42,7 +51,8 @@ export const connectToTelegram = async (
     
     console.log('Sending request to Telegram connector with payload:', {
       ...payload,
-      apiHash: '[REDACTED]'
+      apiHash: '[REDACTED]',
+      sessionString: sessionString ? `length: ${sessionString.length}` : 'none'
     });
     
     // Call the edge function

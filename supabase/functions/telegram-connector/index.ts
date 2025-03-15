@@ -19,7 +19,7 @@ serve(async (req) => {
   
   try {
     const requestData = await req.json();
-    const { operation, apiId, apiHash, phoneNumber, verificationCode, phoneCodeHash } = requestData;
+    const { operation, apiId, apiHash, phoneNumber, verificationCode, phoneCodeHash, sessionString } = requestData;
     
     console.log(`Processing ${operation} operation`);
     
@@ -42,7 +42,7 @@ serve(async (req) => {
     
     // Handle operations
     if (operation === 'connect') {
-      return await handleConnect(numericApiId, apiHash, phoneNumber, verificationCode, phoneCodeHash);
+      return await handleConnect(numericApiId, apiHash, phoneNumber, verificationCode, phoneCodeHash, sessionString);
     } else {
       return new Response(
         JSON.stringify({ success: false, error: `Unsupported operation: ${operation}` }),
@@ -61,7 +61,14 @@ serve(async (req) => {
 /**
  * Handles the connect operation - either initiating connection or verifying code
  */
-async function handleConnect(apiId: number, apiHash: string, phoneNumber: string, verificationCode?: string, phoneCodeHash?: string) {
+async function handleConnect(
+  apiId: number, 
+  apiHash: string, 
+  phoneNumber: string, 
+  verificationCode?: string, 
+  phoneCodeHash?: string,
+  sessionString?: string
+) {
   console.log(`Handling connect operation${verificationCode ? " with verification code" : ""}`);
   
   // Validate parameters
@@ -76,12 +83,18 @@ async function handleConnect(apiId: number, apiHash: string, phoneNumber: string
   }
   
   try {
-    // Create a new string session (always empty for simplicity)
-    const stringSession = new StringSession("");
+    // IMPORTANT FIX: Always create a StringSession instance
+    // If we have a session string, use it, otherwise create an empty one
+    const cleanSessionString = sessionString && sessionString !== "[NONE]" ? sessionString.trim() : "";
+    console.log(`Creating StringSession with: ${cleanSessionString ? `session string (length: ${cleanSessionString.length})` : 'empty string'}`);
     
-    // Initialize the client
+    const stringSession = new StringSession(cleanSessionString);
+    console.log("StringSession created successfully");
+    
+    // Initialize the client with the StringSession object
+    console.log(`Initializing TelegramClient with apiId: ${apiId}, session type: ${stringSession.constructor.name}`);
     const client = new TelegramClient(
-      stringSession,
+      stringSession,  // Pass the StringSession OBJECT, not a string
       apiId,
       apiHash,
       { connectionRetries: 3, useWSS: true }
