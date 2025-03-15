@@ -11,18 +11,18 @@ export const getSessionKey = (accountId: string): string => {
 export const getStoredSession = (accountId: string): string => {
   try {
     const key = getSessionKey(accountId);
-    const session = localStorage.getItem(key);
+    const sessionString = localStorage.getItem(key);
     
     // Check for invalid sessions like "[NONE]" or empty strings
-    const isValidSession = session && 
-                          session !== "[NONE]" && 
-                          session.trim().length > 0;
+    const isValidSession = sessionString && 
+                          sessionString !== "[NONE]" && 
+                          sessionString.trim().length > 0;
     
-    logInfo("SessionManager", `Session ${isValidSession ? 'found' : 'not found'} for account ${accountId}, length: ${session?.length || 0}`);
+    logInfo("SessionManager", `Session ${isValidSession ? 'found' : 'not found'} for account ${accountId}, length: ${sessionString?.length || 0}`);
     
     // Always return a valid string, never null or undefined
     // If session is "[NONE]" or invalid, treat it as an empty string
-    return isValidSession ? session.trim() : "";
+    return isValidSession ? sessionString.trim() : "";
   } catch (error) {
     logError("SessionManager", "Error getting stored session:", error);
     return "";
@@ -54,12 +54,12 @@ export const storeSession = (accountId: string, sessionString: string): void => 
 export const hasStoredSession = (accountId: string): boolean => {
   try {
     const key = getSessionKey(accountId);
-    const session = localStorage.getItem(key);
+    const sessionString = localStorage.getItem(key);
     
     // Check more thoroughly for valid sessions
-    const isValidSession = session && 
-                          session !== "[NONE]" && 
-                          session.trim().length > 0;
+    const isValidSession = sessionString && 
+                          sessionString !== "[NONE]" && 
+                          sessionString.trim().length > 0;
     
     logInfo("SessionManager", `Checking session exists for account ${accountId}: ${!!isValidSession}`);
     return !!isValidSession;
@@ -80,8 +80,8 @@ export const clearSession = (accountId: string): void => {
 };
 
 export const validateSession = async (account: ApiAccount): Promise<boolean> => {
-  const session = getStoredSession(account.id);
-  if (!session) {
+  const sessionString = getStoredSession(account.id);
+  if (!sessionString) {
     logInfo("SessionManager", "No session found for validation");
     return false;
   }
