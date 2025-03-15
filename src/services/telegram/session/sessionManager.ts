@@ -13,14 +13,16 @@ export const getStoredSession = (accountId: string): string => {
     const key = getSessionKey(accountId);
     const session = localStorage.getItem(key);
     
-    // Check for invalid sessions like "[NONE]"
-    const isValidSession = session && session !== "[NONE]";
+    // Check for invalid sessions like "[NONE]" or empty strings
+    const isValidSession = session && 
+                          session !== "[NONE]" && 
+                          session.trim().length > 0;
     
     logInfo("SessionManager", `Session ${isValidSession ? 'found' : 'not found'} for account ${accountId}, length: ${session?.length || 0}`);
     
-    // ✅ Always return a string, never null or undefined
-    // If session is "[NONE]" treat it as an empty string
-    return isValidSession ? session : "";
+    // Always return a valid string, never null or undefined
+    // If session is "[NONE]" or invalid, treat it as an empty string
+    return isValidSession ? session.trim() : "";
   } catch (error) {
     logError("SessionManager", "Error getting stored session:", error);
     return "";
@@ -34,7 +36,7 @@ export const storeSession = (accountId: string, sessionString: string): void => 
       return;
     }
     
-    // ✅ Make sure the session string is trimmed
+    // Make sure the session string is trimmed and valid
     const cleanSession = sessionString.trim();
     if (!cleanSession) {
       logError("SessionManager", "Attempted to store empty session after trimming");
@@ -53,7 +55,11 @@ export const hasStoredSession = (accountId: string): boolean => {
   try {
     const key = getSessionKey(accountId);
     const session = localStorage.getItem(key);
-    const isValidSession = session && session !== "[NONE]";
+    
+    // Check more thoroughly for valid sessions
+    const isValidSession = session && 
+                          session !== "[NONE]" && 
+                          session.trim().length > 0;
     
     logInfo("SessionManager", `Checking session exists for account ${accountId}: ${!!isValidSession}`);
     return !!isValidSession;
